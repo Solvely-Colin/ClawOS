@@ -7,6 +7,7 @@ bash -n "$root/m0/bin/clawos-session"
 bash -n "$root/m0/bin/clawos-browser"
 bash -n "$root/m0/bin/install-m0"
 bash -n "$root/m0/bin/uninstall-m0"
+bash -n "$root/m0/bin/pair-browser-profile"
 
 grep -Fq 'sway -c /etc/clawos/sway.conf' "$root/m0/bin/clawos-session"
 grep -Fq 'DeveloperToolsAvailability' "$root/m0/config/chromium-policy.json"

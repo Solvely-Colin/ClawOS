@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+profile_dir="${XDG_STATE_HOME:-$HOME/.local/state}/clawos/chromium"
+mkdir -p "$profile_dir"
+
+dashboard_output="$(openclaw dashboard --no-open)"
+dashboard_url="$(printf '%s\n' "$dashboard_output" | grep -Eo 'http://127\.0\.0\.1:18789/[^[:space:]]*' | tail -n 1)"
+
+if [[ -z "$dashboard_url" ]]; then
+  echo "Could not obtain the authenticated local dashboard URL." >&2
+  exit 1
+fi
+
+# The token exists only in this short-lived local process argument. Chromium
+# persists the authenticated device state in the dedicated ClawOS profile; the
+# steady-state kiosk launcher then uses the token-free loopback URL.
+timeout 15s /usr/bin/chromium \
+  --ozone-platform=wayland \
+  --enable-features=UseOzonePlatform \
+  --no-first-run \
+  --no-default-browser-check \
+  --user-data-dir="$profile_dir" \
+  "$dashboard_url" >/dev/null 2>&1 || status=$?
+
+if [[ ${status:-0} -ne 0 && ${status:-0} -ne 124 ]]; then
+  echo "Chromium profile pairing failed with status ${status}." >&2
+  exit "${status}"
+fi
+
+test -f "$profile_dir/Local State"
+echo "ClawOS Chromium profile seeded."
