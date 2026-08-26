@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd /home/colin/Work/ClawOS
+repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
+cd "$repo_root"
 
 echo "ClawOS Milestone 0 host installation"
 echo "This installs Sway packages and the reversible VT2 session."
