@@ -53,4 +53,12 @@ if [[ -d "$profile/airootfs" ]]; then
   "$repo_root/m1/tests/no-omarchy.sh" "$profile/airootfs"
 fi
 
+installer="$profile/airootfs/usr/local/bin/clawos-install-dev"
+if [[ -f "$installer" ]]; then
+  grep -Fq 'target" != /dev/vda' "$installer"
+  grep -Fq "ERASE-QEMU-/dev/vda" "$installer"
+  grep -Fq 'systemd-detect-virt --vm' "$installer"
+  grep -Fq 'Standard PC (Q35 + ICH9, 2009)' "$installer"
+fi
+
 echo "Milestone 1 profile validation passed."

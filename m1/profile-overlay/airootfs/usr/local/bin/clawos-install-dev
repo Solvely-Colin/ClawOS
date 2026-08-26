@@ -1,0 +1,179 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+target=
+confirmation=
+key_file=
+
+while (( $# )); do
+  case "$1" in
+    --target)
+      target="${2:-}"
+      shift 2
+      ;;
+    --confirm)
+      confirmation="${2:-}"
+      shift 2
+      ;;
+    --key-file)
+      key_file="${2:-}"
+      shift 2
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      exit 2
+      ;;
+  esac
+done
+
+if [[ "$target" != /dev/vda ]]; then
+  echo "Development installer only accepts the QEMU virtio disk /dev/vda." >&2
+  exit 1
+fi
+if [[ ! -b "$target" || "$(lsblk -dnro TYPE "$target")" != disk ]]; then
+  echo "Target is not a whole block device: $target" >&2
+  exit 1
+fi
+if [[ "$(systemd-detect-virt --vm)" != kvm ]]; then
+  echo "Development installer refuses to run outside a KVM guest." >&2
+  exit 1
+fi
+if [[ "$(cat /sys/class/dmi/id/product_name 2>/dev/null)" != 'Standard PC (Q35 + ICH9, 2009)' ]]; then
+  echo "Development installer refuses an unexpected machine model." >&2
+  exit 1
+fi
+if [[ "$confirmation" != 'ERASE-QEMU-/dev/vda' ]]; then
+  echo "Required confirmation: --confirm ERASE-QEMU-/dev/vda" >&2
+  exit 1
+fi
+if [[ ! "$key_file" =~ ^/run/[^/]+$ || ! -f "$key_file" ]]; then
+  echo "The LUKS key must be a regular file directly under /run." >&2
+  exit 1
+fi
+if [[ ! "$(stat -c %a "$key_file")" =~ ^(400|600)$ ]]; then
+  echo "The LUKS key file must have mode 0600 or stricter." >&2
+  exit 1
+fi
+if lsblk -nrpo MOUNTPOINTS "$target" | grep -q '[^[:space:]]'; then
+  echo "Target or one of its children is mounted." >&2
+  exit 1
+fi
+if [[ -n "$(lsblk -nrpo NAME "$target" | sed -n '2p')" ]]; then
+  echo "Target already contains partitions; this proof installer requires a blank qcow2." >&2
+  exit 1
+fi
+
+esp=${target}1
+system_partition=${target}2
+mapper=clawos-root
+mount_root=/mnt
+mounted=false
+opened=false
+
+cleanup() {
+  if $mounted; then
+    umount -R "$mount_root" 2>/dev/null || true
+  fi
+  if $opened; then
+    cryptsetup close "$mapper" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT INT TERM
+
+echo "Installing the network-backed development proof to $target."
+echo "This is not the offline production installer."
+
+sfdisk --wipe always "$target" <<'EOF'
+label: gpt
+size=1G, type=U
+type=L
+EOF
+blockdev --rereadpt "$target"
+udevadm settle
+
+mkfs.fat -F 32 -n CLAWOS_EFI "$esp"
+cryptsetup luksFormat --batch-mode --type luks2 --label CLAWOS_CRYPT \
+  --key-file "$key_file" "$system_partition"
+cryptsetup open --key-file "$key_file" "$system_partition" "$mapper"
+opened=true
+
+mkfs.btrfs -f -L CLAWOS_ROOT "/dev/mapper/$mapper"
+mount "/dev/mapper/$mapper" "$mount_root"
+for subvolume in @ @home @var_log @pkg @snapshots; do
+  btrfs subvolume create "$mount_root/$subvolume"
+done
+umount "$mount_root"
+
+mount -o subvol=@,compress=zstd,noatime "/dev/mapper/$mapper" "$mount_root"
+mounted=true
+mkdir -p "$mount_root"/{boot,home,var/log,var/cache/pacman/pkg,.snapshots}
+mount -o subvol=@home,compress=zstd,noatime "/dev/mapper/$mapper" "$mount_root/home"
+mount -o subvol=@var_log,compress=zstd,noatime "/dev/mapper/$mapper" "$mount_root/var/log"
+mount -o subvol=@pkg,compress=zstd,noatime "/dev/mapper/$mapper" "$mount_root/var/cache/pacman/pkg"
+mount -o subvol=@snapshots,compress=zstd,noatime "/dev/mapper/$mapper" "$mount_root/.snapshots"
+mount "$esp" "$mount_root/boot"
+
+pacstrap -K "$mount_root" \
+  base linux linux-firmware btrfs-progs cryptsetup dosfstools \
+  networkmanager openssh sudo zsh
+
+genfstab -U "$mount_root" >"$mount_root/etc/fstab"
+printf 'clawos-installed\n' >"$mount_root/etc/hostname"
+cat >"$mount_root/etc/os-release" <<'EOF'
+NAME="ClawOS"
+PRETTY_NAME="ClawOS Milestone 1 Installed Proof"
+ID=clawos
+ID_LIKE=arch
+BUILD_ID=development
+ANSI_COLOR="38;2;255;92;53"
+IMAGE_ID=clawos
+IMAGE_VERSION=2026.08.26
+EOF
+
+sed -i 's|^root:[^:]*:|root::|' "$mount_root/etc/shadow"
+sed -i 's|^root:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*$|root:x:0:0:root:/root:/usr/bin/zsh|' \
+  "$mount_root/etc/passwd"
+
+mkdir -p "$mount_root/etc/systemd/system/getty@tty1.service.d"
+cat >"$mount_root/etc/systemd/system/getty@tty1.service.d/autologin.conf" <<'EOF'
+[Service]
+ExecStart=
+ExecStart=-/usr/bin/agetty --noreset --noclear --autologin root - $TERM
+EOF
+mkdir -p "$mount_root/etc/systemd/system/serial-getty@ttyS0.service.d"
+cat >"$mount_root/etc/systemd/system/serial-getty@ttyS0.service.d/autologin.conf" <<'EOF'
+[Service]
+ExecStart=
+ExecStart=-/usr/bin/agetty --noreset --noclear --autologin root 115200,57600,38400,9600 - $TERM
+EOF
+
+cat >"$mount_root/etc/mkinitcpio.conf.d/clawos.conf" <<'EOF'
+HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck)
+EOF
+
+arch-chroot "$mount_root" systemctl enable NetworkManager.service sshd.service
+arch-chroot "$mount_root" mkinitcpio -P
+arch-chroot "$mount_root" bootctl --esp-path=/boot --variables=no install
+
+crypt_uuid="$(cryptsetup luksUUID "$system_partition")"
+mkdir -p "$mount_root/boot/loader/entries"
+cat >"$mount_root/boot/loader/loader.conf" <<'EOF'
+default clawos.conf
+timeout 1
+console-mode keep
+editor no
+EOF
+cat >"$mount_root/boot/loader/entries/clawos.conf" <<EOF
+title ClawOS Milestone 1 Installed Proof
+linux /vmlinuz-linux
+initrd /initramfs-linux.img
+options rd.luks.name=$crypt_uuid=$mapper root=/dev/mapper/$mapper rootflags=subvol=@ rw console=tty0 console=ttyS0,115200n8
+EOF
+
+sync
+cleanup
+mounted=false
+opened=false
+trap - EXIT INT TERM
+
+echo "CLAWOS_INSTALL_DEV_OK"

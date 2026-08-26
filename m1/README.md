@@ -40,8 +40,21 @@ qcow2.
 ```bash
 ./m1/bin/create-dev-disk          # creates a new 32G clawos-dev.qcow2
 ./m1/bin/run-installer-qemu       # ISO plus that isolated writable disk
+./m1/bin/run-installed-qemu       # disk only; proves the ISO is no longer used
 ```
 
-Disk creation refuses to overwrite an existing image. The current M1 image is
-only the live/recovery base; the destructive in-guest installer is not enabled
-until its target guard and recovery tests exist.
+Disk creation refuses to overwrite an existing image. The live/recovery base
+must boot independently before installer testing begins.
+
+The live image now contains `clawos-install-dev`, a deliberately narrow,
+network-backed proof installer. It accepts only `/dev/vda` on the expected Q35
+KVM machine, requires the exact `ERASE-QEMU-/dev/vda` token and a mode-0600 key
+file directly under `/run`, and refuses disks that are mounted or already
+partitioned. It is not the production installer and is never authorized on
+physical hardware.
+
+The installed proof uses a 1 GB EFI partition plus a LUKS2-encrypted Btrfs
+system partition with `@`, `@home`, `@var_log`, `@pkg`, and `@snapshots`
+subvolumes. It installs systemd-boot and can boot from qcow2 with the ISO
+removed. Package installation currently uses the pinned network snapshot; a
+complete offline package repository remains an M1 release requirement.

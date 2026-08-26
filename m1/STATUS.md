@@ -16,14 +16,20 @@ Last validated: 2026-08-26
 - A guarded 32 GB qcow2 development disk is visible inside ClawOS as blank,
   unmounted `/dev/vda`. The runner rejects physical devices, raw images, and
   paths outside `artifacts/m1/disks/`.
+- The development installer creates a 1 GB EFI partition and a LUKS2-encrypted
+  Btrfs system with separate root, home, logs, package-cache, and snapshot
+  subvolumes.
+- The qcow2 boots through its own systemd-boot entry with the live ISO removed,
+  accepts the LUKS passphrase over the recovery serial console, mounts the
+  encrypted root, reaches `clawos-installed#`, obtains DHCP, and reports zero
+  failed systemd units.
 
 ## Not yet proven
 
-- Partitioning, LUKS2, Btrfs subvolumes, or installation to the qcow2 disk.
-- Booting an installed system without the live ISO.
-- Offline package installation and recovery/rollback entries.
+- Automated install-to-disk and installed-boot regression gates.
+- Offline package installation and previous-kernel/recovery/rollback entries.
 - T2 hardware packages or booting on the reference MacBook.
 - The graphical setup application and OpenClaw appliance.
 
-The live/recovery ISO is valid; it is not yet an installer or a graphical
-ClawOS release.
+The live/recovery ISO and network-backed QEMU proof installer are valid. This
+is not yet the offline production installer or a graphical ClawOS release.
