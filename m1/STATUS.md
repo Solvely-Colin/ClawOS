@@ -23,11 +23,11 @@ Last validated: 2026-08-26
   accepts the LUKS passphrase over the recovery serial console, mounts the
   encrypted root, reaches `clawos-installed#`, obtains DHCP, and reports zero
   failed systemd units.
-- The clean Carapace-grounded ClawOS Launch surface is implemented as a
-  root-owned local asset with working launch, recovery, and terminal states.
 - The development installer now installs a dedicated `clawos` owner account,
   Sway/Chromium graphical shell, and system-level session service that opens
-  the Launch surface after disk unlock without a second login.
+  the upstream OpenClaw Control UI after disk unlock without a second login.
+- A validation gate rejects a parallel ClawOS web shell; the pinned OpenClaw
+  bundle remains the sole graphical operating surface.
 
 ## Not yet proven
 

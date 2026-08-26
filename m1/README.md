@@ -61,6 +61,7 @@ complete offline package repository remains an M1 release requirement.
 
 The installer also lays down the first graphical ClawOS shell proof: a
 root-owned Sway session starts for the dedicated `clawos` account on tty2 and
-opens the local ClawOS Launch surface in Chromium kiosk mode. `Ctrl+Alt+F3`
-remains the independent recovery path. Launch hands off to the OpenClaw Control
-UI on `127.0.0.1:18789`; packaging the Gateway itself is the next gate.
+opens the pinned upstream OpenClaw Control UI on `127.0.0.1:18789` directly in
+Chromium kiosk mode. ClawOS does not ship a parallel launch page, sessions
+dashboard, or desktop shell. `Ctrl+Alt+F3` remains the independent recovery
+path. Packaging and starting the pinned Gateway itself is the next gate.

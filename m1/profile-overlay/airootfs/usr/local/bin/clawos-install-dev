@@ -141,11 +141,9 @@ arch-chroot "$mount_root" passwd --delete clawos
 install -d -m 0755 \
   "$mount_root/etc/clawos" \
   "$mount_root/usr/lib/clawos" \
-  "$mount_root/usr/share/clawos-launch" \
   "$mount_root/etc/systemd/system"
 cp -a /etc/clawos/. "$mount_root/etc/clawos/"
 cp -a /usr/lib/clawos/. "$mount_root/usr/lib/clawos/"
-cp -a /usr/share/clawos-launch/. "$mount_root/usr/share/clawos-launch/"
 install -m 0644 /etc/systemd/system/clawos-session@.service \
   "$mount_root/etc/systemd/system/clawos-session@.service"
 chmod 0755 "$mount_root/usr/lib/clawos/clawos-session" \

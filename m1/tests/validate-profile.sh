@@ -63,15 +63,18 @@ if [[ -f "$installer" ]]; then
 fi
 
 for launch_file in \
-  usr/share/clawos-launch/index.html \
-  usr/share/clawos-launch/styles.css \
-  usr/share/clawos-launch/launch.js \
-  usr/share/clawos-launch/assets/background.png \
   usr/lib/clawos/clawos-session \
   usr/lib/clawos/clawos-browser \
   etc/clawos/sway.conf \
   etc/systemd/system/clawos-session@.service; do
   test -f "$profile/airootfs/$launch_file"
 done
+
+grep -Fq 'CLAWOS_GATEWAY_URL:-http://127.0.0.1:18789/' \
+  "$profile/airootfs/usr/lib/clawos/clawos-browser"
+if [[ -d "$profile/airootfs/usr/share/clawos-launch" ]]; then
+  echo "A parallel ClawOS web shell is not allowed; use upstream OpenClaw Control UI." >&2
+  exit 1
+fi
 
 echo "Milestone 1 profile validation passed."
