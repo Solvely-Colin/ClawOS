@@ -14,7 +14,8 @@ grep -Fq 'ExtensionInstallBlocklist' "$root/m0/config/chromium-policy.json"
 grep -Fq 'User=%i' "$root/m0/systemd/clawos-session@.service"
 grep -Fq 'TTYPath=/dev/tty2' "$root/m0/systemd/clawos-session@.service"
 
-if grep -R -n -E '(^|/)home/colin|~/.config/(sway|hypr)' "$root/m0"; then
+if grep -R -n -E '(^|/)home/colin|~/.config/(sway|hypr)' \
+  "$root/m0/bin" "$root/m0/config" "$root/m0/systemd"; then
   echo "Milestone 0 contains a user-specific or user-overridable config path." >&2
   exit 1
 fi
