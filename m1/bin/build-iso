@@ -11,11 +11,28 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
-rm_profile=false
-if [[ ! -d "$profile" ]]; then
-  sudo -u "${SUDO_USER:-root}" "$repo_root/m1/bin/materialize-profile" "$profile"
-  rm_profile=true
+# A materialized profile and mkarchiso work tree are build products. Reusing
+# either can silently omit overlay changes, so every accepted image starts from
+# the pinned source inputs. Preserve the previous ISO output for comparison and
+# rollback; discard only reproducible profile/work intermediates.
+if [[ -d "$out" ]]; then
+  build_stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  archive="$repo_root/artifacts/m1/archive/build-$build_stamp"
+  if [[ -e "$archive" ]]; then
+    archive="$archive-$$"
+  fi
+  mkdir -p "$archive"
+  mv "$out" "$archive/out"
+  echo "Archived previous ISO output at $archive/out"
 fi
+
+for generated_dir in "$profile" "$work"; do
+  if [[ -d "$generated_dir" ]]; then
+    find "$generated_dir" -depth -delete
+  fi
+done
+
+sudo -u "${SUDO_USER:-root}" "$repo_root/m1/bin/materialize-profile" "$profile"
 
 "$repo_root/m1/tests/validate-profile.sh" "$profile"
 mkdir -p "$work" "$out"
@@ -26,7 +43,4 @@ test -n "$iso"
 "$repo_root/m1/tests/validate-iso.sh" "$iso"
 sha256sum "$iso" >"$iso.sha256"
 echo "Built $iso"
-
-if $rm_profile; then
-  echo "Profile was materialized from the pinned overlay for this build."
-fi
+echo "Profile was freshly materialized from the pinned overlay for this build."

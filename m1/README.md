@@ -24,6 +24,9 @@ sudo ./m1/bin/build-iso
 ```
 
 Build products live under `artifacts/m1/` and are ignored by Git.
+Every build rematerializes the ArchISO profile and recreates mkarchiso's work
+tree so overlay changes cannot be hidden by stale build state. The previous
+`out/` directory is moved under `artifacts/m1/archive/` before the new build.
 
 `boot-smoke-qemu` is the release gate for the live base. It boots the ISO
 headlessly, controls ClawOS over its serial console, verifies OS identity,

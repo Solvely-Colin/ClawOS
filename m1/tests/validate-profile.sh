@@ -6,6 +6,9 @@ profile="${1:-$repo_root/m1/profile-overlay}"
 
 source "$repo_root/m1/config/versions.env"
 
+grep -Fq 'materialize-profile" "$profile"' "$repo_root/m1/bin/build-iso"
+grep -Fq 'find "$generated_dir" -depth -delete' "$repo_root/m1/bin/build-iso"
+
 grep -Fqx 'SigLevel = Required DatabaseOptional' "$repo_root/m1/profile-overlay/pacman.conf"
 if grep -RniE 'SigLevel[[:space:]]*=[[:space:]]*(Never|Optional)' \
   "$repo_root/m1/profile-overlay" "$repo_root/m1/config"; then
