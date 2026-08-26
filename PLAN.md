@@ -53,6 +53,12 @@ swayidle. ClawOS deliberately does not inherit Omarchy's Hyprland desktop model,
 Super-key bindings, shell, themes, or application workflow. Arch supplies the
 base; OpenClaw supplies the user interface.
 
+This is a hard distribution boundary, not only a visual choice. ClawOS never
+imports Omarchy packages, repositories, wrappers, browser extensions, managed
+policies, environment files, user configuration, services, hooks, or update
+machinery. Development on an Omarchy host may validate hardware only; every
+ClawOS release candidate must build and run from a clean ClawOS Arch root.
+
 Build the ISO with an ArchISO profile rather than an installation script. ArchISO officially supports custom packages, alternative kernels, UEFI media, and QEMU testing. [ArchISO documentation](https://wiki.archlinux.org/title/Archiso)
 
 Every ClawOS release pins:
@@ -460,6 +466,8 @@ OpenClaw configuration and conversation state are backed up before migrations an
 ### Milestone 0: Prove the OpenClaw desktop bet
 
 - Run the pinned OpenClaw Gateway and Control UI on the reference Arch system.
+- Treat the Omarchy-hosted VT session only as a disposable hardware/compositor
+  spike. It is not a ClawOS runtime or release input.
 - Launch Chromium through a root-owned minimal Sway session as the complete
   visible UI.
 - Launch Sway with `-c /etc/clawos/sway.conf` from a system service, and verify
@@ -474,12 +482,15 @@ OpenClaw configuration and conversation state are backed up before migrations an
   that requires leaving the Control UI.
 
 Exit criterion: the upstream WebUI is viable as the primary interface, and the
-actual missing OS surfaces are known before a custom shell is written.
+actual missing OS surfaces are known before a custom shell is written. An
+Omarchy-hosted result cannot satisfy any later release gate.
 
 ### Milestone 1: Pinned and hash-verified bootable base
 
 - Establish the ClawOS repository, Arch Linux Archive snapshot, and pinned
   dependency manifest.
+- Add a contamination test that rejects Omarchy repositories, packages, paths,
+  services, wrappers, policies, extensions, configuration, or branding.
 - Build the custom T2 ArchISO and signed local repository.
 - Mirror and re-sign all required T2 packages.
 - Build a complete offline image.

@@ -1,5 +1,10 @@
 # Milestone 0 status
 
+This VT2 implementation is a disposable hardware spike on the existing host,
+not a ClawOS release environment. The Omarchy Chromium wrapper demonstrated
+that host-userspace inheritance violates the product boundary. The service is
+disabled and stopped; product work now moves to a clean ClawOS Arch root.
+
 ## Implemented
 
 - Root-owned Sway kiosk configuration, explicitly selected with `sway -c`.
@@ -23,7 +28,7 @@
 - Insecure Control UI authentication is disabled. The security audit has no
   critical findings; its sole warning is intentionally empty `trustedProxies`
   while the Gateway remains loopback-only.
-- No ClawOS service has been installed, enabled, or started.
+- The experimental ClawOS service is installed but disabled and stopped.
 
 ## Next proof
 
