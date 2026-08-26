@@ -108,15 +108,15 @@ path must be verified as a dedicated subvolume or explicit bind mount before
 installation. Hibernation is disabled in ClawOS MVP so the host's resume
 configuration and swap state are never shared across installations.
 
-One root-owned, loopback-only setup application has two modes: live installation
-and first-boot onboarding. Its UI uses Carapace from an immutable, pinned GitHub
-release tag and is built with Bun into the offline image; Carapace is not fetched
-from npm or resolved during installation. Chromium connects only to the local
-setup service. Secrets are accepted only on the exact setup steps that require
-them, are never logged, and are handed directly to their owning system service.
+The live installer is a narrow native/TUI workflow that collects only hardware,
+disk, encryption, locale, and local-account information. It does not introduce
+a second browser application before OpenClaw exists.
 
-Live-install mode collects only hardware, disk, encryption, locale, and local
-account information. First-boot mode collects:
+First boot uses a fullscreen terminal for one ClawOS-owned decision—Standalone
+or Node—then invokes the pinned upstream `openclaw onboard` wizard. OpenClaw
+owns provider credentials, Gateway authentication, workspace/bootstrap state,
+daemon installation, and remote connection details. ClawOS never mirrors those
+secrets or passes provider secrets on command lines. The flow covers:
 
 - Timezone and network.
 - Standalone or Node role.
@@ -125,7 +125,8 @@ account information. First-boot mode collects:
 - Optional guided Tailscale and 1Password enrollment. Node mode accepts any
   supported secure Gateway connection; Tailscale is recommended, not required.
 - Device name and remote-access preference.
-- Agent security level: Full User + Approvals or User Limited.
+- Agent security level remains Full User + Approvals for the initial proof;
+  User Limited is introduced with the policy broker milestone.
 
 Standalone onboarding creates the first owner agent using OpenClaw's normal
 agent setup and initially designates it as the OS agent. A fresh installation
@@ -494,8 +495,8 @@ Omarchy-hosted result cannot satisfy any later release gate.
 - Build the custom T2 ArchISO and signed local repository.
 - Mirror and re-sign all required T2 packages.
 - Build a complete offline image.
-- Build the pinned Carapace/Bun setup application into the offline image and run
-  its live-install mode from a root-owned loopback-only service.
+- Include the narrow native/TUI live installer; do not add a pre-Gateway web
+  application or parallel desktop shell.
 - Boot in UEFI QEMU.
 - Exercise coexist installation into `@clawos` on the reference machine before
   allowing clean-disk installation.
@@ -509,7 +510,8 @@ Exit criterion: the ISO can install a minimal encrypted system and reliably retu
 - Package the pinned OpenClaw Gateway and Control UI.
 - Build OpenClaw from its pinned source commit and `pnpm-lock.yaml` using a
   pre-fetched offline pnpm store; the installer never resolves npm dependencies.
-- Implement first-boot onboarding.
+- Integrate the pinned upstream `openclaw onboard` flow behind a narrow
+  Standalone-or-Node role decision.
 - Create the first owner/OS agent through OpenClaw onboarding and verify that
   additional logically isolated agents can be created, selected, routed, and removed
   through upstream OpenClaw surfaces.

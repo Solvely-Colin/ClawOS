@@ -1,9 +1,51 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-gateway_url="${CLAWOS_GATEWAY_URL:-http://127.0.0.1:18789/}"
 profile_dir="${XDG_STATE_HOME:-$HOME/.local/state}/clawos/chromium"
-mkdir -p "$profile_dir"
+runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+bootstrap="$runtime_dir/clawos-control-ui-bootstrap.html"
+mode="$(/usr/bin/openclaw config get gateway.mode 2>/dev/null || true)"
+token=
+
+case "$mode" in
+  local)
+    port="$(/usr/bin/openclaw config get gateway.port 2>/dev/null || true)"
+    [[ "$port" =~ ^[0-9]+$ ]] || port=18789
+    control_ui_url="http://127.0.0.1:$port/"
+    token="$(/usr/bin/openclaw config get gateway.auth.token 2>/dev/null || true)"
+    ;;
+  remote)
+    remote_url="$(/usr/bin/openclaw config get gateway.remote.url 2>/dev/null || true)"
+    token="$(/usr/bin/openclaw config get gateway.remote.token 2>/dev/null || true)"
+    case "$remote_url" in
+      ws://*) control_ui_url="http://${remote_url#ws://}" ;;
+      wss://*) control_ui_url="https://${remote_url#wss://}" ;;
+      *) exit 1 ;;
+    esac
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+
+url_pattern='^https?://[A-Za-z0-9._~:/?=&%-]+$'
+[[ "$control_ui_url" =~ $url_pattern ]] || exit 1
+if [[ -n "$token" && ! "$token" =~ ^[A-Za-z0-9._~-]+$ ]]; then
+  exit 1
+fi
+
+mkdir -p "$profile_dir" "$runtime_dir"
+umask 077
+if [[ -n "$token" ]]; then
+  printf '%s\n' \
+    '<!doctype html><meta charset="utf-8">' \
+    "<script>location.replace('${control_ui_url}#token=${token}')</script>" \
+    >"$bootstrap"
+  start_url="file://$bootstrap"
+  (/usr/bin/sleep 10; /usr/bin/rm -f -- "$bootstrap") &
+else
+  start_url="$control_ui_url"
+fi
 
 exec /usr/lib/chromium/chromium \
   --ozone-platform=wayland \
@@ -14,4 +56,4 @@ exec /usr/lib/chromium/chromium \
   --disable-session-crashed-bubble \
   --disable-pinch \
   --user-data-dir="$profile_dir" \
-  "$gateway_url"
+  "$start_url"

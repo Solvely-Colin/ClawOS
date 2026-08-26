@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mode() {
+  /usr/bin/openclaw config get gateway.mode 2>/dev/null || true
+}
+
+while [[ "$(mode)" != local && "$(mode)" != remote ]]; do
+  /usr/bin/foot \
+    --fullscreen \
+    --title='ClawOS Setup' \
+    --app-id=clawos-onboard \
+    /usr/lib/clawos/clawos-onboard || true
+  sleep 1
+done
+
+case "$(mode)" in
+  local)
+    /usr/bin/openclaw gateway start >/dev/null 2>&1 || true
+    ;;
+  remote) ;;
+esac
+
+/usr/lib/clawos/clawos-install-node || true
+
+exec /usr/lib/clawos/clawos-browser

@@ -60,21 +60,32 @@ if [[ -f "$installer" ]]; then
   grep -Fq 'systemd-detect-virt --vm' "$installer"
   grep -Fq 'Standard PC (Q35 + ICH9, 2009)' "$installer"
   grep -Fq 'clawos-session@clawos.service' "$installer"
+  grep -Fq 'npm install --global "openclaw@$OPENCLAW_VERSION"' "$installer"
 fi
 
 for launch_file in \
   usr/lib/clawos/clawos-session \
   usr/lib/clawos/clawos-browser \
+  usr/lib/clawos/clawos-entry \
+  usr/lib/clawos/clawos-onboard \
+  usr/lib/clawos/clawos-install-node \
   etc/clawos/sway.conf \
   etc/systemd/system/clawos-session@.service; do
   test -f "$profile/airootfs/$launch_file"
 done
 
-grep -Fq 'CLAWOS_GATEWAY_URL:-http://127.0.0.1:18789/' \
-  "$profile/airootfs/usr/lib/clawos/clawos-browser"
+grep -Fq 'openclaw onboard' "$profile/airootfs/usr/lib/clawos/clawos-onboard"
+grep -Fq 'openclaw config get gateway.mode' "$profile/airootfs/usr/lib/clawos/clawos-entry"
+grep -Fq '#token=${token}' "$profile/airootfs/usr/lib/clawos/clawos-browser"
+grep -Fq 'exec --no-startup-id /usr/lib/clawos/clawos-entry' \
+  "$profile/airootfs/etc/clawos/sway.conf"
 if [[ -d "$profile/airootfs/usr/share/clawos-launch" ]]; then
   echo "A parallel ClawOS web shell is not allowed; use upstream OpenClaw Control UI." >&2
   exit 1
+fi
+
+if [[ "$profile" == "$repo_root/m1/profile-overlay" ]]; then
+  "$repo_root/m1/tests/onboarding-static.sh"
 fi
 
 echo "Milestone 1 profile validation passed."

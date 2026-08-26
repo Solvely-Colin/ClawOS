@@ -21,6 +21,8 @@ cp -a "$releng" "$destination"
 cp -a "$repo_root/m1/profile-overlay/." "$destination/"
 install -m 0644 "$repo_root/m1/config/mirrorlist" \
   "$destination/airootfs/etc/pacman.d/mirrorlist"
+install -m 0644 "$repo_root/m1/config/versions.env" \
+  "$destination/airootfs/etc/clawos/versions.env"
 
 "$repo_root/m1/tests/no-omarchy.sh" "$destination/airootfs"
 echo "Materialized clean profile at $destination"

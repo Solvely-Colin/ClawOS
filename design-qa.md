@@ -8,21 +8,24 @@
 
 ## Architecture result
 
-ClawOS no longer implements or styles a parallel WebUI. The root-owned kiosk
-launcher opens `CLAWOS_GATEWAY_URL`, defaulting to the upstream Gateway at
-`http://127.0.0.1:18789/`. This makes the OpenClaw Control UI bundle itself the
-OS surface and preserves upstream UI updates by version pin rather than visual
-reimplementation.
+ClawOS no longer implements or styles a parallel WebUI. After a narrow
+local-versus-remote first-boot choice, the root-owned session delegates setup to
+the pinned upstream OpenClaw wizard and opens that Gateway's actual Control UI.
+This makes the OpenClaw bundle itself the OS surface and preserves upstream UI
+updates by version pin rather than visual reimplementation.
 
 ## Findings
 
 - No ClawOS-created visual divergence remains in the shell path.
 - The local installed OpenClaw auth surface renders successfully in the in-app
   browser.
-- Full connected-session visual and interaction QA is blocked because the
-  current browser profile is not authenticated to the local Gateway.
-- Installed QEMU proof is blocked until the pinned OpenClaw package and Gateway
-  service are included in the image.
+- An authenticated connected session rendered successfully in the in-app
+  browser, including the upstream navigation, session list, chat composer,
+  settings, and documentation surfaces.
+- The pinned OpenClaw package, local Gateway service flow, remote configuration
+  flow, and token bootstrap are now included in the installed image inputs.
+- Installed QEMU interaction QA remains pending until the image is rebuilt and
+  the development disk is reinstalled.
 
 ## Required fidelity surfaces
 
@@ -42,4 +45,4 @@ reimplementation.
 - Replaced both with a direct upstream Gateway route and added a validation gate
   that rejects a parallel `usr/share/clawos-launch` surface.
 
-final result: blocked
+final result: source-complete; installed QEMU proof pending

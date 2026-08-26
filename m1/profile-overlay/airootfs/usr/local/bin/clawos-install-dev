@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source /etc/clawos/versions.env
+
 target=
 confirmation=
 key_file=
@@ -116,7 +118,13 @@ mount "$esp" "$mount_root/boot"
 pacstrap -K "$mount_root" \
   base linux linux-firmware btrfs-progs cryptsetup dosfstools \
   networkmanager openssh sudo zsh \
-  chromium sway mesa noto-fonts
+  chromium foot sway mesa noto-fonts nodejs npm polkit tailscale
+
+arch-chroot "$mount_root" env \
+  npm_config_audit=false \
+  npm_config_fund=false \
+  npm install --global "openclaw@$OPENCLAW_VERSION"
+arch-chroot "$mount_root" openclaw --version | grep -Fq "$OPENCLAW_VERSION"
 
 genfstab -U "$mount_root" >"$mount_root/etc/fstab"
 printf 'clawos-installed\n' >"$mount_root/etc/hostname"
@@ -137,6 +145,8 @@ sed -i 's|^root:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*$|root:x:0:0:root:/root:/usr/
 
 arch-chroot "$mount_root" useradd --create-home --groups video,input --shell /usr/bin/zsh clawos
 arch-chroot "$mount_root" passwd --delete clawos
+install -d -m 0755 "$mount_root/var/lib/systemd/linger"
+touch "$mount_root/var/lib/systemd/linger/clawos"
 
 install -d -m 0755 \
   "$mount_root/etc/clawos" \
@@ -147,7 +157,10 @@ cp -a /usr/lib/clawos/. "$mount_root/usr/lib/clawos/"
 install -m 0644 /etc/systemd/system/clawos-session@.service \
   "$mount_root/etc/systemd/system/clawos-session@.service"
 chmod 0755 "$mount_root/usr/lib/clawos/clawos-session" \
-  "$mount_root/usr/lib/clawos/clawos-browser"
+  "$mount_root/usr/lib/clawos/clawos-browser" \
+  "$mount_root/usr/lib/clawos/clawos-entry" \
+  "$mount_root/usr/lib/clawos/clawos-onboard" \
+  "$mount_root/usr/lib/clawos/clawos-install-node"
 
 mkdir -p "$mount_root/etc/systemd/system/getty@tty1.service.d"
 cat >"$mount_root/etc/systemd/system/getty@tty1.service.d/autologin.conf" <<'EOF'
@@ -167,7 +180,8 @@ HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block 
 EOF
 
 arch-chroot "$mount_root" systemctl enable \
-  NetworkManager.service sshd.service clawos-session@clawos.service
+  NetworkManager.service sshd.service tailscaled.service \
+  clawos-session@clawos.service
 arch-chroot "$mount_root" mkinitcpio -P
 arch-chroot "$mount_root" bootctl --esp-path=/boot --variables=no install
 

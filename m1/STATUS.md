@@ -28,14 +28,24 @@ Last validated: 2026-08-26
   the upstream OpenClaw Control UI after disk unlock without a second login.
 - A validation gate rejects a parallel ClawOS web shell; the pinned OpenClaw
   bundle remains the sole graphical operating surface.
+- The development installer pins and installs OpenClaw `2026.7.1-2`, Node.js,
+  Chromium, Sway, Foot, NetworkManager, Polkit, and Tailscale into the target.
+- First boot now selects local or existing-Gateway operation, delegates the
+  actual setup to upstream `openclaw onboard`, installs an upstream node host,
+  and enters the authentic Control UI without exposing its token in Chromium's
+  process arguments.
+- The upstream local and remote onboarding entry points were exercised against
+  isolated OpenClaw state without modifying the development host's config.
 
 ## Not yet proven
 
 - Automated install-to-disk and installed-boot regression gates.
 - Offline package installation and previous-kernel/recovery/rollback entries.
 - T2 hardware packages or booting on the reference MacBook.
-- Graphical installed-boot proof in QEMU, first-boot setup, and the complete
-  OpenClaw appliance.
+- Graphical installed-boot and end-to-end onboarding proof in QEMU.
+- Successful first node pairing and agent-driven command execution in both
+  local and remote-Gateway modes.
+- The complete offline OpenClaw appliance and production installer.
 
 The live/recovery ISO and network-backed QEMU proof installer are valid. This
 is not yet the offline production installer or a graphical ClawOS release.

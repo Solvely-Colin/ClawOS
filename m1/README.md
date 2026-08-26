@@ -59,9 +59,20 @@ subvolumes. It installs systemd-boot and can boot from qcow2 with the ISO
 removed. Package installation currently uses the pinned network snapshot; a
 complete offline package repository remains an M1 release requirement.
 
-The installer also lays down the first graphical ClawOS shell proof: a
-root-owned Sway session starts for the dedicated `clawos` account on tty2 and
-opens the pinned upstream OpenClaw Control UI on `127.0.0.1:18789` directly in
-Chromium kiosk mode. ClawOS does not ship a parallel launch page, sessions
-dashboard, or desktop shell. `Ctrl+Alt+F3` remains the independent recovery
-path. Packaging and starting the pinned Gateway itself is the next gate.
+The installer also lays down the first graphical ClawOS appliance proof. It
+installs the exact OpenClaw version in `m1/config/versions.env`, then a
+root-owned Sway session starts for the dedicated `clawos` account on tty2.
+
+On an unconfigured machine, a fullscreen terminal presents one ClawOS decision:
+run the Gateway here or connect to an existing Gateway. It then runs the pinned
+upstream `openclaw onboard` flow. Local mode installs the upstream user Gateway
+service with token auth; remote mode collects the existing Gateway URL and auth
+through OpenClaw. Both modes install this machine's upstream node host. After
+setup, Chromium enters the real Control UI in kiosk mode and receives token auth
+through a mode-0600, short-lived runtime bootstrap file rather than a token on
+its process command line.
+
+The proof installer currently resolves pinned packages over the network. It is
+not yet the complete offline release installer. ClawOS ships no parallel launch
+page, sessions dashboard, or desktop shell. `Ctrl+Alt+F3` remains the independent
+recovery path.
