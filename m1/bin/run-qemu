@@ -7,6 +7,26 @@ runtime="$repo_root/artifacts/m1/runtime"
 serial_socket="$runtime/serial.sock"
 monitor_socket="$runtime/monitor.sock"
 serial_log="$runtime/serial.log"
+disk_args=()
+
+if (( $# )); then
+  if [[ "$1" != --disk || $# -ne 2 ]]; then
+    echo "usage: $0 [--disk artifacts/m1/disks/name.qcow2]" >&2
+    exit 1
+  fi
+  disk="$(realpath -e "$2")"
+  disk_root="$(realpath -e "$repo_root/artifacts/m1/disks")"
+  if [[ "$disk" != "$disk_root/"*.qcow2 || ! -f "$disk" ]]; then
+    echo "Refusing non-qcow2 disk outside $disk_root" >&2
+    exit 1
+  fi
+  if [[ "$(qemu-img info --output=json "$disk" | jq -r .format)" != qcow2 ]]; then
+    echo "Refusing disk whose detected format is not qcow2: $disk" >&2
+    exit 1
+  fi
+  disk_args=(-drive "file=$disk,if=virtio,format=qcow2")
+  echo "Development disk: $disk"
+fi
 
 if [[ -z "$iso" ]]; then
   echo "No Milestone 1 ISO found. Run sudo ./m1/bin/build-iso first." >&2
@@ -39,5 +59,6 @@ exec qemu-system-x86_64 \
   -serial chardev:clawserial \
   -monitor "unix:$monitor_socket,server=on,wait=off" \
   -nic user,model=virtio-net-pci \
+  "${disk_args[@]}" \
   -cdrom "$iso" \
   -boot d

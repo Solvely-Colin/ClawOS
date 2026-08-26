@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
+name="${1:-clawos-dev.qcow2}"
+size="${2:-32G}"
+
+if [[ ! "$name" =~ ^[A-Za-z0-9._-]+\.qcow2$ ]]; then
+  echo "Disk name must be a simple .qcow2 filename." >&2
+  exit 1
+fi
+if [[ ! "$size" =~ ^[1-9][0-9]*[GM]$ ]]; then
+  echo "Disk size must look like 32G or 4096M." >&2
+  exit 1
+fi
+
+disk_dir="$repo_root/artifacts/m1/disks"
+disk="$disk_dir/$name"
+mkdir -p "$disk_dir"
+
+if [[ -e "$disk" ]]; then
+  echo "Refusing to overwrite existing development disk: $disk" >&2
+  exit 1
+fi
+
+qemu-img create -f qcow2 "$disk" "$size"
+echo "Created isolated ClawOS development disk: $disk"
