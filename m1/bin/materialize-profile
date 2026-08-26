@@ -22,12 +22,5 @@ cp -a "$repo_root/m1/profile-overlay/." "$destination/"
 install -m 0644 "$repo_root/m1/config/mirrorlist" \
   "$destination/airootfs/etc/pacman.d/mirrorlist"
 
-sed -i \
-  -e 's/^iso_name=.*/iso_name="clawos"/' \
-  -e 's/^iso_label=.*/iso_label="CLAWOS_M1"/' \
-  -e 's/^iso_publisher=.*/iso_publisher="ClawOS"/' \
-  -e 's/^iso_application=.*/iso_application="ClawOS clean Arch base"/' \
-  "$destination/profiledef.sh"
-
 "$repo_root/m1/tests/no-omarchy.sh" "$destination/airootfs"
 echo "Materialized clean profile at $destination"

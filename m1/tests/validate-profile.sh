@@ -26,6 +26,12 @@ for package in base linux linux-firmware networkmanager openssh; do
   grep -Fqx "$package" "$repo_root/m1/profile-overlay/packages.x86_64"
 done
 
+grep -Fq "bootmodes=('uefi.systemd-boot')" "$repo_root/m1/profile-overlay/profiledef.sh"
+if grep -Fq 'bios.' "$repo_root/m1/profile-overlay/profiledef.sh"; then
+  echo "Legacy BIOS boot mode is outside the ClawOS UEFI target." >&2
+  exit 1
+fi
+
 if [[ -d "$profile/airootfs" ]]; then
   "$repo_root/m1/tests/no-omarchy.sh" "$profile/airootfs"
 fi
