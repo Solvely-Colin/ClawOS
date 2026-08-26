@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Installing clean ArchISO host tooling. These packages are build tools;"
+echo "they are not copied into the ClawOS image unless listed in packages.x86_64."
+sudo pacman -S --needed archiso qemu-desktop edk2-ovmf

@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
+profile="$repo_root/artifacts/m1/profile"
+work="$repo_root/artifacts/m1/work"
+out="$repo_root/artifacts/m1/out"
+
+if [[ $EUID -ne 0 ]]; then
+  echo "Run as root: sudo $0" >&2
+  exit 1
+fi
+
+rm_profile=false
+if [[ ! -d "$profile" ]]; then
+  sudo -u "${SUDO_USER:-root}" "$repo_root/m1/bin/materialize-profile" "$profile"
+  rm_profile=true
+fi
+
+"$repo_root/m1/tests/validate-profile.sh" "$profile"
+mkdir -p "$work" "$out"
+mkarchiso -v -w "$work" -o "$out" "$profile"
+
+iso="$(find "$out" -maxdepth 1 -type f -name '*.iso' -print -quit)"
+test -n "$iso"
+sha256sum "$iso" >"$iso.sha256"
+echo "Built $iso"
+
+if $rm_profile; then
+  echo "Profile was materialized from the pinned overlay for this build."
+fi

@@ -1,0 +1,8 @@
+NAME="ClawOS"
+PRETTY_NAME="ClawOS Milestone 1"
+ID=clawos
+ID_LIKE=arch
+BUILD_ID=development
+ANSI_COLOR="38;2;255;92;53"
+HOME_URL="https://github.com/clawos"
+DOCUMENTATION_URL="https://github.com/clawos/clawos"

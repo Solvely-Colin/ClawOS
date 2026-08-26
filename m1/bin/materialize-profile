@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
+source "$repo_root/m1/config/versions.env"
+destination="${1:-$repo_root/artifacts/m1/profile}"
+releng=/usr/share/archiso/configs/releng
+
+if [[ ! -d "$releng" ]]; then
+  echo "ArchISO releng profile missing. Run ./m1/bin/install-build-deps first." >&2
+  exit 1
+fi
+
+if [[ -e "$destination" ]]; then
+  echo "Refusing to overwrite existing profile: $destination" >&2
+  exit 1
+fi
+
+mkdir -p "$(dirname "$destination")"
+cp -a "$releng" "$destination"
+cp -a "$repo_root/m1/profile-overlay/." "$destination/"
+install -m 0644 "$repo_root/m1/config/mirrorlist" \
+  "$destination/airootfs/etc/pacman.d/mirrorlist"
+
+sed -i \
+  -e 's/^iso_name=.*/iso_name="clawos"/' \
+  -e 's/^iso_label=.*/iso_label="CLAWOS_M1"/' \
+  -e 's/^iso_publisher=.*/iso_publisher="ClawOS"/' \
+  -e 's/^iso_application=.*/iso_application="ClawOS clean Arch base"/' \
+  "$destination/profiledef.sh"
+
+"$repo_root/m1/tests/no-omarchy.sh" "$destination/airootfs"
+echo "Materialized clean profile at $destination"
