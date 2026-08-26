@@ -30,6 +30,8 @@ Last validated: 2026-08-26
   bundle remains the sole graphical operating surface.
 - The development installer pins and installs OpenClaw `2026.7.1-2`, Node.js,
   Chromium, Sway, Foot, NetworkManager, Polkit, and Tailscale into the target.
+  Its npm 12 invocation explicitly permits only the install scripts required by
+  OpenClaw and its three known scripted dependencies.
 - First boot now selects local or existing-Gateway operation, delegates the
   actual setup to upstream `openclaw onboard`, installs an upstream node host,
   and enters the authentic Control UI without exposing its token in Chromium's

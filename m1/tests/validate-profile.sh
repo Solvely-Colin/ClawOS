@@ -63,7 +63,9 @@ if [[ -f "$installer" ]]; then
   grep -Fq 'systemd-detect-virt --vm' "$installer"
   grep -Fq 'Standard PC (Q35 + ICH9, 2009)' "$installer"
   grep -Fq 'clawos-session@clawos.service' "$installer"
-  grep -Fq 'npm install --global "openclaw@$OPENCLAW_VERSION"' "$installer"
+  grep -Fq 'npm install --global' "$installer"
+  grep -Fq '"openclaw@$OPENCLAW_VERSION"' "$installer"
+  grep -Fq -- "--allow-scripts='openclaw,@google/genai,tree-sitter-bash,protobufjs'" "$installer"
 fi
 
 for launch_file in \

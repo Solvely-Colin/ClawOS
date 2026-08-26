@@ -123,7 +123,9 @@ pacstrap -K "$mount_root" \
 arch-chroot "$mount_root" env \
   npm_config_audit=false \
   npm_config_fund=false \
-  npm install --global "openclaw@$OPENCLAW_VERSION"
+  npm install --global \
+    --allow-scripts='openclaw,@google/genai,tree-sitter-bash,protobufjs' \
+    "openclaw@$OPENCLAW_VERSION"
 arch-chroot "$mount_root" openclaw --version | grep -Fq "$OPENCLAW_VERSION"
 
 genfstab -U "$mount_root" >"$mount_root/etc/fstab"
