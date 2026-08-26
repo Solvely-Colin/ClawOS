@@ -14,6 +14,8 @@ grep -Fq 'DeveloperToolsAvailability' "$root/m0/config/chromium-policy.json"
 grep -Fq 'ExtensionInstallBlocklist' "$root/m0/config/chromium-policy.json"
 grep -Fq 'User=%i' "$root/m0/systemd/clawos-session@.service"
 grep -Fq 'TTYPath=/dev/tty2' "$root/m0/systemd/clawos-session@.service"
+grep -Fq 'ExecStartPre=+/usr/bin/chvt 2' "$root/m0/systemd/clawos-session@.service"
+grep -Fq 'ExecStopPost=+/usr/bin/chvt 1' "$root/m0/systemd/clawos-session@.service"
 
 if grep -R -n -E '(^|/)home/colin|~/.config/(sway|hypr)' \
   "$root/m0/bin" "$root/m0/config" "$root/m0/systemd"; then

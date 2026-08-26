@@ -6,7 +6,7 @@ cd "$repo_root"
 
 echo "ClawOS Milestone 0 host installation"
 echo "This installs Sway packages and the reversible VT2 session."
-sudo pacman -S --needed sway swaylock swayidle
+sudo pacman -S --needed sway swaybg swaylock swayidle
 sudo ./m0/bin/install-m0 colin
 
 echo

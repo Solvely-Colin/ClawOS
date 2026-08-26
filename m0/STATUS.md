@@ -13,7 +13,9 @@
 ## Machine state
 
 - Chromium and tmux are installed.
-- Sway, swaylock, and swayidle still require an interactive privileged install.
+- Sway, swaylock, and swayidle are installed. The first physical launch proved
+  the session must activate VT2 before acquiring DRM; the corrected unit and
+  missing `swaybg` package require one installer rerun.
 - OpenClaw 2026.7.1-2 is installed from the current published npm release.
 - The Codex plugin is pinned at 2026.7.1-1 and passed an end-to-end agent turn.
 - The loopback-only, token-authenticated Gateway is installed as an enabled
