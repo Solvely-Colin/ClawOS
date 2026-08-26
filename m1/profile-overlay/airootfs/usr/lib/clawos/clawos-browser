@@ -7,16 +7,29 @@ bootstrap="$runtime_dir/clawos-control-ui-bootstrap.html"
 mode="$(/usr/bin/openclaw config get gateway.mode 2>/dev/null || true)"
 token=
 
+read_config_string() {
+  local key="$1"
+  /usr/bin/node -e '
+    const fs = require("fs");
+    const [path, dottedKey] = process.argv.slice(1);
+    try {
+      const config = JSON.parse(fs.readFileSync(path, "utf8"));
+      const value = dottedKey.split(".").reduce((object, part) => object?.[part], config);
+      if (typeof value === "string") process.stdout.write(value);
+    } catch {}
+  ' "${OPENCLAW_CONFIG_PATH:-$HOME/.openclaw/openclaw.json}" "$key"
+}
+
 case "$mode" in
   local)
     port="$(/usr/bin/openclaw config get gateway.port 2>/dev/null || true)"
     [[ "$port" =~ ^[0-9]+$ ]] || port=18789
     control_ui_url="http://127.0.0.1:$port/"
-    token="$(/usr/bin/openclaw config get gateway.auth.token 2>/dev/null || true)"
+    token="${OPENCLAW_GATEWAY_TOKEN:-$(read_config_string gateway.auth.token)}"
     ;;
   remote)
     remote_url="$(/usr/bin/openclaw config get gateway.remote.url 2>/dev/null || true)"
-    token="$(/usr/bin/openclaw config get gateway.remote.token 2>/dev/null || true)"
+    token="${OPENCLAW_GATEWAY_TOKEN:-$(read_config_string gateway.remote.token)}"
     case "$remote_url" in
       ws://*) control_ui_url="http://${remote_url#ws://}" ;;
       wss://*) control_ui_url="https://${remote_url#wss://}" ;;

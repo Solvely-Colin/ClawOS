@@ -28,6 +28,11 @@ grep -Fq 'gateway.remote.url' "$node_install"
 grep -Fq 'ws://127.0.0.1:$port' "$node_install"
 grep -Fq 'umask 077' "$browser"
 grep -Fq 'file://$bootstrap' "$browser"
+grep -Fq 'read_config_string gateway.auth.token' "$browser"
+if grep -Eq 'config get gateway\.(auth|remote)\.token' "$browser"; then
+  echo "ClawOS browser must not use OpenClaw's redacted config output as a token." >&2
+  exit 1
+fi
 grep -Fq 'npm install --global' "$installer"
 grep -Fq '"openclaw@$OPENCLAW_VERSION"' "$installer"
 grep -Fq -- "--allow-scripts='openclaw,@google/genai,tree-sitter-bash,protobufjs'" "$installer"
