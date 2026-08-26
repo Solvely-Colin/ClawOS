@@ -14,7 +14,13 @@
 
 - Chromium and tmux are installed.
 - Sway, swaylock, and swayidle still require an interactive privileged install.
-- The OpenClaw CLI/Gateway is not currently installed or running on the host.
+- OpenClaw 2026.7.1-2 is installed from the current published npm release.
+- The Codex plugin is pinned at 2026.7.1-1 and passed an end-to-end agent turn.
+- The loopback-only, token-authenticated Gateway is installed as an enabled
+  systemd user service and passes `openclaw health`.
+- Insecure Control UI authentication is disabled. The security audit has no
+  critical findings; its sole warning is intentionally empty `trustedProxies`
+  while the Gateway remains loopback-only.
 - No ClawOS service has been installed, enabled, or started.
 
 ## Next proof
@@ -22,13 +28,12 @@
 Run the package and session install from a visible terminal:
 
 ```bash
-sudo pacman -S --needed sway swaylock swayidle
 cd /home/colin/Work/ClawOS
-sudo ./m0/bin/install-m0 colin
+./m0/bin/complete-host-install
 ```
 
-Do not enable the unit. Once OpenClaw is listening on the configured URL, start
-the experiment manually:
+Do not enable the unit. OpenClaw is already listening on the configured URL;
+after verifying the installed files, start the experiment manually:
 
 ```bash
 sudo systemctl start clawos-session@colin.service
