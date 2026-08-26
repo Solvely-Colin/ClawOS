@@ -15,7 +15,7 @@ fi
 # The token exists only in this short-lived local process argument. Chromium
 # persists the authenticated device state in the dedicated ClawOS profile; the
 # steady-state kiosk launcher then uses the token-free loopback URL.
-timeout 15s /usr/bin/chromium \
+timeout 15s /usr/lib/chromium/chromium \
   --ozone-platform=wayland \
   --enable-features=UseOzonePlatform \
   --no-first-run \

@@ -11,12 +11,16 @@ if [[ -z "$owner" ]] || ! id "$owner" >/dev/null 2>&1; then
   exit 1
 fi
 
-for command in sway swaylock swayidle chromium curl; do
+for command in sway swaylock swayidle curl; do
   if ! command -v "$command" >/dev/null 2>&1; then
     echo "Missing required command: $command" >&2
     exit 1
   fi
 done
+if [[ ! -x /usr/lib/chromium/chromium ]]; then
+  echo "Missing required Arch Chromium binary: /usr/lib/chromium/chromium" >&2
+  exit 1
+fi
 
 install -d -m 0755 /etc/clawos /usr/lib/clawos /etc/chromium/policies/managed
 install -m 0644 "$(dirname "$0")/../config/sway.conf" /etc/clawos/sway.conf

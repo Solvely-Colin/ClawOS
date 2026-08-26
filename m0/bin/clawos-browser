@@ -14,7 +14,7 @@ for _attempt in $(seq 1 60); do
   sleep 1
 done
 
-exec /usr/bin/chromium \
+exec /usr/lib/chromium/chromium \
   --ozone-platform=wayland \
   --enable-features=UseOzonePlatform \
   --kiosk \
