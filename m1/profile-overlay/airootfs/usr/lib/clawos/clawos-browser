@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+profile_dir="${XDG_STATE_HOME:-$HOME/.local/state}/clawos/chromium"
+mkdir -p "$profile_dir"
+
+exec /usr/lib/chromium/chromium \
+  --ozone-platform=wayland \
+  --enable-features=UseOzonePlatform \
+  --kiosk \
+  --no-first-run \
+  --no-default-browser-check \
+  --disable-session-crashed-bubble \
+  --disable-pinch \
+  --user-data-dir="$profile_dir" \
+  file:///usr/share/clawos-launch/index.html

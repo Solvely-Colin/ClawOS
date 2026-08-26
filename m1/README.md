@@ -58,3 +58,9 @@ system partition with `@`, `@home`, `@var_log`, `@pkg`, and `@snapshots`
 subvolumes. It installs systemd-boot and can boot from qcow2 with the ISO
 removed. Package installation currently uses the pinned network snapshot; a
 complete offline package repository remains an M1 release requirement.
+
+The installer also lays down the first graphical ClawOS shell proof: a
+root-owned Sway session starts for the dedicated `clawos` account on tty2 and
+opens the local ClawOS Launch surface in Chromium kiosk mode. `Ctrl+Alt+F3`
+remains the independent recovery path. Launch hands off to the OpenClaw Control
+UI on `127.0.0.1:18789`; packaging the Gateway itself is the next gate.

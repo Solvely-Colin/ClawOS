@@ -115,7 +115,8 @@ mount "$esp" "$mount_root/boot"
 
 pacstrap -K "$mount_root" \
   base linux linux-firmware btrfs-progs cryptsetup dosfstools \
-  networkmanager openssh sudo zsh
+  networkmanager openssh sudo zsh \
+  chromium sway mesa noto-fonts
 
 genfstab -U "$mount_root" >"$mount_root/etc/fstab"
 printf 'clawos-installed\n' >"$mount_root/etc/hostname"
@@ -134,6 +135,22 @@ sed -i 's|^root:[^:]*:|root::|' "$mount_root/etc/shadow"
 sed -i 's|^root:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*$|root:x:0:0:root:/root:/usr/bin/zsh|' \
   "$mount_root/etc/passwd"
 
+arch-chroot "$mount_root" useradd --create-home --groups video,input --shell /usr/bin/zsh clawos
+arch-chroot "$mount_root" passwd --delete clawos
+
+install -d -m 0755 \
+  "$mount_root/etc/clawos" \
+  "$mount_root/usr/lib/clawos" \
+  "$mount_root/usr/share/clawos-launch" \
+  "$mount_root/etc/systemd/system"
+cp -a /etc/clawos/. "$mount_root/etc/clawos/"
+cp -a /usr/lib/clawos/. "$mount_root/usr/lib/clawos/"
+cp -a /usr/share/clawos-launch/. "$mount_root/usr/share/clawos-launch/"
+install -m 0644 /etc/systemd/system/clawos-session@.service \
+  "$mount_root/etc/systemd/system/clawos-session@.service"
+chmod 0755 "$mount_root/usr/lib/clawos/clawos-session" \
+  "$mount_root/usr/lib/clawos/clawos-browser"
+
 mkdir -p "$mount_root/etc/systemd/system/getty@tty1.service.d"
 cat >"$mount_root/etc/systemd/system/getty@tty1.service.d/autologin.conf" <<'EOF'
 [Service]
@@ -151,7 +168,8 @@ cat >"$mount_root/etc/mkinitcpio.conf.d/clawos.conf" <<'EOF'
 HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck)
 EOF
 
-arch-chroot "$mount_root" systemctl enable NetworkManager.service sshd.service
+arch-chroot "$mount_root" systemctl enable \
+  NetworkManager.service sshd.service clawos-session@clawos.service
 arch-chroot "$mount_root" mkinitcpio -P
 arch-chroot "$mount_root" bootctl --esp-path=/boot --variables=no install
 

@@ -59,6 +59,19 @@ if [[ -f "$installer" ]]; then
   grep -Fq "ERASE-QEMU-/dev/vda" "$installer"
   grep -Fq 'systemd-detect-virt --vm' "$installer"
   grep -Fq 'Standard PC (Q35 + ICH9, 2009)' "$installer"
+  grep -Fq 'clawos-session@clawos.service' "$installer"
 fi
+
+for launch_file in \
+  usr/share/clawos-launch/index.html \
+  usr/share/clawos-launch/styles.css \
+  usr/share/clawos-launch/launch.js \
+  usr/share/clawos-launch/assets/background.png \
+  usr/lib/clawos/clawos-session \
+  usr/lib/clawos/clawos-browser \
+  etc/clawos/sway.conf \
+  etc/systemd/system/clawos-session@.service; do
+  test -f "$profile/airootfs/$launch_file"
+done
 
 echo "Milestone 1 profile validation passed."
