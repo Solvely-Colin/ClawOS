@@ -32,10 +32,17 @@ Last validated: 2026-08-26
   Chromium, Sway, Foot, NetworkManager, Polkit, and Tailscale into the target.
   Its npm 12 invocation explicitly permits only the install scripts required by
   OpenClaw and its three known scripted dependencies.
+- The installer resets its filesystem-creation umask to `022` after validating
+  the mode-0600 LUKS key, preventing the caller's secret-creation umask from
+  making standard system directories inaccessible.
 - First boot now selects local or existing-Gateway operation, delegates the
   actual setup to upstream `openclaw onboard`, installs an upstream node host,
   and enters the authentic Control UI without exposing its token in Chromium's
   process arguments.
+- An installed QEMU boot reached the ClawOS role selector and successfully
+  handed the local role to the authentic OpenClaw security/onboarding wizard.
+  That run caught and repaired npm-script and inherited-umask defects; a fresh
+  image/disk regression remains required for an unmodified end-to-end pass.
 - The upstream local and remote onboarding entry points were exercised against
   isolated OpenClaw state without modifying the development host's config.
 

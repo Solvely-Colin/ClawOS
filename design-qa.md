@@ -24,8 +24,10 @@ updates by version pin rather than visual reimplementation.
   settings, and documentation surfaces.
 - The pinned OpenClaw package, local Gateway service flow, remote configuration
   flow, and token bootstrap are now included in the installed image inputs.
-- Installed QEMU interaction QA remains pending until the image is rebuilt and
-  the development disk is reinstalled.
+- Installed QEMU interaction QA reached both the ClawOS local/remote role
+  selector and the authentic upstream OpenClaw security/onboarding wizard. The
+  first run required in-place repair of installer permission defects that are
+  now fixed in source, so a clean-image regression remains pending.
 
 ## Required fidelity surfaces
 
@@ -45,4 +47,4 @@ updates by version pin rather than visual reimplementation.
 - Replaced both with a direct upstream Gateway route and added a validation gate
   that rejects a parallel `usr/share/clawos-launch` surface.
 
-final result: source-complete; installed QEMU proof pending
+final result: first-boot handoff proven; clean-image regression pending

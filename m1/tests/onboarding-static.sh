@@ -31,6 +31,8 @@ grep -Fq 'file://$bootstrap' "$browser"
 grep -Fq 'npm install --global' "$installer"
 grep -Fq '"openclaw@$OPENCLAW_VERSION"' "$installer"
 grep -Fq -- "--allow-scripts='openclaw,@google/genai,tree-sitter-bash,protobufjs'" "$installer"
+grep -Fq 'umask 022' "$installer"
+grep -Fq 'runuser -u clawos -- openclaw --version' "$installer"
 
 if grep -Eq -- '--(openai|anthropic|gemini|remote)-.*key' "$onboard"; then
   echo "ClawOS onboarding must not pass provider secrets on the command line." >&2

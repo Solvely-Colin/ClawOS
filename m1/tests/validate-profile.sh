@@ -66,6 +66,8 @@ if [[ -f "$installer" ]]; then
   grep -Fq 'npm install --global' "$installer"
   grep -Fq '"openclaw@$OPENCLAW_VERSION"' "$installer"
   grep -Fq -- "--allow-scripts='openclaw,@google/genai,tree-sitter-bash,protobufjs'" "$installer"
+  grep -Fq 'umask 022' "$installer"
+  grep -Fq 'runuser -u clawos -- openclaw --version' "$installer"
 fi
 
 for launch_file in \

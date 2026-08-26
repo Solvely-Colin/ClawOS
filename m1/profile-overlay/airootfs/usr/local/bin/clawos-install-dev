@@ -65,6 +65,11 @@ if [[ -n "$(lsblk -nrpo NAME "$target" | sed -n '2p')" ]]; then
   exit 1
 fi
 
+# The caller should use a restrictive umask when creating the LUKS key, but
+# that setting must not leak into the target filesystem. Arch package directory
+# modes assume the conventional system umask.
+umask 022
+
 esp=${target}1
 system_partition=${target}2
 mapper=clawos-root
@@ -147,6 +152,8 @@ sed -i 's|^root:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*$|root:x:0:0:root:/root:/usr/
 
 arch-chroot "$mount_root" useradd --create-home --groups video,input --shell /usr/bin/zsh clawos
 arch-chroot "$mount_root" passwd --delete clawos
+arch-chroot "$mount_root" runuser -u clawos -- openclaw --version | \
+  grep -Fq "$OPENCLAW_VERSION"
 install -d -m 0755 "$mount_root/var/lib/systemd/linger"
 touch "$mount_root/var/lib/systemd/linger/clawos"
 
