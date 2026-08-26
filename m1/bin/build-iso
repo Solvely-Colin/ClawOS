@@ -23,6 +23,7 @@ mkarchiso -v -w "$work" -o "$out" "$profile"
 
 iso="$(find "$out" -maxdepth 1 -type f -name '*.iso' -print -quit)"
 test -n "$iso"
+"$repo_root/m1/tests/validate-iso.sh" "$iso"
 sha256sum "$iso" >"$iso.sha256"
 echo "Built $iso"
 

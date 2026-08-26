@@ -22,9 +22,26 @@ fi
 grep -Fqx "Server = https://archive.archlinux.org/repos/${ARCH_SNAPSHOT}/\$repo/os/\$arch" \
   "$repo_root/m1/config/mirrorlist"
 
-for package in base linux linux-firmware networkmanager openssh; do
+for package in base linux linux-firmware mkinitcpio-archiso networkmanager openssh syslinux zsh; do
   grep -Fqx "$package" "$repo_root/m1/profile-overlay/packages.x86_64"
 done
+
+# ArchISO's releng initramfs includes the memdisk hook even for a UEFI-only
+# image. syslinux supplies memdiskfind, which that hook runs before archiso can
+# discover and mount the live root filesystem.
+archiso_mkinitcpio="$profile/airootfs/etc/mkinitcpio.conf.d/archiso.conf"
+if [[ -f "$archiso_mkinitcpio" ]] && grep -Fq 'memdisk' "$archiso_mkinitcpio"; then
+  grep -Fqx 'syslinux' "$repo_root/m1/profile-overlay/packages.x86_64"
+fi
+
+if [[ -f "$archiso_mkinitcpio" ]] && grep -Fq 'archiso' "$archiso_mkinitcpio"; then
+  grep -Fqx 'mkinitcpio-archiso' "$repo_root/m1/profile-overlay/packages.x86_64"
+fi
+
+if [[ -f "$profile/airootfs/etc/passwd" ]] && \
+   grep -Eq '^root:.*:/usr/bin/zsh$' "$profile/airootfs/etc/passwd"; then
+  grep -Fqx 'zsh' "$repo_root/m1/profile-overlay/packages.x86_64"
+fi
 
 grep -Fq "bootmodes=('uefi.systemd-boot')" "$repo_root/m1/profile-overlay/profiledef.sh"
 if grep -Fq 'bios.' "$repo_root/m1/profile-overlay/profiledef.sh"; then

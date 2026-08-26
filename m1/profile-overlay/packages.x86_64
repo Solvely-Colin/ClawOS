@@ -18,13 +18,16 @@ linux
 linux-firmware
 linux-firmware-intel
 mkinitcpio
+mkinitcpio-archiso
 networkmanager
 openssh
 pacman
 polkit
 reflector
 sudo
+syslinux
 systemd
 systemd-resolvconf
 tmux
 vim
+zsh

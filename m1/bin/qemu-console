@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
+socket="$repo_root/artifacts/m1/runtime/serial.sock"
+
+if [[ ! -S "$socket" ]]; then
+  echo "ClawOS QEMU serial console is not running: $socket" >&2
+  exit 1
+fi
+
+exec socat -,rawer,escape=0x1d "UNIX-CONNECT:$socket"
