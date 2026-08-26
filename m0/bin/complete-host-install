@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd /home/colin/Work/ClawOS
+
+echo "ClawOS Milestone 0 host installation"
+echo "This installs Sway packages and the reversible VT2 session."
+sudo pacman -S --needed sway swaylock swayidle
+sudo ./m0/bin/install-m0 colin
+
+echo
+echo "Installation complete. The session is installed but not enabled at boot."
+echo "Return to Codex; it will verify and start the session after health checks."
+read -r -p "Press Enter to close this installer..."
