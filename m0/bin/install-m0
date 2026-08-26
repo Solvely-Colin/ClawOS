@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+owner="${1:-}"
+if [[ $EUID -ne 0 ]]; then
+  echo "Run as root: sudo $0 <owner-user>" >&2
+  exit 1
+fi
+if [[ -z "$owner" ]] || ! id "$owner" >/dev/null 2>&1; then
+  echo "A valid owner user is required." >&2
+  exit 1
+fi
+
+for command in sway swaylock swayidle chromium curl; do
+  if ! command -v "$command" >/dev/null 2>&1; then
+    echo "Missing required command: $command" >&2
+    exit 1
+  fi
+done
+
+install -d -m 0755 /etc/clawos /usr/lib/clawos /etc/chromium/policies/managed
+install -m 0644 "$(dirname "$0")/../config/sway.conf" /etc/clawos/sway.conf
+install -m 0644 "$(dirname "$0")/../config/session.env" /etc/clawos/session.env
+install -m 0644 "$(dirname "$0")/../config/chromium-policy.json" /etc/chromium/policies/managed/clawos.json
+install -m 0755 "$(dirname "$0")/clawos-session" /usr/lib/clawos/clawos-session
+install -m 0755 "$(dirname "$0")/clawos-browser" /usr/lib/clawos/clawos-browser
+install -m 0644 "$(dirname "$0")/../systemd/clawos-session@.service" /etc/systemd/system/clawos-session@.service
+
+systemctl daemon-reload
+echo "Installed. Start manually with: systemctl start clawos-session@${owner}.service"
+echo "The service was not enabled at boot. Recovery remains on Ctrl+Alt+F3."

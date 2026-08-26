@@ -1,0 +1,27 @@
+[Unit]
+Description=ClawOS Milestone 0 session for %i
+After=systemd-user-sessions.service network-online.target
+Wants=network-online.target
+Conflicts=getty@tty2.service
+After=getty@tty2.service
+
+[Service]
+Type=simple
+User=%i
+PAMName=login
+TTYPath=/dev/tty2
+StandardInput=tty
+StandardOutput=journal
+StandardError=journal
+UtmpIdentifier=tty2
+UtmpMode=user
+EnvironmentFile=-/etc/clawos/session.env
+Environment=XDG_SESSION_TYPE=wayland
+Environment=XDG_CURRENT_DESKTOP=sway
+Environment=XDG_SESSION_DESKTOP=clawos
+ExecStart=/usr/lib/clawos/clawos-session
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
