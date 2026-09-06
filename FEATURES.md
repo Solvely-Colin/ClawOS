@@ -4,7 +4,7 @@ Status describes the current development code, not a supported-hardware promise.
 
 | Capability | Current state |
 | --- | --- |
-| Arch-based live image and encrypted install | Experimental blank-disk installer for x86_64 UEFI; guarded physical and virtual target selection |
+| Arch-based live image and encrypted install | Experimental blank-disk installer for x86_64 UEFI; guarded physical and virtual target selection; optional passwordless (unencrypted, no lock) setup |
 | OpenClaw as the primary interface | Running in the development VM |
 | Provider and model selection | Delegated to OpenClaw's native wizard; no ClawOS provider catalog |
 | Typed OS inspection and changes | Broker and plugin implemented; Full Root remains trusted |

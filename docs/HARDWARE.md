@@ -42,14 +42,32 @@ sudo clawos-install-dev --target /dev/nvme0n1 \
 The path above is an example, not a default. The graphical installer handles
 selection, confirmation and passphrase storage without putting secrets in args.
 
+## Passwordless setup (accepting the risk)
+
+The install screen offers a **passwordless setup** checkbox for people who
+explicitly accept that anyone with access to the machine can use it and read
+its data. It maps to `clawos-install-dev --passwordless` and changes three
+things: the system partition is plain Btrfs with no LUKS layer, the `root` and
+`clawos` accounts get empty passwords, and `/etc/clawos-passwordless-entry`
+(the same per-machine opt-in `clawos-lock` already honours) disables screen
+locking. The exact `ERASE-/dev/...` confirmation is still required. `sshd`
+keeps its default `PermitEmptyPasswords no`, so remote password login stays
+closed; use SSH keys. Polkit approval prompts accept the empty password.
+There is no in-place migration between the two modes; reinstall to switch.
+
 ## Installed system and remaining proof
 
-The target uses GPT, an EFI system partition, LUKS2 and Btrfs. SATA/virtio and
-NVMe/eMMC partition naming is handled separately. Both common x86 microcode
-packages are included. Normal hardware installs register the UEFI bootloader.
+The target uses GPT, an EFI system partition, LUKS2 (unless passwordless) and
+Btrfs. SATA/virtio and NVMe/eMMC partition naming is handled separately. Both
+common x86 microcode packages are included. The loader entry is written before
+`bootctl --graceful install`, so a firmware that refuses NVRAM writes still gets
+a bootable ESP through the removable-media path.
 
 Passwordless serial-root login is not installed by default. It is reserved for
 the explicit `--vm-test` harness, which still requires Q35 KVM and `/dev/vda`.
+On the live ISO itself, `ttyS0` only autologs in on that same Q35 KVM machine;
+on any other hardware the serial console asks for credentials. The archiso
+base still autologs root on the live `tty1`, as every Arch live image does.
 The graphical session owns tty2; tty3 remains the normal recovery console.
 
 Secure Boot, legacy BIOS, ARM, Apple Silicon, RAID/multipath installation,

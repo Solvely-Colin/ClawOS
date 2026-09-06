@@ -87,9 +87,19 @@ fi
 
 installer="$profile/airootfs/usr/local/bin/clawos-install-dev"
 if [[ -f "$installer" ]]; then
-  grep -Fq 'clawos_install_targets.py validate' "$installer"
+  # Pin the guard placement, not just its existence: the pre-erase validate
+  # must sit directly above sfdisk and an identity recheck above the first format.
+  grep -Fq 'recheck validate --confirm "$confirmation" >/dev/null' "$installer"
   grep -Fq 'if $vm_test; then' "$installer"
+  grep -A4 -F 'recheck validate --confirm "$confirmation" >/dev/null' "$installer" | grep -Fq 'sfdisk --wipe always'
+  grep -A1 -F 'recheck check-identity' "$installer" | grep -Fq 'mkfs.fat'
+  grep -Fq 'bootctl --esp-path=/boot --graceful install' "$installer"
+  grep -Fq -- '--passwordless) passwordless=true' "$installer"
+  grep -Fq 'clawos-passwordless-entry' "$installer"
   grep -Fq 'Disk identity changed since selection' "$profile/airootfs/usr/lib/clawos/clawos_install_targets.py"
+  grep -Fq "'pttype'" "$profile/airootfs/usr/lib/clawos/clawos_install_targets.py"
+  grep -Fq 'clawos-live-serial-getty' "$profile/airootfs/etc/systemd/system/serial-getty@ttyS0.service.d/autologin.conf"
+  grep -Fq 'Standard PC (Q35 + ICH9, 2009)' "$profile/airootfs/usr/lib/clawos/clawos-live-serial-getty"
   grep -Fq 'systemd-detect-virt --vm' "$installer"
   grep -Fq 'Kernel did not expose the expected EFI and system partitions.' "$installer"
   grep -Fq 'Standard PC (Q35 + ICH9, 2009)' "$installer"
@@ -304,9 +314,12 @@ grep -Fq 'Inspect system' "$profile/airootfs/usr/lib/clawos/clawos-live-welcome"
 grep -Fq 'The full Agent workspace is created after installation.' \
   "$profile/airootfs/usr/lib/clawos/clawos-live-welcome"
 grep -Fq 'Install ClawOS' "$profile/airootfs/usr/lib/clawos/clawos-live-welcome"
-grep -Fq 'ERASE-{target}' "$profile/airootfs/usr/lib/clawos/clawos-live-welcome"
+grep -Fq 'confirmation_token(target)' "$profile/airootfs/usr/lib/clawos/clawos-live-welcome"
 grep -Fq '"--disk-id", disk_id' "$profile/airootfs/usr/lib/clawos/clawos-live-welcome"
+grep -Fq "selector.append('', 'Select a blank disk" "$profile/airootfs/usr/lib/clawos/clawos-live-welcome"
 grep -Fq "selector.set_active(0)" "$profile/airootfs/usr/lib/clawos/clawos-live-welcome"
+grep -Fq '"--passwordless"' "$profile/airootfs/usr/lib/clawos/clawos-live-welcome"
+grep -Fq 'I accept the risk.' "$profile/airootfs/usr/lib/clawos/clawos-live-welcome"
 grep -Fq 'Gdk.KEY_Escape' "$profile/airootfs/usr/lib/clawos/clawos-live-welcome"
 grep -Fq 'program === "/usr/local/bin/clawos-install-dev"' \
   "$profile/airootfs/etc/polkit-1/rules.d/49-clawos-live-installer.rules"

@@ -28,11 +28,17 @@ experimental and has not yet been used to install a physical machine.
 - [ ] Run fresh QEMU SATA and NVMe installation tests, not only virtio.
 - [ ] Verify boot media and mounted/signature-bearing disks are refused in that ISO.
 - [ ] Verify UEFI boot, encryption unlock, desktop startup and OpenClaw setup.
+- [ ] Repeat the QEMU install without `--vm-test` (NVRAM-writing bootctl path)
+  and once with `--passwordless`, confirming direct boot to the desktop with no
+  passphrase prompt and no screen lock.
 - [ ] Test at least one blank-disk physical x86_64 UEFI machine and publish its
   redacted model/firmware/storage results.
 - [ ] Expand hardware coverage without weakening disk-protection checks.
 
-The ordinary installer no longer configures serial-root autologin. The explicit
-Q35 KVM `--vm-test` path retains it solely for the existing integration harness.
+The ordinary installer no longer configures serial-root autologin, and the live
+ISO's own `ttyS0` autologin is now conditional on the Q35 KVM machine. The
+explicit `--vm-test` path retains installed autologin solely for the existing
+integration harness. A `--passwordless` mode (no encryption, empty account
+passwords, no screen lock) exists for people who accept that risk explicitly.
 Existing partitions, Secure Boot, legacy BIOS, RAID/multipath and non-x86_64
 installation remain outside this first implementation.

@@ -102,13 +102,17 @@ both constrained to the 1440 x 900 proof geometry so controls cannot exist
 off-screen.
 
 The UI delegates erasure to `clawos-install-dev`, a deliberately narrow,
-network-backed proof installer. It accepts only `/dev/vda` on the expected Q35
-KVM machine, requires the exact `ERASE-QEMU-/dev/vda` token and a mode-0600,
-byte-exact key file in the live user's runtime directory, and refuses disks
-that are mounted or already partitioned. A Polkit rule authorizes the live user
-for only this guarded installer and an exact reboot helper; it grants neither
-a general root shell nor arbitrary `systemctl`. This path is never authorized
-on physical hardware.
+network-backed experimental installer. Target discovery and every guard live in
+`clawos_install_targets.py`: eligible blank SATA/NVMe/virtio/eMMC whole disks
+of at least 32 GiB, never the boot media, never anything mounted, held,
+partitioned or carrying a filesystem or partition-table signature. It requires
+the exact `ERASE-/dev/<disk>` token bound to a kernel-generation-aware disk
+identity, plus either a mode-0600 key file in the live user's runtime directory
+or the explicit `--passwordless` flag. A Polkit rule authorizes the live user
+for only this installer and an exact reboot helper; it grants neither a general
+root shell nor arbitrary `systemctl`. See [docs/HARDWARE.md](../docs/HARDWARE.md)
+for the hardware boundary; the QEMU harness passes `--vm-test` to keep serial
+root autologin on the installed disk.
 
 The installed proof uses a 1 GB EFI partition plus a LUKS2-encrypted Btrfs
 system partition with `@`, `@home`, `@var_log`, `@pkg`, and `@snapshots`

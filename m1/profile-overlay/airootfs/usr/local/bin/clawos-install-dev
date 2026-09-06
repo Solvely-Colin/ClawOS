@@ -9,13 +9,14 @@ key_file=
 disk_id=
 dry_run=false
 vm_test=false
+passwordless=false
 
 while (( $# )); do
   case "$1" in
-    --list) exec python3 /usr/lib/clawos/clawos_install_targets.py list ;;
     --disk-id) disk_id="${2:-}"; shift 2 ;;
     --dry-run) dry_run=true; shift ;;
     --vm-test) vm_test=true; shift ;;
+    --passwordless) passwordless=true; shift ;;
     --target)
       target="${2:-}"
       shift 2
@@ -35,6 +36,13 @@ while (( $# )); do
   esac
 done
 
+# Every disk check goes through the same read-only policy module so the GUI
+# list, the pre-erase gate and the mid-install rechecks cannot drift apart.
+recheck() {
+  python3 /usr/lib/clawos/clawos_install_targets.py "$1" \
+    --target "$target" --disk-id "$disk_id" "${@:2}"
+}
+
 [[ $EUID == 0 ]] || { echo 'Run installer validation through sudo or the live installer.' >&2; exit 1; }
 exec 9>/run/clawos-installer.lock
 flock -n 9 || { echo 'Another installation is already running.' >&2; exit 1; }
@@ -44,20 +52,24 @@ if $vm_test; then
     echo 'Serial root autologin is restricted to the explicit Q35 VM test harness.' >&2; exit 1;
   }
 fi
-plan=$(python3 /usr/lib/clawos/clawos_install_targets.py validate \
-  --target "$target" --disk-id "$disk_id" --confirm "$confirmation")
+plan=$(recheck validate --confirm "$confirmation")
 if $dry_run; then printf '%s\n' "$plan"; exit 0; fi
-if [[ ! "$key_file" =~ ^/run/user/[0-9]+/clawos-install\.key$ || ! -f "$key_file" || -L "$key_file" ]]; then
-  echo "The LUKS key must be the installer-owned regular file in a live user's runtime directory." >&2
-  exit 1
-fi
-if [[ ! "$(stat -c %a "$key_file")" =~ ^(400|600)$ ]]; then
-  echo "The LUKS key file must have mode 0600 or stricter." >&2
-  exit 1
-fi
-private_key=$(mktemp /run/clawos-install-key.XXXXXX)
-trap 'rm -f -- "$private_key"' EXIT
-python3 - "$key_file" "$private_key" <<'PY'
+
+private_key=
+if $passwordless; then
+  if [[ -n "$key_file" ]]; then
+    echo 'A passwordless installation does not accept a key file.' >&2
+    exit 1
+  fi
+else
+  if [[ ! "$key_file" =~ ^/run/user/[0-9]+/clawos-install\.key$ ]]; then
+    echo "The LUKS key must be the installer-owned regular file in a live user's runtime directory." >&2
+    exit 1
+  fi
+  private_key=$(mktemp /run/clawos-install-key.XXXXXX)
+  trap 'rm -f -- "$private_key"' EXIT
+  # Validate the key through the opened descriptor, not a racy path check.
+  python3 - "$key_file" "$private_key" <<'PY'
 import os, pathlib, stat, sys
 fd = os.open(sys.argv[1], os.O_RDONLY | os.O_NOFOLLOW)
 try:
@@ -73,22 +85,30 @@ try:
 finally:
     os.close(fd)
 PY
-key_file=$private_key
+  key_file=$private_key
+fi
+
 # Fail before erasing if the required online sources are not reachable.
 curl --fail --silent --show-error --location --head --max-time 20 \
-  "https://archive.archlinux.org/repos/$ARCH_SNAPSHOT/core/os/x86_64/core.db" >/dev/null
+  "https://archive.archlinux.org/repos/$ARCH_SNAPSHOT/core/os/x86_64/core.db" >/dev/null &
+archive_probe=$!
 curl --fail --silent --show-error --head --max-time 20 \
-  "https://registry.npmjs.org/openclaw/$OPENCLAW_VERSION" >/dev/null
+  "https://registry.npmjs.org/openclaw/$OPENCLAW_VERSION" >/dev/null &
+registry_probe=$!
+wait "$archive_probe"
+wait "$registry_probe"
 
 # The caller should use a restrictive umask when creating the LUKS key, but
 # that setting must not leak into the target filesystem. Arch package directory
 # modes assume the conventional system umask.
 umask 022
 
-esp=$(printf '%s' "$plan" | jq -r .esp)
-system_partition=$(printf '%s' "$plan" | jq -r .systemPartition)
+esp=$(printf '%s' "$plan" | jq -er .esp)
+system_partition=$(printf '%s' "$plan" | jq -er .systemPartition)
 mapper=clawos-root
-[[ ! -e /dev/mapper/$mapper ]] || { echo 'Existing ClawOS mapper is in use; refusing installation.' >&2; exit 1; }
+if ! $passwordless; then
+  [[ ! -e /dev/mapper/$mapper ]] || { echo 'Existing ClawOS mapper is in use; refusing installation.' >&2; exit 1; }
+fi
 mount_root=$(mktemp -d /mnt/clawos-install.XXXXXX)
 mounted=false
 opened=false
@@ -101,19 +121,23 @@ cleanup() {
   if ! $mounted && $opened; then
     if cryptsetup close "$mapper"; then opened=false; else status=1; fi
   fi
-  rm -f -- "$private_key"
+  [[ -z "$private_key" ]] || rm -f -- "$private_key"
   if ! $mounted; then rmdir "$mount_root" 2>/dev/null || true; fi
   return "$status"
 }
 trap cleanup EXIT INT TERM
 
-echo "Installing experimental network-backed ClawOS to $target."
+if $passwordless; then
+  echo "Installing experimental network-backed ClawOS to $target WITHOUT disk encryption,"
+  echo "account passwords or screen locking. Anyone with access to this machine can use it."
+else
+  echo "Installing experimental network-backed ClawOS to $target."
+fi
 echo "This is not the offline production installer."
 
 # Recheck the same disk and live-media protections immediately before the first
 # destructive command. Hotplug or state changes invalidate the selection.
-python3 /usr/lib/clawos/clawos_install_targets.py validate \
-  --target "$target" --disk-id "$disk_id" --confirm "$confirmation" >/dev/null
+recheck validate --confirm "$confirmation" >/dev/null
 
 sfdisk --wipe always "$target" <<'EOF'
 label: gpt
@@ -130,28 +154,36 @@ if [[ ! -b "$esp" || ! -b "$system_partition" ]]; then
   exit 1
 fi
 
-python3 /usr/lib/clawos/clawos_install_targets.py check-identity --target "$target" --disk-id "$disk_id"
+# One identity recheck after the partition table lands and before the first
+# format; formatting cannot change any field the identity hash covers.
+recheck check-identity
 mkfs.fat -F 32 -n CLAWOS_EFI "$esp"
-python3 /usr/lib/clawos/clawos_install_targets.py check-identity --target "$target" --disk-id "$disk_id"
-cryptsetup luksFormat --batch-mode --type luks2 --label CLAWOS_CRYPT \
-  --key-file "$key_file" "$system_partition"
-cryptsetup open --key-file "$key_file" "$system_partition" "$mapper"
-opened=true
+if $passwordless; then
+  system_device=$system_partition
+else
+  cryptsetup luksFormat --batch-mode --type luks2 --label CLAWOS_CRYPT \
+    --key-file "$key_file" "$system_partition"
+  cryptsetup open --key-file "$key_file" "$system_partition" "$mapper"
+  opened=true
+  system_device=/dev/mapper/$mapper
+fi
 
-mkfs.btrfs -f -L CLAWOS_ROOT "/dev/mapper/$mapper"
-mount "/dev/mapper/$mapper" "$mount_root"
+mkfs.btrfs -f -L CLAWOS_ROOT "$system_device"
+mount "$system_device" "$mount_root"
+mounted=true
 for subvolume in @ @home @var_log @pkg @snapshots; do
   btrfs subvolume create "$mount_root/$subvolume"
 done
 umount "$mount_root"
+mounted=false
 
-mount -o subvol=@,compress=zstd,noatime "/dev/mapper/$mapper" "$mount_root"
+mount -o subvol=@,compress=zstd,noatime "$system_device" "$mount_root"
 mounted=true
 mkdir -p "$mount_root"/{boot,home,var/log,var/cache/pacman/pkg,.snapshots}
-mount -o subvol=@home,compress=zstd,noatime "/dev/mapper/$mapper" "$mount_root/home"
-mount -o subvol=@var_log,compress=zstd,noatime "/dev/mapper/$mapper" "$mount_root/var/log"
-mount -o subvol=@pkg,compress=zstd,noatime "/dev/mapper/$mapper" "$mount_root/var/cache/pacman/pkg"
-mount -o subvol=@snapshots,compress=zstd,noatime "/dev/mapper/$mapper" "$mount_root/.snapshots"
+mount -o subvol=@home,compress=zstd,noatime "$system_device" "$mount_root/home"
+mount -o subvol=@var_log,compress=zstd,noatime "$system_device" "$mount_root/var/log"
+mount -o subvol=@pkg,compress=zstd,noatime "$system_device" "$mount_root/var/cache/pacman/pkg"
+mount -o subvol=@snapshots,compress=zstd,noatime "$system_device" "$mount_root/.snapshots"
 mount "$esp" "$mount_root/boot"
 
 pacstrap -K "$mount_root" \
@@ -189,11 +221,22 @@ arch-chroot "$mount_root" groupadd --system clawos-control
 arch-chroot "$mount_root" useradd --create-home --comment 'ClawOS' --groups video,input,clawos-control --shell /usr/bin/zsh clawos
 arch-chroot "$mount_root" useradd --system --create-home --home-dir /var/lib/clawos/agent-home \
   --comment 'ClawOS agent runtime' --groups clawos-control --shell /usr/bin/zsh claw
-# One secret owns the physical device for this proof: it unlocks the encrypted
-# disk at boot and authenticates an explicit GTK session lock later. Passing it
-# through stdin keeps it out of arguments, environment variables, and logs.
-passwd --root "$mount_root" --stdin root <"$key_file" >/dev/null
-passwd --root "$mount_root" --stdin clawos <"$key_file" >/dev/null
+if $passwordless; then
+  # Explicitly requested: empty account passwords so local login and Polkit
+  # prompts succeed without a secret. sshd keeps PermitEmptyPasswords=no, so
+  # this does not open password SSH; keys remain the remote route.
+  passwd --root "$mount_root" --delete root >/dev/null
+  passwd --root "$mount_root" --delete clawos >/dev/null
+  # Same per-machine opt-in file clawos-lock already honours.
+  printf 'enabled\n' >"$mount_root/etc/clawos-passwordless-entry"
+  chmod 0644 "$mount_root/etc/clawos-passwordless-entry"
+else
+  # One secret owns the physical device for this proof: it unlocks the encrypted
+  # disk at boot and authenticates an explicit GTK session lock later. Passing it
+  # through stdin keeps it out of arguments, environment variables, and logs.
+  passwd --root "$mount_root" --stdin root <"$key_file" >/dev/null
+  passwd --root "$mount_root" --stdin clawos <"$key_file" >/dev/null
+fi
 arch-chroot "$mount_root" runuser -u clawos -- openclaw --version | \
   grep -Fq "$OPENCLAW_VERSION"
 install -d -m 0755 "$mount_root/var/lib/systemd/linger"
@@ -308,22 +351,31 @@ ExecStart=-/usr/bin/agetty --noreset --noclear --autologin root 115200,57600,384
 EOF
 fi
 
-cat >"$mount_root/etc/mkinitcpio.conf.d/clawos.conf" <<'EOF'
+if $passwordless; then
+  cat >"$mount_root/etc/mkinitcpio.conf.d/clawos.conf" <<'EOF'
+HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block plymouth filesystems fsck)
+EOF
+else
+  cat >"$mount_root/etc/mkinitcpio.conf.d/clawos.conf" <<'EOF'
 HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block plymouth sd-encrypt filesystems fsck)
 EOF
+fi
 
 arch-chroot "$mount_root" systemctl enable \
   NetworkManager.service sshd.service tailscaled.service \
   clawosd.service clawos-session@clawos.service
 arch-chroot "$mount_root" systemctl mask getty@tty2.service
 arch-chroot "$mount_root" mkinitcpio -P
-if $vm_test; then
-  arch-chroot "$mount_root" bootctl --esp-path=/boot --variables=no install
-else
-  arch-chroot "$mount_root" bootctl --esp-path=/boot install
-fi
 
-crypt_uuid="$(cryptsetup luksUUID "$system_partition")"
+# Write the loader configuration before touching firmware variables so an
+# NVRAM problem never leaves a populated disk without a boot entry.
+if $passwordless; then
+  root_uuid="$(blkid -s UUID -o value "$system_partition")"
+  root_options="root=UUID=$root_uuid"
+else
+  crypt_uuid="$(cryptsetup luksUUID "$system_partition")"
+  root_options="rd.luks.name=$crypt_uuid=$mapper root=/dev/mapper/$mapper"
+fi
 mkdir -p "$mount_root/boot/loader/entries"
 cat >"$mount_root/boot/loader/loader.conf" <<'EOF'
 default clawos.conf
@@ -335,13 +387,18 @@ cat >"$mount_root/boot/loader/entries/clawos.conf" <<EOF
 title ClawOS
 linux /vmlinuz-linux
 initrd /initramfs-linux.img
-options rd.luks.name=$crypt_uuid=$mapper root=/dev/mapper/$mapper rootflags=subvol=@ rw quiet splash loglevel=3 rd.systemd.show_status=auto vt.global_cursor_default=0 plymouth.ignore-serial-consoles console=tty0 console=ttyS0,115200n8
+options $root_options rootflags=subvol=@ rw quiet splash loglevel=3 rd.systemd.show_status=auto vt.global_cursor_default=0 plymouth.ignore-serial-consoles console=tty0 console=ttyS0,115200n8
 EOF
+# --graceful keeps the ESP install authoritative when firmware variables are
+# read-only, full or absent (OVMF without writable VARS, quirky boards). The
+# removable-media fallback path in the ESP still boots such machines.
+arch-chroot "$mount_root" bootctl --esp-path=/boot --graceful install
 
 sync
-cleanup
-mounted=false
-opened=false
 trap - EXIT INT TERM
+if ! cleanup; then
+  echo "Installation finished, but releasing the target did not complete cleanly." >&2
+  echo "Power off before removing the disk; do not run the installer again on it." >&2
+fi
 
 echo "CLAWOS_INSTALL_DEV_OK"

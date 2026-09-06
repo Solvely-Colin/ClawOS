@@ -16,7 +16,7 @@ class InstallerTargets(unittest.TestCase):
     def setUp(self):
         self.disk = {'path':'/dev/nvme0n1','type':'disk','size':64*1024**3,'ro':False,
                      'model':'Test disk','serial':'test-serial','wwn':'test-wwn','maj:min':'259:0',
-                     'mountpoints':[None],'holders':[],'fstype':None,'diskseq':'11'}
+                     'mountpoints':[None],'holders':[],'fstype':None,'pttype':None,'diskseq':'11'}
         self.boot = {'/dev/sdz','/dev/sdz1'}
 
     def test_blank_physical_and_virtual_disk_names_are_eligible(self):
@@ -45,10 +45,15 @@ class InstallerTargets(unittest.TestCase):
                         {'ro':True},{'holders':['dm-0']}]:
             self.assertIsNotNone(targets.eligibility({**self.disk,**changes},self.boot))
 
-    def test_existing_partitions_filesystems_and_small_disks_are_protected(self):
+    def test_existing_partitions_filesystems_labels_and_small_disks_are_protected(self):
         for changes in [{'children':[{'path':'/dev/nvme0n1p1','mountpoints':[None]}]},
-                        {'fstype':'ext4'},{'size':8*1024**3}]:
-            self.assertIsNotNone(targets.eligibility({**self.disk,**changes},self.boot))
+                        {'fstype':'ext4'},{'pttype':'gpt'},{'pttype':'dos'},{'size':8*1024**3}]:
+            self.assertIsNotNone(targets.eligibility({**self.disk,**changes},self.boot), changes)
+
+    def test_lsblk_request_includes_the_partition_table_column(self):
+        # eligibility() and the privileged wipefs gate must agree on "blank".
+        self.assertIn('PTTYPE', targets.LSBLK_COLUMNS.split(','))
+        self.assertIn('FSTYPE', targets.LSBLK_COLUMNS.split(','))
 
     def test_identity_changes_when_device_is_replaced(self):
         other = {**self.disk,'serial':'different-device'}
@@ -57,16 +62,32 @@ class InstallerTargets(unittest.TestCase):
     def test_same_model_hotplug_replacement_changes_kernel_generation(self):
         other = {**self.disk,'diskseq':'12'}
         self.assertNotEqual(targets.identity(self.disk),targets.identity(other))
-        with patch.object(targets,'inventory',return_value=([other],self.boot)):
-            with self.assertRaisesRegex(ValueError,'identity changed'):
+        with patch.object(targets,'inventory',return_value=([other],self.boot)), \
+             patch.object(targets.os.path,'realpath',side_effect=lambda p: p):
+            with self.assertRaisesRegex(ValueError,'identity changed during installation'):
                 targets.check_identity(self.disk['path'],targets.identity(self.disk))
+
+    def test_check_identity_returns_the_matching_disk(self):
+        with patch.object(targets.os.path,'realpath',side_effect=lambda p: p):
+            disk = targets.check_identity(self.disk['path'],targets.identity(self.disk),[self.disk])
+        self.assertIs(disk,self.disk)
+
+    def test_confirmation_token_is_bound_to_the_exact_path(self):
+        self.assertEqual(targets.confirmation_token('/dev/nvme0n1'),'ERASE-/dev/nvme0n1')
+        self.assertNotEqual(targets.confirmation_token('/dev/nvme0n1'),targets.confirmation_token('/dev/nvme1n1'))
+
+    def test_describe_is_stable_with_and_without_a_serial(self):
+        self.assertEqual(targets.describe(self.disk),'/dev/nvme0n1 · 64 GiB · Test disk · ID …serial')
+        self.assertEqual(targets.describe({**self.disk,'serial':None,'model':' Padded '}),
+                         '/dev/nvme0n1 · 64 GiB · Padded · ID unavailable')
 
     def validate(self, disk_id=None, confirmation=None, signatures='{"signatures":[]}'):
         with patch.object(targets,'inventory',return_value=([copy.deepcopy(self.disk)],self.boot)), \
              patch.object(targets.os,'stat',return_value=SimpleNamespace(st_mode=stat.S_IFBLK)), \
+             patch.object(targets.os.path,'realpath',side_effect=lambda p: p), \
              patch.object(targets,'run',return_value=signatures):
             return targets.validate(self.disk['path'],disk_id or targets.identity(self.disk),
-                                    confirmation or 'ERASE-'+self.disk['path'])
+                                    confirmation or targets.confirmation_token(self.disk['path']))
 
     def test_readonly_plan_for_nvme_has_exact_identity(self):
         plan = self.validate()
@@ -74,12 +95,19 @@ class InstallerTargets(unittest.TestCase):
         self.assertEqual(plan['diskId'],targets.identity(self.disk))
 
     def test_stale_identity_and_wrong_confirmation_are_rejected(self):
-        with self.assertRaisesRegex(ValueError,'identity changed'): self.validate(disk_id='stale')
+        with self.assertRaisesRegex(ValueError,'identity changed since selection'): self.validate(disk_id='stale')
         with self.assertRaisesRegex(ValueError,'confirmation'): self.validate(confirmation='ERASE-/dev/sda')
 
     def test_raw_filesystem_signature_is_rejected_even_without_partitions(self):
         with self.assertRaisesRegex(ValueError,'signatures'):
             self.validate(signatures='{"signatures":[{"type":"ext4"}]}')
+
+    def test_list_targets_carries_identity_and_shared_label(self):
+        with patch.object(targets,'inventory',return_value=([copy.deepcopy(self.disk),{**self.disk,'path':'/dev/sdb','pttype':'gpt'}],self.boot)):
+            listed = targets.list_targets()
+        self.assertEqual([disk['path'] for disk in listed],['/dev/nvme0n1'])
+        self.assertEqual(listed[0]['diskId'],targets.identity(self.disk))
+        self.assertEqual(listed[0]['label'],targets.describe(self.disk))
 
 
 if __name__ == '__main__': unittest.main()

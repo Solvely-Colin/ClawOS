@@ -11,6 +11,7 @@ import subprocess
 
 DEVICE = re.compile(r'^/dev/(?:sd[a-z]+|vd[a-z]+|nvme[0-9]+n[0-9]+|mmcblk[0-9]+)$')
 MIN_BYTES = 32 * 1024 ** 3
+LSBLK_COLUMNS = 'NAME,KNAME,PATH,TYPE,SIZE,RO,RM,MODEL,SERIAL,WWN,MAJ:MIN,FSTYPE,PTTYPE,MOUNTPOINTS'
 
 
 def descendants(node):
@@ -22,6 +23,20 @@ def descendants(node):
 def identity(disk):
     fields = {key: disk.get(key) for key in ('path', 'maj:min', 'size', 'model', 'serial', 'wwn', 'diskseq')}
     return hashlib.sha256(json.dumps(fields, sort_keys=True).encode()).hexdigest()
+
+
+def confirmation_token(target):
+    """The exact text a person must type to erase ``target``."""
+    return 'ERASE-' + target
+
+
+def describe(disk):
+    """One human-readable line shared by every surface that names a disk."""
+    size = int(disk.get('size') or 0) / (1024 ** 3)
+    model = str(disk.get('model') or 'Disk').strip()
+    serial = str(disk.get('serial') or '').strip()
+    identity_hint = '…' + serial[-6:] if serial else 'unavailable'
+    return f"{disk.get('path', '')} · {size:.0f} GiB · {model} · ID {identity_hint}"
 
 
 def partitions(target):
@@ -46,7 +61,10 @@ def eligibility(disk, boot_devices):
         return 'Disk or child is mounted or used as swap'
     if any(node.get('holders') for node in nodes):
         return 'Disk is in use by a device mapper or RAID holder'
-    if disk.get('children') or disk.get('fstype'):
+    # A bare partition-table label counts as a signature for wipefs, so it must
+    # count as non-blank here too; otherwise the GUI offers a disk the
+    # privileged validate step then refuses.
+    if disk.get('children') or disk.get('fstype') or disk.get('pttype'):
         return 'Only blank, unpartitioned disks are supported in this experimental installer'
     if int(disk.get('size') or 0) < MIN_BYTES:
         return 'At least 32 GiB is required'
@@ -76,8 +94,7 @@ def inventory():
     boot_devices = set(run(['lsblk', '-srnpo', 'NAME', boot]).splitlines())
     if not boot_devices:
         raise ValueError('Cannot identify the live boot media ancestry')
-    disks = json.loads(run(['lsblk', '--json', '--bytes', '--paths', '--output',
-        'NAME,KNAME,PATH,TYPE,SIZE,RO,RM,MODEL,SERIAL,WWN,MAJ:MIN,FSTYPE,MOUNTPOINTS']))['blockdevices']
+    disks = json.loads(run(['lsblk', '--json', '--bytes', '--paths', '--output', LSBLK_COLUMNS]))['blockdevices']
     for disk in disks:
         for node in descendants(disk):
             kname = Path(node.get('kname', '')).name
@@ -91,21 +108,31 @@ def inventory():
 
 def list_targets():
     disks, boot = inventory()
-    return [{**disk, 'diskId': identity(disk)} for disk in disks if eligibility(disk, boot) is None]
+    return [
+        {**disk, 'diskId': identity(disk), 'label': describe(disk)}
+        for disk in disks if eligibility(disk, boot) is None
+    ]
+
+
+def check_identity(target, disk_id, disks=None, when='during installation; stopping'):
+    """Return the one whole disk at ``target`` whose identity still matches."""
+    if disks is None:
+        disks, _boot = inventory()
+    matches = [disk for disk in disks if disk.get('path') == target]
+    if len(matches) != 1 or os.path.realpath(target) != target:
+        raise ValueError('Target must be an existing canonical whole disk')
+    if identity(matches[0]) != disk_id:
+        raise ValueError(f'Disk identity changed {when}')
+    return matches[0]
 
 
 def validate(target, disk_id, confirmation):
     disks, boot = inventory()
-    matches = [disk for disk in disks if disk.get('path') == target]
-    if len(matches) != 1 or os.path.realpath(target) != target:
-        raise ValueError('Target must be an existing canonical whole disk')
-    disk = matches[0]
+    disk = check_identity(target, disk_id, disks, when='since selection; inspect and select again')
     reason = eligibility(disk, boot)
     if reason:
         raise ValueError(reason)
-    if identity(disk) != disk_id:
-        raise ValueError('Disk identity changed since selection; inspect and select again')
-    if confirmation != 'ERASE-' + target:
+    if confirmation != confirmation_token(target):
         raise ValueError('Type the exact erase confirmation for the selected disk')
     if not stat.S_ISBLK(os.stat(target).st_mode):
         raise ValueError('Target is not a block device')
@@ -116,22 +143,17 @@ def validate(target, disk_id, confirmation):
     return {'target': target, 'diskId': disk_id, 'esp': esp, 'systemPartition': root}
 
 
-def check_identity(target, disk_id):
-    disks, _boot = inventory()
-    matches = [disk for disk in disks if disk.get('path') == target]
-    if len(matches) != 1 or identity(matches[0]) != disk_id or os.path.realpath(target) != target:
-        raise ValueError('Disk identity changed during installation; stopping')
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=['list', 'validate', 'check-identity'])
+    parser.add_argument('command', choices=['list', 'validate', 'check-identity', 'token'])
     parser.add_argument('--target')
     parser.add_argument('--disk-id')
     parser.add_argument('--confirm')
     args = parser.parse_args()
     if args.command == 'list':
         print(json.dumps(list_targets()))
+    elif args.command == 'token':
+        print(confirmation_token(args.target or ''))
     elif args.command == 'check-identity':
         check_identity(args.target, args.disk_id)
     else:
