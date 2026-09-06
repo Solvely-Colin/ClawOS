@@ -389,10 +389,12 @@ linux /vmlinuz-linux
 initrd /initramfs-linux.img
 options $root_options rootflags=subvol=@ rw quiet splash loglevel=3 rd.systemd.show_status=auto vt.global_cursor_default=0 plymouth.ignore-serial-consoles console=tty0 console=ttyS0,115200n8
 EOF
-# --graceful keeps the ESP install authoritative when firmware variables are
-# read-only, full or absent (OVMF without writable VARS, quirky boards). The
-# removable-media fallback path in the ESP still boots such machines.
-arch-chroot "$mount_root" bootctl --esp-path=/boot --graceful install
+# Run bootctl from the live system, not the chroot: bootctl silently skips
+# EFI variable writes when it detects a chroot, so the firmware entry was
+# never registered before. --graceful keeps the ESP install authoritative when
+# variables are read-only, full or absent; the removable-media fallback path
+# in the ESP still boots such machines.
+bootctl --esp-path="$mount_root/boot" --graceful install
 
 sync
 trap - EXIT INT TERM

@@ -60,8 +60,9 @@ There is no in-place migration between the two modes; reinstall to switch.
 The target uses GPT, an EFI system partition, LUKS2 (unless passwordless) and
 Btrfs. SATA/virtio and NVMe/eMMC partition naming is handled separately. Both
 common x86 microcode packages are included. The loader entry is written before
-`bootctl --graceful install`, so a firmware that refuses NVRAM writes still gets
-a bootable ESP through the removable-media path.
+`bootctl --graceful install`, which runs from the live system rather than the
+chroot (bootctl skips firmware variables inside a chroot). A firmware that
+refuses NVRAM writes still gets a bootable ESP through the removable-media path.
 
 Passwordless serial-root login is not installed by default. It is reserved for
 the explicit `--vm-test` harness, which still requires Q35 KVM and `/dev/vda`.

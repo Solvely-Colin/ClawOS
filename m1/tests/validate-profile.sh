@@ -93,7 +93,9 @@ if [[ -f "$installer" ]]; then
   grep -Fq 'if $vm_test; then' "$installer"
   grep -A4 -F 'recheck validate --confirm "$confirmation" >/dev/null' "$installer" | grep -Fq 'sfdisk --wipe always'
   grep -A1 -F 'recheck check-identity' "$installer" | grep -Fq 'mkfs.fat'
-  grep -Fq 'bootctl --esp-path=/boot --graceful install' "$installer"
+  # bootctl must run from the live system (a chroot silently skips NVRAM).
+  grep -Fq 'bootctl --esp-path="$mount_root/boot" --graceful install' "$installer"
+  ! grep -Fq 'arch-chroot "$mount_root" bootctl' "$installer"
   grep -Fq -- '--passwordless) passwordless=true' "$installer"
   grep -Fq 'clawos-passwordless-entry' "$installer"
   grep -Fq "Disk identity changed {when}" "$profile/airootfs/usr/lib/clawos/clawos_install_targets.py"
