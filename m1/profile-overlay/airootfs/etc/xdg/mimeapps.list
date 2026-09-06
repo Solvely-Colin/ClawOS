@@ -7,4 +7,3 @@ x-scheme-handler/https=clawos-browser.desktop
 text/html=clawos-browser.desktop;
 x-scheme-handler/http=clawos-browser.desktop;
 x-scheme-handler/https=clawos-browser.desktop;
-

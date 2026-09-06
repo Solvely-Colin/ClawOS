@@ -21,4 +21,3 @@ while true; do
   printf '\r\033[38;2;165;161;159mWaiting for Agent setup…\033[0m'
   sleep 2
 done
-
