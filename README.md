@@ -8,8 +8,9 @@ This is a **private development repository**, not a production-ready distributio
 [Features](FEATURES.md) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md) ·
 [Hardware support](docs/HARDWARE.md) · [Release builds](docs/RELEASING.md)
 
-**Installer boundary:** the current development installer accepts only a blank
-QEMU/KVM Q35 virtio disk at `/dev/vda`. It intentionally refuses physical hardware.
+**Installer boundary:** experimental installation is available for eligible blank
+SATA, NVMe, virtio and eMMC disks on x86_64 UEFI systems. Boot media, mounted/in-use
+disks and nonblank disks are refused. Physical-hardware acceptance is not yet proven.
 
 The aim is an agent that can inspect and change its own machine, deploy ClawOS
 runtime changes live, and return verified results to the originating conversation.

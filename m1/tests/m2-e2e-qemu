@@ -194,7 +194,8 @@ echo "Running the same guarded installer exposed by the graphical flow."
 install_commands=$'install -d -m 0700 /run/user/0\n'
 install_commands+="printf '%s' '$test_secret' > /run/user/0/clawos-install.key"$'\n'
 install_commands+=$'chmod 0600 /run/user/0/clawos-install.key\n'
-install_commands+=$'clawos-install-dev --target /dev/vda --confirm ERASE-QEMU-/dev/vda --key-file /run/user/0/clawos-install.key\n'
+install_commands+=$'disk_id=$(python3 /usr/lib/clawos/clawos_install_targets.py list | jq -r \'.[] | select(.path=="/dev/vda") | .diskId\')\n'
+install_commands+=$'clawos-install-dev --vm-test --target /dev/vda --disk-id "$disk_id" --confirm ERASE-/dev/vda --key-file /run/user/0/clawos-install.key\n'
 install_commands+=$'install_result=$?; rm -f /run/user/0/clawos-install.key; echo __M2_INSTALL_STATUS_${install_result}__; poweroff\n'
 send_serial "$install_commands"
 wait_log '__M2_INSTALL_STATUS_0__' 1800

@@ -87,8 +87,9 @@ fi
 
 installer="$profile/airootfs/usr/local/bin/clawos-install-dev"
 if [[ -f "$installer" ]]; then
-  grep -Fq 'target" != /dev/vda' "$installer"
-  grep -Fq "ERASE-QEMU-/dev/vda" "$installer"
+  grep -Fq 'clawos_install_targets.py validate' "$installer"
+  grep -Fq 'if $vm_test; then' "$installer"
+  grep -Fq 'Disk identity changed since selection' "$profile/airootfs/usr/lib/clawos/clawos_install_targets.py"
   grep -Fq 'systemd-detect-virt --vm' "$installer"
   grep -Fq 'Kernel did not expose the expected EFI and system partitions.' "$installer"
   grep -Fq 'Standard PC (Q35 + ICH9, 2009)' "$installer"
@@ -303,7 +304,9 @@ grep -Fq 'Inspect system' "$profile/airootfs/usr/lib/clawos/clawos-live-welcome"
 grep -Fq 'The full Agent workspace is created after installation.' \
   "$profile/airootfs/usr/lib/clawos/clawos-live-welcome"
 grep -Fq 'Install ClawOS' "$profile/airootfs/usr/lib/clawos/clawos-live-welcome"
-grep -Fq 'ERASE-QEMU-{self.target}' "$profile/airootfs/usr/lib/clawos/clawos-live-welcome"
+grep -Fq 'ERASE-{target}' "$profile/airootfs/usr/lib/clawos/clawos-live-welcome"
+grep -Fq '"--disk-id", disk_id' "$profile/airootfs/usr/lib/clawos/clawos-live-welcome"
+grep -Fq "selector.set_active(0)" "$profile/airootfs/usr/lib/clawos/clawos-live-welcome"
 grep -Fq 'Gdk.KEY_Escape' "$profile/airootfs/usr/lib/clawos/clawos-live-welcome"
 grep -Fq 'program === "/usr/local/bin/clawos-install-dev"' \
   "$profile/airootfs/etc/polkit-1/rules.d/49-clawos-live-installer.rules"

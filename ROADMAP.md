@@ -26,7 +26,9 @@ current contributor work queue; checkboxes are acceptance criteria, not promises
 ## 3. Design physical installation as its own milestone
 
 - [ ] Inventory hardware and define the initial supported UEFI x86_64 matrix.
-- [ ] Build safe physical-disk selection with clear erase previews and recovery.
+- [x] Implement experimental blank-disk selection with explicit confirmation,
+  live-media protection and disk-identity rechecks; validation is still required
+  on fresh SATA/NVMe VMs and physical machines.
 - [ ] Validate NVMe/SATA, graphics, networking, firmware, suspend and input.
 - [ ] Prove boot/root/home compatibility during failed-update recovery.
 - [ ] Establish Secure Boot and T2 hardware policies rather than implying support.

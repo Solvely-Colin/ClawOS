@@ -1,24 +1,61 @@
-# Hardware support
+# Experimental hardware installation
 
-ClawOS cannot currently be installed through its development installer on
-arbitrary Arch-compatible hardware. This is an enforced safety boundary.
+The installer no longer requires a VM. It accepts eligible **blank SATA, NVMe,
+virtio and eMMC whole disks** of at least 32 GiB on **x86_64 UEFI** systems.
+This is code-level eligibility, not a tested-device compatibility guarantee.
+Physical-hardware acceptance has not yet been completed.
 
-`m1/profile-overlay/airootfs/usr/local/bin/clawos-install-dev` requires:
+## Safety boundary
 
-- target `/dev/vda`, a blank whole disk with no mounted children;
-- `systemd-detect-virt --vm` reporting `kvm`;
-- machine model `Standard PC (Q35 + ICH9, 2009)`;
-- explicit `ERASE-QEMU-/dev/vda` confirmation and an installer-owned LUKS key.
+- Run only from a ClawOS live ISO with identifiable boot media and Secure Boot off.
+- Choose a disk explicitly; no disk is selected by default.
+- Boot media, read-only disks, mounted disks, swap, device-mapper/RAID holders,
+  existing partitions and filesystem signatures are refused.
+- The UI shows path, capacity, model and a short identity hint. Type the exact
+  `ERASE-/dev/...` confirmation for that disk in addition to the disk passphrase.
+- The privileged installer rechecks disk identity and eligibility immediately
+  before partitioning. Removing/swapping devices invalidates the selection.
+  The identity includes the kernel disk generation, not only model/serial text,
+  and is checked again before formatting the newly created partitions.
+- Online package sources are checked before erasure. Installation remains
+  network-backed; passing the check cannot guarantee the network stays available.
+- The installer does not repartition or migrate an existing OS. Use a blank spare
+  disk and back up your machine; do not bypass guards to test on a daily driver.
 
-The existing Windows development VM is a managed runtime environment. That does
-not establish that a fresh WHPX installation passes the installer's KVM guard.
-Do not remove these guards to experiment on a daily-driver machine.
+## Inspect without installing
 
-An ISO booting on physical UEFI x86_64 hardware is not installation or usability
-proof. Graphics, firmware, network interfaces, storage, encryption, suspend,
-Secure Boot and input must be validated separately. ARM and Apple Silicon are
-not current targets; the long-term Intel T2 target also needs its own proof.
+From the live ISO, list candidates:
 
-Hardware reports should include the ISO checksum, machine model, CPU/GPU,
-firmware mode and observed result, but omit serial numbers, MAC addresses,
-credentials and identifying logs unless shared privately and intentionally.
+```sh
+python3 /usr/lib/clawos/clawos_install_targets.py list
+```
+
+After identifying your intended disk, validate it without partitioning,
+formatting, changing credentials or installing packages:
+
+```sh
+sudo clawos-install-dev --target /dev/nvme0n1 \
+  --disk-id '<diskId from the candidate list>' \
+  --confirm 'ERASE-/dev/nvme0n1' --dry-run
+```
+
+The path above is an example, not a default. The graphical installer handles
+selection, confirmation and passphrase storage without putting secrets in args.
+
+## Installed system and remaining proof
+
+The target uses GPT, an EFI system partition, LUKS2 and Btrfs. SATA/virtio and
+NVMe/eMMC partition naming is handled separately. Both common x86 microcode
+packages are included. Normal hardware installs register the UEFI bootloader.
+
+Passwordless serial-root login is not installed by default. It is reserved for
+the explicit `--vm-test` harness, which still requires Q35 KVM and `/dev/vda`.
+The graphical session owns tty2; tty3 remains the normal recovery console.
+
+Secure Boot, legacy BIOS, ARM, Apple Silicon, RAID/multipath installation,
+existing-disk repartitioning and offline installation are outside this first
+hardware-capable path. Intel T2 still needs its platform-specific work. GPU,
+Wi-Fi, suspend and firmware compatibility require real hardware evidence.
+
+Report ISO checksum, machine model, firmware mode, disk type and result. Omit
+serial numbers, MAC addresses, credentials and identifying logs from public reports.

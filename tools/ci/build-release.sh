@@ -9,7 +9,7 @@ source m1/config/versions.env
 [[ "$ARCH_SNAPSHOT" =~ ^[0-9]{4}/[0-9]{2}/[0-9]{2}$ ]] || exit 1
 printf 'Server = https://archive.archlinux.org/repos/%s/$repo/os/$arch\n' "$ARCH_SNAPSHOT" >/etc/pacman.d/mirrorlist
 pacman -Syyuu --noconfirm --needed --disable-download-timeout \
-  base-devel archiso git inetutils nodejs npm python jq rsync socat \
+  base-devel archiso mkinitcpio git inetutils nodejs npm python jq rsync socat \
   openssh sudo shellcheck qemu-desktop edk2-ovmf
 [[ "$(pacman -Q archiso)" == "archiso $ARCHISO_VERSION" ]] || {
   echo 'ArchISO build-tool version differs from the lock; review the build inputs.' >&2
@@ -34,7 +34,7 @@ out=/src/artifacts/m1/out
   printf 'Build channel: experimental development ISO\n'
   printf 'Validation: source preflight and ISO boot-chain structure\n'
   printf 'Boot/install/hardware acceptance: NOT RUN by this workflow\n'
-  printf 'Installer: QEMU/KVM Q35 /dev/vda only; not physical hardware\n'
+  printf 'Installer: experimental x86_64 UEFI blank disks; physical hardware NOT verified\n'
   cat m1/config/versions.env
 } >"$out/BUILD-METADATA.txt"
 pacman -Q >"$out/BUILD-PACKAGES.txt"

@@ -6,9 +6,16 @@ source /etc/clawos/versions.env
 target=
 confirmation=
 key_file=
+disk_id=
+dry_run=false
+vm_test=false
 
 while (( $# )); do
   case "$1" in
+    --list) exec python3 /usr/lib/clawos/clawos_install_targets.py list ;;
+    --disk-id) disk_id="${2:-}"; shift 2 ;;
+    --dry-run) dry_run=true; shift ;;
+    --vm-test) vm_test=true; shift ;;
     --target)
       target="${2:-}"
       shift 2
@@ -28,26 +35,18 @@ while (( $# )); do
   esac
 done
 
-if [[ "$target" != /dev/vda ]]; then
-  echo "Development installer only accepts the QEMU virtio disk /dev/vda." >&2
-  exit 1
+[[ $EUID == 0 ]] || { echo 'Run installer validation through sudo or the live installer.' >&2; exit 1; }
+exec 9>/run/clawos-installer.lock
+flock -n 9 || { echo 'Another installation is already running.' >&2; exit 1; }
+if $vm_test; then
+  [[ "$(systemd-detect-virt --vm)" == kvm && "$target" == /dev/vda &&
+     "$(cat /sys/class/dmi/id/product_name)" == 'Standard PC (Q35 + ICH9, 2009)' ]] || {
+    echo 'Serial root autologin is restricted to the explicit Q35 VM test harness.' >&2; exit 1;
+  }
 fi
-if [[ ! -b "$target" || "$(lsblk -dnro TYPE "$target")" != disk ]]; then
-  echo "Target is not a whole block device: $target" >&2
-  exit 1
-fi
-if [[ "$(systemd-detect-virt --vm)" != kvm ]]; then
-  echo "Development installer refuses to run outside a KVM guest." >&2
-  exit 1
-fi
-if [[ "$(cat /sys/class/dmi/id/product_name 2>/dev/null)" != 'Standard PC (Q35 + ICH9, 2009)' ]]; then
-  echo "Development installer refuses an unexpected machine model." >&2
-  exit 1
-fi
-if [[ "$confirmation" != 'ERASE-QEMU-/dev/vda' ]]; then
-  echo "Required confirmation: --confirm ERASE-QEMU-/dev/vda" >&2
-  exit 1
-fi
+plan=$(python3 /usr/lib/clawos/clawos_install_targets.py validate \
+  --target "$target" --disk-id "$disk_id" --confirm "$confirmation")
+if $dry_run; then printf '%s\n' "$plan"; exit 0; fi
 if [[ ! "$key_file" =~ ^/run/user/[0-9]+/clawos-install\.key$ || ! -f "$key_file" || -L "$key_file" ]]; then
   echo "The LUKS key must be the installer-owned regular file in a live user's runtime directory." >&2
   exit 1
@@ -56,39 +55,65 @@ if [[ ! "$(stat -c %a "$key_file")" =~ ^(400|600)$ ]]; then
   echo "The LUKS key file must have mode 0600 or stricter." >&2
   exit 1
 fi
-if lsblk -nrpo MOUNTPOINTS "$target" | grep -q '[^[:space:]]'; then
-  echo "Target or one of its children is mounted." >&2
-  exit 1
-fi
-if [[ -n "$(lsblk -nrpo NAME "$target" | sed -n '2p')" ]]; then
-  echo "Target already contains partitions; this proof installer requires a blank qcow2." >&2
-  exit 1
-fi
+private_key=$(mktemp /run/clawos-install-key.XXXXXX)
+trap 'rm -f -- "$private_key"' EXIT
+python3 - "$key_file" "$private_key" <<'PY'
+import os, pathlib, stat, sys
+fd = os.open(sys.argv[1], os.O_RDONLY | os.O_NOFOLLOW)
+try:
+    info = os.fstat(fd)
+    if not stat.S_ISREG(info.st_mode) or info.st_uid != int(pathlib.Path(sys.argv[1]).parent.name) or info.st_nlink != 1:
+        raise SystemExit('Installer key ownership or file type is invalid')
+    if stat.S_IMODE(info.st_mode) not in (0o400, 0o600):
+        raise SystemExit('Installer key permissions changed')
+    secret = os.read(fd, 513)
+    if not 10 <= len(secret) <= 512 or any(c in secret for c in (b'\0', b'\n', b'\r')):
+        raise SystemExit('Use a single-line passphrase of 10 to 512 bytes')
+    pathlib.Path(sys.argv[2]).write_bytes(secret)
+finally:
+    os.close(fd)
+PY
+key_file=$private_key
+# Fail before erasing if the required online sources are not reachable.
+curl --fail --silent --show-error --location --head --max-time 20 \
+  "https://archive.archlinux.org/repos/$ARCH_SNAPSHOT/core/os/x86_64/core.db" >/dev/null
+curl --fail --silent --show-error --head --max-time 20 \
+  "https://registry.npmjs.org/openclaw/$OPENCLAW_VERSION" >/dev/null
 
 # The caller should use a restrictive umask when creating the LUKS key, but
 # that setting must not leak into the target filesystem. Arch package directory
 # modes assume the conventional system umask.
 umask 022
 
-esp=${target}1
-system_partition=${target}2
+esp=$(printf '%s' "$plan" | jq -r .esp)
+system_partition=$(printf '%s' "$plan" | jq -r .systemPartition)
 mapper=clawos-root
-mount_root=/mnt
+[[ ! -e /dev/mapper/$mapper ]] || { echo 'Existing ClawOS mapper is in use; refusing installation.' >&2; exit 1; }
+mount_root=$(mktemp -d /mnt/clawos-install.XXXXXX)
 mounted=false
 opened=false
 
 cleanup() {
+  local status=0
   if $mounted; then
-    umount -R "$mount_root" 2>/dev/null || true
+    if umount -R "$mount_root"; then mounted=false; else status=1; fi
   fi
-  if $opened; then
-    cryptsetup close "$mapper" 2>/dev/null || true
+  if ! $mounted && $opened; then
+    if cryptsetup close "$mapper"; then opened=false; else status=1; fi
   fi
+  rm -f -- "$private_key"
+  if ! $mounted; then rmdir "$mount_root" 2>/dev/null || true; fi
+  return "$status"
 }
 trap cleanup EXIT INT TERM
 
-echo "Installing the network-backed development proof to $target."
+echo "Installing experimental network-backed ClawOS to $target."
 echo "This is not the offline production installer."
+
+# Recheck the same disk and live-media protections immediately before the first
+# destructive command. Hotplug or state changes invalidate the selection.
+python3 /usr/lib/clawos/clawos_install_targets.py validate \
+  --target "$target" --disk-id "$disk_id" --confirm "$confirmation" >/dev/null
 
 sfdisk --wipe always "$target" <<'EOF'
 label: gpt
@@ -105,7 +130,9 @@ if [[ ! -b "$esp" || ! -b "$system_partition" ]]; then
   exit 1
 fi
 
+python3 /usr/lib/clawos/clawos_install_targets.py check-identity --target "$target" --disk-id "$disk_id"
 mkfs.fat -F 32 -n CLAWOS_EFI "$esp"
+python3 /usr/lib/clawos/clawos_install_targets.py check-identity --target "$target" --disk-id "$disk_id"
 cryptsetup luksFormat --batch-mode --type luks2 --label CLAWOS_CRYPT \
   --key-file "$key_file" "$system_partition"
 cryptsetup open --key-file "$key_file" "$system_partition" "$mapper"
@@ -128,7 +155,7 @@ mount -o subvol=@snapshots,compress=zstd,noatime "/dev/mapper/$mapper" "$mount_r
 mount "$esp" "$mount_root/boot"
 
 pacstrap -K "$mount_root" \
-  base linux linux-firmware btrfs-progs cryptsetup dosfstools \
+  base linux linux-firmware intel-ucode amd-ucode btrfs-progs cryptsetup dosfstools \
   networkmanager openssh sudo zsh tmux curl jq \
   chromium foot fuzzel sway swaybg waybar swayidle mesa noto-fonts inter-font otf-geist-mono-nerd \
   gtklock gtklock-userinfo-module gtk-layer-shell python-gobject orca \
@@ -272,12 +299,14 @@ chmod 0755 "$mount_root/usr/lib/clawos/clawos-session" \
 install -m 0644 /etc/clawos/zshrc "$mount_root/home/clawos/.zshrc"
 chown 1000:1000 "$mount_root/home/clawos/.zshrc"
 
-mkdir -p "$mount_root/etc/systemd/system/serial-getty@ttyS0.service.d"
-cat >"$mount_root/etc/systemd/system/serial-getty@ttyS0.service.d/autologin.conf" <<'EOF'
+if $vm_test; then
+  mkdir -p "$mount_root/etc/systemd/system/serial-getty@ttyS0.service.d"
+  cat >"$mount_root/etc/systemd/system/serial-getty@ttyS0.service.d/autologin.conf" <<'EOF'
 [Service]
 ExecStart=
 ExecStart=-/usr/bin/agetty --noreset --noclear --autologin root 115200,57600,38400,9600 - $TERM
 EOF
+fi
 
 cat >"$mount_root/etc/mkinitcpio.conf.d/clawos.conf" <<'EOF'
 HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block plymouth sd-encrypt filesystems fsck)
@@ -286,8 +315,13 @@ EOF
 arch-chroot "$mount_root" systemctl enable \
   NetworkManager.service sshd.service tailscaled.service \
   clawosd.service clawos-session@clawos.service
+arch-chroot "$mount_root" systemctl mask getty@tty2.service
 arch-chroot "$mount_root" mkinitcpio -P
-arch-chroot "$mount_root" bootctl --esp-path=/boot --variables=no install
+if $vm_test; then
+  arch-chroot "$mount_root" bootctl --esp-path=/boot --variables=no install
+else
+  arch-chroot "$mount_root" bootctl --esp-path=/boot install
+fi
 
 crypt_uuid="$(cryptsetup luksUUID "$system_partition")"
 mkdir -p "$mount_root/boot/loader/entries"
