@@ -10,6 +10,8 @@ The **Experimental ISO build** GitHub Actions workflow supports:
 
 The privileged build runs inside a disposable Arch container on a hosted Linux
 runner, never on the Windows development host or an unattended personal runner.
+It reclaims unused Android/.NET/Haskell SDK directories only after verifying
+the hosted-runner environment and exact target paths, then requires 20 GB free.
 No provider credentials or VM disks are passed to it. Build has read-only repo
 permissions; only the separate draft-publication job can write release assets.
 

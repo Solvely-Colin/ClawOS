@@ -18,10 +18,23 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+      - name: Reclaim unused SDK space on disposable hosted runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RUNNER_ENVIRONMENT" == github-hosted ]] || { echo 'Refusing SDK cleanup outside a hosted runner'; exit 1; }
+          for sdk in /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup; do
+            if [[ -d "$sdk" ]]; then
+              [[ ! -L "$sdk" && "$(readlink -f "$sdk")" == "$sdk" ]] || { echo "Unexpected SDK target: $sdk"; exit 1; }
+              du -sh "$sdk"
+              sudo find "$sdk" -xdev -depth -delete
+            fi
+          done
       - name: Check workspace capacity
         shell: bash
         run: |
           available=$(df -Pk "$GITHUB_WORKSPACE" | awk 'NR==2 {print $4}')
+          echo "Available workspace KiB: $available"
           test "$available" -ge 20000000 || { echo 'At least 20 GB free is required for this experimental build.'; exit 1; }
       - name: Build in disposable Arch container
         shell: bash
