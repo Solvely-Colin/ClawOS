@@ -1,0 +1,72 @@
+name: Experimental ISO build
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+permissions:
+  contents: read
+concurrency:
+  group: iso-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.repository == 'Solvely-Colin/ClawOS'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Check workspace capacity
+        shell: bash
+        run: |
+          available=$(df -Pk "$GITHUB_WORKSPACE" | awk 'NR==2 {print $4}')
+          test "$available" -ge 20000000 || { echo 'At least 20 GB free is required for this experimental build.'; exit 1; }
+      - name: Build in disposable Arch container
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull archlinux:base-devel
+          docker image inspect archlinux:base-devel --format '{{json .RepoDigests}}' > build-container-digest.txt
+          docker run --rm --privileged \
+            -e GITHUB_ACTIONS=true -e GITHUB_SHA \
+            -v "$GITHUB_WORKSPACE:/src" -w /src \
+            archlinux:base-devel bash tools/ci/build-release.sh
+          cp build-container-digest.txt artifacts/m1/out/BUILD-CONTAINER.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: clawos-iso-${{ github.sha }}
+          path: artifacts/m1/out/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+  draft-prerelease:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: clawos-iso-${{ github.sha }}
+          path: release
+      - name: Create a draft for maintainer review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          SOURCE_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo 'Use a version tag such as v0.1.0-alpha.1'; exit 1; }
+          printf '%s\n' \
+            "Experimental ClawOS build from $SOURCE_SHA." \
+            'The development installer accepts only QEMU/KVM Q35 and a blank /dev/vda.' \
+            'Physical hardware installation is intentionally blocked.' \
+            'Source preflight and ISO structure passed; boot/install acceptance must be reviewed separately.' \
+            'This draft is not a supported or stable release. Review BUILD-METADATA.txt and verify SHA256SUMS.' > notes.md
+          gh release create "$RELEASE_TAG" --verify-tag --draft --prerelease \
+            --title "ClawOS $RELEASE_TAG — experimental" --notes-file notes.md ./release/*

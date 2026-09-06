@@ -1,7 +1,15 @@
+![ClawOS — an agent-native operating system](docs/assets/clawos-header.png)
+
 # ClawOS
 
 An experimental Arch-based OS with OpenClaw as its primary agent interface.
 This is a **private development repository**, not a production-ready distribution.
+
+[Features](FEATURES.md) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md) ·
+[Hardware support](docs/HARDWARE.md) · [Release builds](docs/RELEASING.md)
+
+**Installer boundary:** the current development installer accepts only a blank
+QEMU/KVM Q35 virtio disk at `/dev/vda`. It intentionally refuses physical hardware.
 
 The aim is an agent that can inspect and change its own machine, deploy ClawOS
 runtime changes live, and return verified results to the originating conversation.
@@ -64,3 +72,5 @@ statement as current release acceptance.
 No public open-source license has been selected. Before public publication,
 the owner must select one and complete the third-party/asset attribution review.
 Existing third-party licenses remain applicable; see [NOTICE.md](NOTICE.md).
+Use the [public-release checklist](docs/PUBLIC-RELEASE-CHECKLIST.md) before
+changing repository visibility or announcing installable releases.

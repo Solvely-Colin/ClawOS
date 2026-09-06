@@ -1,0 +1,29 @@
+name: Bug report
+description: Report a reproducible ClawOS failure
+body:
+  - type: markdown
+    attributes:
+      value: Do not include credentials, private transcripts, disk images or identifying logs.
+  - type: input
+    id: revision
+    attributes:
+      label: Commit, ISO checksum or deployment job ID
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: VM backend, guest version, display size and affected component. Physical installation is not currently supported.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps, expected result and actual result
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Redacted evidence and recovery attempted

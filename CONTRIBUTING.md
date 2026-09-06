@@ -1,5 +1,11 @@
 # Contributing
 
+Read [features/status](FEATURES.md), the [roadmap](ROADMAP.md),
+[hardware boundaries](docs/HARDWARE.md) and [code of conduct](CODE_OF_CONDUCT.md).
+Use the bug or feature issue template to propose focused work. Release maintainers
+should follow [the release guide](docs/RELEASING.md); a green build is not permission
+to publish a stable or hardware-supported release.
+
 Start with a focused issue and a small branch. Describe the behavior changed,
 affected runtime components, verification, and remaining risks. Preserve
 unrelated work and distinguish unit tests from fresh-install proof.
