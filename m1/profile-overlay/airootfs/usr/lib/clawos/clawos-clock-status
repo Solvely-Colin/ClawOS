@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+"""Render the live ClawOS clock from root-owned system preferences."""
+
+import datetime
+import json
+from pathlib import Path
+
+
+try:
+    preferences = json.loads(Path("/etc/clawos/preferences.json").read_text(encoding="utf-8"))
+except (OSError, ValueError):
+    preferences = {}
+
+now = datetime.datetime.now().astimezone()
+if preferences.get("clockFormat", "12h") == "24h":
+    text = now.strftime("%H:%M")
+else:
+    text = now.strftime("%I:%M %p").lstrip("0")
+
+print(json.dumps({
+    "text": text,
+    "tooltip": now.strftime("%A, %B %d, %Y · %Z (UTC%z)"),
+    "class": "clock",
+}, separators=(",", ":")))

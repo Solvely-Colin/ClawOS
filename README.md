@@ -1,45 +1,66 @@
 # ClawOS
 
-ClawOS is an Arch-based, OpenClaw-native operating-system project. OpenClaw's
-Control UI is the primary desktop and agent control plane.
+An experimental Arch-based OS with OpenClaw as its primary agent interface.
+This is a **private development repository**, not a production-ready distribution.
 
-The current implementation is **Milestone 1**: a clean ArchISO, guarded QEMU
-installer, encrypted standalone development disk, and first-boot OpenClaw
-onboarding path. The real upstream Control UI is the graphical OS surface;
-ClawOS does not maintain a second dashboard.
+The aim is an agent that can inspect and change its own machine, deploy ClawOS
+runtime changes live, and return verified results to the originating conversation.
+ClawOS owns machine integration and recovery; OpenClaw owns models, credentials,
+conversations and agent execution. Carapace is the intended design language.
 
-Milestone 0 remains available as a reversible host-only compositor experiment.
+## Start contributing
 
-## Milestone 0
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and [known issues](docs/KNOWN-ISSUES.md).
+Use a disposable Linux VM, not your daily-driver installation.
 
-Review [PLAN.md](PLAN.md), then run:
+On Arch Linux, review and install build dependencies, then run the source gate:
 
-```bash
-./m0/tests/static-check.sh
-sudo ./m0/bin/install-m0 colin
-sudo systemctl start clawos-session@colin.service
+```sh
+./m1/bin/install-build-deps
+./m1/bin/preflight-iso
 ```
 
-The session expects OpenClaw at `http://127.0.0.1:18789/`. Override it in
-`/etc/clawos/session.env` before starting the service. Switch to the session with
-`Ctrl+Alt+F2`; `Ctrl+Alt+F3` remains the recovery TTY.
+For non-privileged unit checks on Linux with Python 3.12+ and Node 24+:
 
-Stop and remove the experiment without touching the existing desktop:
-
-```bash
-sudo systemctl stop clawos-session@colin.service
-sudo ./m0/bin/uninstall-m0
+```sh
+python3 -m unittest discover -s m1/tests -p 'test_*.py'
+python3 -m unittest discover -s m3/tests -p 'test_*.py'
+node --test m2/openclaw-plugin/test/*.test.js
 ```
 
-The installer deliberately does not enable the service at boot.
+See [M1 build instructions](m1/README.md) for ISO construction and disposable-disk
+testing, and [live development](m2/SELF-DEVELOPMENT.md) for checkpointed runtime
+deployment. ISO builds run inside Linux. Windows manages QEMU through the
+[host launcher scripts](tools/windows/README.md).
 
-Current implementation and machine state are tracked in
-[m0/STATUS.md](m0/STATUS.md).
+## Code map
 
-## Milestone 1
+| Path | Purpose |
+| --- | --- |
+| `m1/` | ArchISO, installer, shell, onboarding, runtime deployment and checks |
+| `m2/openclaw-plugin/` | Machine tools, activity integration and deployment notices |
+| `m3/` | Privileged broker, approval UI, recovery and tests |
+| `m4/` | Standalone/remote-node role switching and tests |
+| `shell-prototype/` | Separate visual prototype, not the installed OS runtime |
+| `m0/` | Historical compositor experiment and retained regression checks |
+| `tools/windows/` | Host lifecycle source, without VM images or credentials |
 
-Build, install, and boot the isolated QEMU proof by following
-[m1/README.md](m1/README.md). On first graphical boot, ClawOS asks whether the
-Gateway should run on this machine or on an existing host, then delegates setup
-to the pinned upstream `openclaw onboard` wizard. `Ctrl+Alt+F3` remains the
-independent recovery console.
+## Evidence and limits
+
+The development VM has demonstrated runtime deployment, file-level rollback,
+native provider/model setup, high-impact broker approvals, and idempotent
+completion notices. Unit checks are not proof of fresh installation, arbitrary
+OS rollback, hardware compatibility or safe root-agent behavior. Full Root
+intentionally grants broad authority.
+
+Source gates reject known Omarchy dependencies. Historical references and
+negative tests remain intentionally; removing those words would weaken checks.
+This is not a complete package/asset provenance certification.
+
+`PLAN.md` and milestone `STATUS.md` files include superseded designs. Treat
+current code and executable tests as evidence, not every historical "proven"
+statement as current release acceptance.
+
+No public open-source license has been selected. Before public publication,
+the owner must select one and complete the third-party/asset attribution review.
+Existing third-party licenses remain applicable; see [NOTICE.md](NOTICE.md).

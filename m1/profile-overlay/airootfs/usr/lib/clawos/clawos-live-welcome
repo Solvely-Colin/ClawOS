@@ -1,0 +1,574 @@
+#!/usr/bin/env python3
+"""Carapace-aligned ClawOS live welcome and guarded installer."""
+
+import datetime
+import json
+import os
+import pathlib
+import subprocess
+import threading
+
+import gi
+
+gi.require_version("GdkPixbuf", "2.0")
+gi.require_version("Gdk", "3.0")
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
+
+
+THEME_ROOT = pathlib.Path("/usr/share/clawos/theme")
+CSS = b"""
+window { background: #090b0b; color: #f3f1ee; font-family: 'Inter Variable', Inter, 'Noto Sans', sans-serif; }
+.shell { background-color: transparent; }
+.topbar { min-height: 51px; padding: 0 24px; background: rgba(11,13,13,.96); border-bottom: 1px solid #292d2b; }
+.brand { color: #f3f1ee; font-size: 17px; font-weight: 700; }
+.top-state { color: #a5a19f; font-size: 13px; }
+.top-time { color: #f3f1ee; font-size: 13px; font-weight: 500; }
+.success { color: #35ce78; }
+.muted { color: #747876; }
+.stage { background-color: transparent; }
+.hero { padding: 50px 72px 34px 72px; }
+.eyebrow { color: #ff684f; font-family: 'GeistMono Nerd Font', monospace; font-size: 12px; font-weight: 700; letter-spacing: 2px; }
+.title { color: #f3f1ee; font-size: 58px; font-weight: 700; }
+.screen-title { color: #f3f1ee; font-size: 34px; font-weight: 700; }
+.lede { color: #a5a19f; font-size: 17px; }
+.body { color: #a5a19f; font-size: 14px; }
+.body-strong { color: #f3f1ee; font-size: 14px; font-weight: 600; }
+.button-primary-label { color: #090b0b; font-size: 14px; font-weight: 700; }
+.mono { color: #747876; font-family: 'GeistMono Nerd Font', monospace; font-size: 12px; }
+.mono-success { color: #35ce78; font-family: 'GeistMono Nerd Font', monospace; font-size: 12px; }
+.primary { min-width: 244px; min-height: 52px; padding: 0 16px; background: #ff684f; background-image: none; color: #090b0b; border: 0; border-radius: 8px; font-size: 14px; font-weight: 700; box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.primary:hover { background: #e05540; }
+.primary:disabled { background: #414643; color: #747876; }
+.secondary { min-height: 44px; padding: 0 14px; background: transparent; color: #a5a19f; border: 0; border-bottom: 1px solid #414643; border-radius: 0; font-size: 14px; }
+.secondary:hover { color: #f3f1ee; border-bottom-color: #f3f1ee; }
+.quiet { min-height: 40px; padding: 0 12px; background: transparent; color: #a5a19f; border: 1px solid #292d2b; border-radius: 8px; }
+.quiet:hover { background: #202121; color: #f3f1ee; }
+.systems { border-top: 1px solid #292d2b; border-bottom: 1px solid #292d2b; background: rgba(16,19,18,.80); }
+.systems-left { padding: 20px 44px 16px 72px; }
+.systems-right { padding: 20px 72px 16px 44px; border-left: 1px solid #292d2b; }
+.section-label { color: #f3f1ee; font-size: 13px; font-weight: 600; }
+.row { min-height: 50px; border-bottom: 1px solid #292d2b; }
+.row-label { color: #a5a19f; font-size: 13px; }
+.row-value { color: #f3f1ee; font-size: 13px; }
+.event { min-height: 28px; }
+.footer { padding: 0 72px; background: rgba(16,16,18,.92); }
+.footer-text { color: #747876; font-size: 12px; }
+.content { padding: 22px 72px 12px 72px; }
+.content-pane-left { padding: 28px 42px 28px 0; }
+.content-pane-right { padding: 28px 0 28px 42px; border-left: 1px solid #292d2b; }
+.target-line { min-height: 62px; border-top: 1px solid #292d2b; border-bottom: 1px solid #292d2b; }
+.danger { color: #ff5c5c; font-size: 13px; }
+.install-plan { min-height: 38px; color: #a5a19f; font-size: 13px; }
+.warning { padding: 14px 16px; color: #d8d5d1; background: rgba(255,104,79,.08); border: 1px solid rgba(255,104,79,.34); border-radius: 8px; font-size: 13px; }
+entry { min-height: 44px; padding: 0 12px; background: #202121; color: #f3f1ee; border: 1px solid #292d2b; border-radius: 8px; caret-color: #ff684f; }
+entry:focus { border-color: #ff684f; box-shadow: 0 0 0 1px #ff684f; }
+progressbar trough { min-height: 8px; background: #202121; border-radius: 8px; }
+progressbar progress { background: #ff684f; border-radius: 8px; }
+.log-frame { background: rgba(16,19,18,.86); border-top: 1px solid #292d2b; border-bottom: 1px solid #292d2b; }
+textview, textview text { background: #101312; color: #a5a19f; font-family: 'GeistMono Nerd Font', monospace; font-size: 12px; }
+"""
+
+
+class Welcome(Gtk.ApplicationWindow):
+    def __init__(self, app):
+        super().__init__(application=app, title="ClawOS Setup")
+        self.screen_width = self.get_screen().get_width()
+        self.screen_height = self.get_screen().get_height()
+        self.fullscreen()
+        self.set_size_request(self.screen_width, self.screen_height)
+        self.target = None
+        self.installing = False
+        self.current_view = "welcome"
+        self.connect("key-press-event", self._on_key)
+        self.get_accessible().set_name("ClawOS live setup")
+
+        provider = Gtk.CssProvider()
+        provider.load_from_data(CSS)
+        Gtk.StyleContext.add_provider_for_screen(
+            self.get_screen(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+
+        overlay = Gtk.Overlay()
+        overlay.add(self._background())
+        self.root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self._classes(self.root, "shell")
+        overlay.add_overlay(self.root)
+        self.add(overlay)
+        self._topbar()
+        self.stage = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self._classes(self.stage, "stage")
+        self.root.pack_start(self.stage, True, True, 0)
+        self.show_welcome()
+
+    @staticmethod
+    def _classes(widget, *names):
+        context = widget.get_style_context()
+        for name in names:
+            context.add_class(name)
+        return widget
+
+    def _background(self):
+        try:
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file(str(THEME_ROOT / "background.png"))
+            art_width = max(760, int(self.screen_width * 0.76))
+            art_height = max(540, int(self.screen_height * 0.87))
+            pixbuf = pixbuf.scale_simple(art_width, art_height, GdkPixbuf.InterpType.BILINEAR)
+            canvas = Gtk.DrawingArea()
+            canvas.set_size_request(self.screen_width, self.screen_height)
+
+            def draw(_widget, context):
+                Gdk.cairo_set_source_pixbuf(context, pixbuf, self.screen_width // 2, 0)
+                context.paint_with_alpha(0.92)
+                return False
+
+            canvas.connect("draw", draw)
+            return canvas
+        except GLib.Error:
+            return Gtk.Box()
+
+    @staticmethod
+    def _icon(name, size=Gtk.IconSize.MENU, style=None):
+        if name == "clawos-arrow-left":
+            try:
+                pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
+                    str(THEME_ROOT.parent / "icons" / "arrow-left.svg"), 15, 15, True
+                )
+                return Gtk.Image.new_from_pixbuf(pixbuf)
+            except GLib.Error:
+                name = "go-previous-symbolic"
+        image = Gtk.Image.new_from_icon_name(name, size)
+        if name == "media-record-symbolic":
+            image.set_pixel_size(9)
+        if style:
+            image.get_style_context().add_class(style)
+        return image
+
+    @staticmethod
+    def _pin():
+        try:
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
+                str(THEME_ROOT / "clawos-pin.png"), 24, 24, True
+            )
+            return Gtk.Image.new_from_pixbuf(pixbuf)
+        except GLib.Error:
+            return Welcome._icon("computer-symbolic")
+
+    def _topbar(self):
+        top = self._classes(Gtk.Grid(), "topbar")
+        top.set_column_homogeneous(True)
+        brand = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        brand.pack_start(self._pin(), False, False, 0)
+        brand.pack_start(self._label("ClawOS", "brand"), False, False, 0)
+        state = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=7)
+        state.pack_start(self._icon("media-record-symbolic", style="success"), False, False, 0)
+        state.pack_start(self._label("Live environment", "top-state"), False, False, 0)
+        system = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=18)
+        system.pack_start(self._icon("network-wireless-signal-excellent-symbolic", style="muted"), False, False, 0)
+        self.clock = self._label("", "top-time")
+        system.pack_start(self.clock, False, False, 0)
+        self._update_clock()
+        GLib.timeout_add_seconds(30, self._update_clock)
+        brand.set_halign(Gtk.Align.START)
+        state.set_halign(Gtk.Align.CENTER)
+        system.set_halign(Gtk.Align.END)
+        top.attach(brand, 0, 0, 1, 1)
+        top.attach(state, 1, 0, 1, 1)
+        top.attach(system, 2, 0, 1, 1)
+        self.root.pack_start(top, False, False, 0)
+
+    def _update_clock(self):
+        self.clock.set_text(datetime.datetime.now().strftime("%I:%M %p").lstrip("0"))
+        return True
+
+    def _clear(self):
+        for child in self.stage.get_children():
+            self.stage.remove(child)
+
+    def _on_key(self, _widget, event):
+        if event.keyval == Gdk.KEY_Escape and not self.installing and self.current_view != "welcome":
+            self.show_welcome()
+            return True
+        return False
+
+    @staticmethod
+    def _label(text, style, width=None):
+        label = Gtk.Label(label=text)
+        label.get_style_context().add_class(style)
+        label.set_xalign(0)
+        label.set_line_wrap(True)
+        if width:
+            label.set_max_width_chars(width)
+        return label
+
+    def _button(self, text, style, callback, icon=None):
+        button = Gtk.Button()
+        self._classes(button, style)
+        if style == "quiet":
+            button.set_halign(Gtk.Align.START)
+        content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=20)
+        label_style = "button-primary-label" if style == "primary" else "body-strong"
+        if icon == "clawos-arrow-left":
+            content.pack_start(self._icon(icon), False, False, 0)
+        content.pack_start(self._label(text, label_style), True, True, 0)
+        if icon and icon != "clawos-arrow-left":
+            content.pack_end(self._icon(icon), False, False, 0)
+        button.add(content)
+        button.connect("clicked", callback)
+        return button
+
+    def _hero(self):
+        hero = self._classes(Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL), "hero")
+        hero.set_size_request(-1, min(478, max(390, self.screen_height - 422)))
+        copy = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+        copy.set_size_request(min(760, max(520, self.screen_width - 144)), -1)
+        copy.set_valign(Gtk.Align.CENTER)
+        copy.pack_start(self._label("Your machine,\nready to work with you.", "title", 24), False, False, 0)
+        copy.pack_start(self._label(
+            "ClawOS is an OpenClaw-native agent operating system.", "lede"), False, False, 0)
+        actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=32)
+        actions.set_margin_top(54)
+        install = self._button("Install ClawOS", "primary", self.show_install, "go-next-symbolic")
+        actions.pack_start(install, False, False, 0)
+        actions.pack_start(self._button(
+            "Inspect system", "secondary", self.show_try, "go-next-symbolic"), False, False, 0)
+        copy.pack_start(actions, False, False, 0)
+        hero.pack_start(copy, False, False, 0)
+        install.grab_focus()
+        return hero
+
+    @staticmethod
+    def _network_ready():
+        try:
+            result = subprocess.run(
+                ["ip", "-brief", "address"], capture_output=True, text=True, timeout=3
+            )
+            return "10.0.2." in result.stdout or "192.168." in result.stdout
+        except (OSError, subprocess.SubprocessError):
+            return False
+
+    @staticmethod
+    def _disks():
+        result = subprocess.run(
+            ["lsblk", "--json", "--bytes", "--nodeps", "--output", "NAME,PATH,SIZE,TYPE,MODEL,RM"],
+            capture_output=True, text=True, check=True,
+        )
+        return [
+            item for item in json.loads(result.stdout).get("blockdevices", [])
+            if item.get("type") == "disk" and item.get("path") == "/dev/vda"
+        ]
+
+    def _disk_summary(self):
+        try:
+            disks = self._disks()
+        except (OSError, subprocess.SubprocessError, ValueError):
+            disks = []
+        if not disks:
+            return ("No guarded disk", "Unavailable")
+        disk = disks[0]
+        size = int(disk.get("size") or 0) / (1024 ** 3)
+        return (f"/dev/vda · {size:.0f} GB", "Guarded")
+
+    def _fact_row(self, icon, label, value, state):
+        row = self._classes(Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12), "row")
+        row.pack_start(self._icon(icon, style="muted"), False, False, 0)
+        row.pack_start(self._label(label, "row-label"), False, False, 0)
+        row.pack_end(self._label(state, "mono-success"), False, False, 0)
+        value_label = self._label(value, "row-value")
+        value_label.set_xalign(1)
+        row.pack_end(value_label, True, True, 0)
+        return row
+
+    def _event_row(self, stamp, source, message, final=False):
+        row = self._classes(Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14), "event")
+        row.pack_start(self._label(stamp, "mono"), False, False, 0)
+        source_label = self._label(source, "mono")
+        source_label.set_size_request(72, -1)
+        row.pack_start(source_label, False, False, 0)
+        row.pack_start(self._label(message, "mono-success" if final else "mono"), True, True, 0)
+        row.pack_end(self._icon("media-record-symbolic", style="success"), False, False, 0)
+        return row
+
+    def _systems(self, compact=False):
+        systems = self._classes(Gtk.Grid(), "systems")
+        systems.set_column_homogeneous(True)
+        systems.set_size_request(-1, min(294, max(250, self.screen_height // 3)))
+        left = self._classes(Gtk.Box(orientation=Gtk.Orientation.VERTICAL), "systems-left")
+        right = self._classes(Gtk.Box(orientation=Gtk.Orientation.VERTICAL), "systems-right")
+        # Gtk 3 includes CSS padding in requested sizes. Derive the pane width
+        # from the active output so the live UI also fits common VM displays.
+        pane_width = -1 if compact else max(360, self.screen_width // 2 - 116)
+        left.set_size_request(pane_width, -1)
+        right.set_size_request(pane_width, -1)
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        header.pack_start(self._label("Live system", "section-label"), False, False, 0)
+        header.pack_start(self._icon("media-record-symbolic", style="success"), False, False, 0)
+        header.pack_start(self._label("Ready", "body"), False, False, 0)
+        header.set_margin_bottom(10)
+        left.pack_start(header, False, False, 0)
+        disk, disk_state = self._disk_summary()
+        left.pack_start(self._fact_row(
+            "network-wireless-signal-excellent-symbolic", "Network", "ClawOS live", "Connected" if self._network_ready() else "Waiting"), False, False, 3)
+        left.pack_start(self._fact_row(
+            "video-display-symbolic", "Display",
+            f"{self.screen_width} × {self.screen_height}", "60 Hz"), False, False, 0)
+        left.pack_start(self._fact_row("drive-harddisk-symbolic", "Target disk", disk, disk_state), False, False, 0)
+        left.pack_start(self._fact_row("changes-prevent-symbolic", "Recovery", "Ctrl + Alt + F3", "Available"), False, False, 0)
+        right.pack_start(self._label("Live event stream", "section-label"), False, False, 0)
+        now = datetime.datetime.now()
+        stamps = [(now + datetime.timedelta(seconds=i)).strftime("%H:%M:%S") for i in range(7)]
+        events = [
+            ("systemd", "Starting ClawOS live environment…"),
+            ("openclaw", "Agent runtime install staged"),
+            ("netd", "Connected to ClawOS live"),
+            ("displayd", f"Output active ({self.screen_width}×{self.screen_height}@60Hz)"),
+            ("storaged", "Guarded installation target detected" if disk_state != "Unavailable" else "Waiting for guarded installation target"),
+            ("openclaw", "Capability policy staged"),
+            ("systemd", "Live environment ready"),
+        ]
+        for index, (source, message) in enumerate(events):
+            right.pack_start(self._event_row(stamps[index], source, message, final=index == len(events) - 1), False, False, 0)
+        systems.attach(left, 0, 0, 1, 1)
+        systems.attach(right, 1, 0, 1, 1)
+        return systems
+
+    def _footer(self):
+        footer = self._classes(Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL), "footer")
+        footer.set_size_request(-1, 76)
+        footer.pack_start(self._label("Recovery console · Ctrl + Alt + F3", "footer-text"), False, False, 0)
+        return footer
+
+    def show_welcome(self, *_args):
+        if self.installing:
+            return
+        self.current_view = "welcome"
+        self._clear()
+        self.stage.pack_start(self._hero(), False, False, 0)
+        self.stage.pack_start(self._systems(), False, False, 0)
+        self.stage.pack_start(self._footer(), True, True, 0)
+        self.show_all()
+
+    def _screen_header(self, eyebrow, title, body):
+        header = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        header.pack_start(self._label(eyebrow, "eyebrow"), False, False, 0)
+        header.pack_start(self._label(title, "screen-title", 36), False, False, 0)
+        header.pack_start(self._label(body, "lede", 68), False, False, 0)
+        return header
+
+    def show_try(self, *_args):
+        self.current_view = "inspect"
+        self._clear()
+        content = self._classes(Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=30), "content")
+        content.pack_start(self._screen_header(
+            "LIVE SYSTEM", "Inspect the machine before installing.",
+            "Check network, display, target disk, and recovery. The full Agent workspace is created after installation."), False, False, 0)
+        content.pack_start(self._systems(compact=True), False, False, 0)
+        actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=24)
+        actions.set_hexpand(True)
+        actions.set_halign(Gtk.Align.FILL)
+        actions.pack_start(self._button("Back", "quiet", self.show_welcome, "clawos-arrow-left"), False, False, 0)
+        actions.pack_start(Gtk.Box(), True, True, 0)
+        install = self._button("Install ClawOS", "primary", self.show_install, "go-next-symbolic")
+        install.set_halign(Gtk.Align.END)
+        actions.pack_start(install, False, False, 0)
+        content.pack_end(actions, False, False, 0)
+        self.stage.pack_start(content, True, True, 0)
+        self.show_all()
+
+    def show_install(self, *_args):
+        self.current_view = "install"
+        self._clear()
+        content = self._classes(Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14), "content")
+        content.pack_start(self._screen_header(
+            "INSTALL CLAWOS", "Create the encrypted agent system.",
+            "The guarded development disk will be erased, encrypted with LUKS2, and prepared for the OpenClaw workspace."), False, False, 0)
+        panes = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        panes.set_homogeneous(True)
+        left = self._classes(Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18), "content-pane-left")
+        right = self._classes(Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10), "content-pane-right")
+        try:
+            disks = self._disks()
+        except (OSError, subprocess.SubprocessError, ValueError) as error:
+            disks = []
+            left.pack_start(self._label(f"Could not inspect disks: {error}", "danger"), False, False, 0)
+        if disks:
+            disk = disks[0]
+            self.target = disk["path"]
+            size = int(disk.get("size") or 0) / (1024 ** 3)
+            model = (disk.get("model") or "QEMU development disk").strip()
+            target = self._classes(Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14), "target-line")
+            target.pack_start(self._icon("drive-harddisk-symbolic", style="success"), False, False, 0)
+            target.pack_start(self._label("Guarded target", "body-strong"), False, False, 0)
+            target.pack_end(self._label(f"/dev/vda · {size:.0f} GB · {model}", "mono"), True, True, 0)
+            left.pack_start(target, False, False, 0)
+        else:
+            self.target = None
+            left.pack_start(self._label("No supported blank /dev/vda development disk found.", "danger"), False, False, 0)
+        left.pack_start(self._label(
+            "This proof installer refuses physical hardware, mounted disks, partitioned disks, and any machine outside the expected Q35 KVM environment.", "body", 58), False, False, 0)
+        left.pack_end(self._button("Back", "quiet", self.show_welcome, "clawos-arrow-left"), False, False, 0)
+        right.pack_start(self._label("Disk unlock and session-lock passphrase", "body-strong"), False, False, 0)
+        right.pack_start(self._label(
+            "One passphrase unlocks the encrypted disk and session. There is no second login.",
+            "body", 58), False, False, 0)
+        install_plan = self._classes(Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10), "install-plan")
+        install_plan.pack_start(self._icon("object-select-symbolic", style="success"), False, False, 0)
+        install_plan.pack_start(self._label(
+            "LUKS2 encryption  ·  Full Root default  ·  Recovery ready", "body"), False, False, 0)
+        right.pack_start(install_plan, False, False, 6)
+        self.password = Gtk.Entry()
+        self.password.set_visibility(False)
+        self.password.set_placeholder_text("At least 10 characters")
+        self.password.set_input_purpose(Gtk.InputPurpose.PASSWORD)
+        self.password.get_accessible().set_name("Disk unlock passphrase")
+        self.password.connect("changed", self._validate_passphrase)
+        right.pack_start(self.password, False, False, 8)
+        self.confirm = Gtk.Entry()
+        self.confirm.set_visibility(False)
+        self.confirm.set_placeholder_text("Repeat passphrase")
+        self.confirm.set_input_purpose(Gtk.InputPurpose.PASSWORD)
+        self.confirm.get_accessible().set_name("Confirm disk unlock passphrase")
+        self.confirm.connect("changed", self._validate_passphrase)
+        self.confirm.connect("activate", self.start_install)
+        right.pack_start(self.confirm, False, False, 0)
+        self.error = self._label("", "danger")
+        right.pack_start(self.error, False, False, 0)
+        right.pack_start(self._label(
+            "This permanently erases /dev/vda. No additional confirmation.",
+            "warning", 58), False, False, 8)
+        self.install_button = self._button("Erase disk and install", "primary", self.start_install, "go-next-symbolic")
+        self.install_button.set_sensitive(False)
+        right.pack_end(self.install_button, False, False, 0)
+        panes.pack_start(left, True, True, 0)
+        panes.pack_start(right, True, True, 0)
+        content.pack_start(panes, True, True, 0)
+        self.stage.pack_start(content, True, True, 0)
+        self.show_all()
+        self.password.grab_focus()
+
+    def _validate_passphrase(self, *_args):
+        if not hasattr(self, "install_button"):
+            return
+        secret = self.password.get_text()
+        confirmation = self.confirm.get_text()
+        valid_length = len(secret) >= 10
+        matches = bool(confirmation) and secret == confirmation
+        self.install_button.set_sensitive(bool(self.target) and valid_length and matches)
+        if confirmation and not matches:
+            self.error.set_text("The two passphrases do not match.")
+        elif secret and not valid_length:
+            self.error.set_text("Use at least 10 characters for the disk passphrase.")
+        else:
+            self.error.set_text("")
+
+    def start_install(self, *_args):
+        secret = self.password.get_text()
+        if len(secret) < 10:
+            self.error.set_text("Use at least 10 characters for the disk passphrase.")
+            return
+        if secret != self.confirm.get_text():
+            self.error.set_text("The two passphrases do not match.")
+            return
+        self.installing = True
+        key_path = pathlib.Path(os.environ["XDG_RUNTIME_DIR"]) / "clawos-install.key"
+        try:
+            fd = os.open(key_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            key_path.unlink()
+            fd = os.open(key_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        try:
+            os.write(fd, secret.encode("utf-8"))
+        finally:
+            os.close(fd)
+        self.password.set_text("")
+        self.confirm.set_text("")
+        self._show_progress()
+        threading.Thread(target=self._run_installer, args=(key_path,), daemon=True).start()
+
+    def _show_progress(self):
+        self._clear()
+        content = self._classes(Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=28), "content")
+        content.pack_start(self._screen_header(
+            "INSTALLING CLAWOS", "Building the encrypted agent system…",
+            "Keep this machine powered on. Package installation can take several minutes."), False, False, 0)
+        self.progress = Gtk.ProgressBar()
+        GLib.timeout_add(250, self._pulse)
+        content.pack_start(self.progress, False, False, 0)
+        scroll = self._classes(Gtk.ScrolledWindow(), "log-frame")
+        scroll.set_min_content_height(420)
+        self.log = Gtk.TextView()
+        self.log.set_editable(False)
+        self.log.set_cursor_visible(False)
+        scroll.add(self.log)
+        content.pack_start(scroll, True, True, 0)
+        content.pack_end(self._label("Recovery console · Ctrl + Alt + F3", "footer-text"), False, False, 0)
+        self.stage.pack_start(content, True, True, 0)
+        self.show_all()
+
+    def _pulse(self):
+        if not self.installing:
+            return False
+        self.progress.pulse()
+        return True
+
+    def _append_log(self, text):
+        buffer = self.log.get_buffer()
+        buffer.insert(buffer.get_end_iter(), text)
+        mark = buffer.create_mark(None, buffer.get_end_iter(), False)
+        self.log.scroll_mark_onscreen(mark)
+        return False
+
+    def _run_installer(self, key_path):
+        command = [
+            "/usr/bin/pkexec", "/usr/local/bin/clawos-install-dev",
+            "--target", self.target, "--confirm", f"ERASE-QEMU-{self.target}",
+            "--key-file", str(key_path),
+        ]
+        try:
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            for line in process.stdout:
+                GLib.idle_add(self._append_log, line)
+            code = process.wait()
+        except OSError as error:
+            code = 127
+            GLib.idle_add(self._append_log, f"Installer could not start: {error}\n")
+        finally:
+            try:
+                key_path.unlink()
+            except FileNotFoundError:
+                pass
+        GLib.idle_add(self._finish_install, code)
+
+    def _finish_install(self, code):
+        self.installing = False
+        self._clear()
+        content = self._classes(Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=24), "content")
+        if code == 0:
+            content.pack_start(self._screen_header(
+                "CLAWOS IS READY", "Installation complete.",
+                "Restart, remove the installation media, unlock the disk, and ClawOS will enter the agent workspace without a second login."), False, False, 0)
+            content.pack_start(self._event_row(datetime.datetime.now().strftime("%H:%M:%S"), "installer", "Encrypted agent system ready", True), False, False, 24)
+            content.pack_start(self._button("Restart into ClawOS", "primary", self.reboot, "system-reboot-symbolic"), False, False, 0)
+        else:
+            content.pack_start(self._screen_header(
+                "INSTALLATION PAUSED", "ClawOS did not change the boot path.",
+                f"The installer stopped with code {code}. Recovery remains available on Ctrl + Alt + F3."), False, False, 0)
+            content.pack_start(self._button("Return to installer", "quiet", self.show_install, "clawos-arrow-left"), False, False, 0)
+        self.stage.pack_start(content, True, True, 0)
+        self.show_all()
+        return False
+
+    @staticmethod
+    def reboot(*_args):
+        subprocess.Popen(["/usr/bin/pkexec", "/usr/lib/clawos/clawos-live-reboot"])
+
+
+class App(Gtk.Application):
+    def __init__(self):
+        super().__init__(application_id="ai.clawos.LiveWelcome")
+
+    def do_activate(self):
+        Welcome(self).present()
+
+
+App().run(None)

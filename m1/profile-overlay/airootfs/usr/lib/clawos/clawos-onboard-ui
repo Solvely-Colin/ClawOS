@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+port=19401
+profile_dir="${XDG_STATE_HOME:-$HOME/.local/state}/clawos/onboarding-browser"
+mkdir -p "$profile_dir"
+
+/usr/bin/node /usr/lib/clawos/clawos-onboard-server &
+server_pid=$!
+cleanup() {
+  kill "$server_pid" 2>/dev/null || true
+  wait "$server_pid" 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
+
+for _ in {1..50}; do
+  if /usr/bin/curl --fail --silent --max-time 1 "http://127.0.0.1:$port/api/health" >/dev/null; then
+    break
+  fi
+  /usr/bin/sleep 0.1
+done
+
+if ! /usr/bin/curl --fail --silent --max-time 1 "http://127.0.0.1:$port/api/health" >/dev/null; then
+  echo "ClawOS onboarding service did not become ready." >&2
+  exit 1
+fi
+
+/usr/lib/chromium/chromium \
+  --ozone-platform=wayland \
+  --enable-features=UseOzonePlatform,WebUIDarkMode \
+  --force-dark-mode \
+  --app="http://127.0.0.1:$port/" \
+  --class=clawos-onboard \
+  --no-first-run \
+  --no-default-browser-check \
+  --disable-session-crashed-bubble \
+  --hide-crash-restore-bubble \
+  --disable-pinch \
+  --user-data-dir="$profile_dir"

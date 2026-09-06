@@ -1,0 +1,21 @@
+{
+  "id": "clawos-system",
+  "name": "ClawOS System",
+  "description": "OpenClaw machine embodiment, activity projection, and typed capability surfaces for ClawOS.",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "clawos_surface",
+      "clawos_activity",
+      "clawos_app",
+      "clawos_system"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

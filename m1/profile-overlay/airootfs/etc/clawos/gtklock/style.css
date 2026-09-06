@@ -1,0 +1,92 @@
+@import url("../design-system.css");
+
+window {
+  background-image: url("/usr/share/clawos/theme/background.png");
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-color: @claw_canvas;
+  color: @claw_text;
+  font-family: "Inter Variable", "Noto Sans", sans-serif;
+}
+
+#window-box {
+  min-width: 500px;
+  margin: 0;
+  padding: 42px 48px;
+  background-color: alpha(@claw_panel, 0.94);
+  border: 1px solid @claw_line;
+  border-radius: 12px;
+}
+
+#clock-label {
+  color: @claw_text;
+  font-size: 50px;
+  font-weight: 700;
+  letter-spacing: -2px;
+}
+
+#date-label {
+  margin-bottom: 24px;
+  color: @claw_muted;
+  font-size: 14px;
+}
+
+#user-box {
+  margin-bottom: 22px;
+}
+
+#user-image {
+  margin-bottom: 10px;
+}
+
+#user-name {
+  color: @claw_coral;
+  font-family: "GeistMono Nerd Font", "Noto Sans Mono", monospace;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 2px;
+}
+
+#input-label {
+  color: @claw_muted;
+  font-size: 13px;
+}
+
+#input-field {
+  min-height: 46px;
+  padding: 0 14px;
+  color: @claw_text;
+  background-color: @claw_panel;
+  border: 1px solid @claw_line_strong;
+  border-radius: 7px;
+  caret-color: @claw_coral;
+}
+
+#input-field:focus {
+  border-color: @claw_coral;
+  box-shadow: 0 0 0 1px @claw_coral;
+}
+
+#unlock-button {
+  min-height: 44px;
+  margin-top: 10px;
+  padding: 0 22px;
+  color: #150805;
+  background: @claw_coral;
+  border: 1px solid @claw_coral;
+  border-radius: 7px;
+  font-weight: 700;
+}
+
+#unlock-button:hover,
+#unlock-button:focus {
+  background: #ff7a65;
+}
+
+#warning-label,
+#error-label {
+  margin-top: 8px;
+  color: @claw_coral;
+  font-size: 12px;
+}

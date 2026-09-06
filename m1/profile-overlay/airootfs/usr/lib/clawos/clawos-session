@@ -3,5 +3,6 @@ set -euo pipefail
 
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 export WLR_RENDERER_ALLOW_SOFTWARE="${WLR_RENDERER_ALLOW_SOFTWARE:-1}"
+export NO_AT_BRIDGE=0
 
 exec /usr/bin/sway -c /etc/clawos/sway.conf

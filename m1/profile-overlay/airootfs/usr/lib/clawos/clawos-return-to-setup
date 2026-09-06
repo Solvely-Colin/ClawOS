@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+/usr/bin/swaymsg workspace 1:Main >/dev/null
+
+mode="$(/usr/bin/openclaw config get gateway.mode 2>/dev/null || true)"
+if [[ "$mode" == local || "$mode" == remote ]]; then
+  /usr/lib/clawos/clawos-agent-window focus >/dev/null
+  exit 0
+fi
+
+for _ in {1..20}; do
+  if /usr/bin/swaymsg '[title="^ClawOS Setup$"] focus' >/dev/null 2>&1; then
+    exit 0
+  fi
+  /usr/bin/sleep 0.1
+done
+
+# clawos-entry normally recreates a closed setup surface. This is a recovery
+# fallback for the unlikely case where the first-boot owner also exited.
+/usr/bin/setsid --fork /usr/lib/clawos/clawos-onboard-ui >/dev/null 2>&1 || true

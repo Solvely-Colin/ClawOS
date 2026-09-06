@@ -17,6 +17,7 @@ if grep -Fq '/usr/bin/chromium' "$root/m0/bin/clawos-browser"; then
 fi
 grep -Fq 'DeveloperToolsAvailability' "$root/m0/config/chromium-policy.json"
 grep -Fq 'ExtensionInstallBlocklist' "$root/m0/config/chromium-policy.json"
+grep -Fq 'ExtensionInstallAllowlist' "$root/m0/config/chromium-policy.json"
 grep -Fq 'User=%i' "$root/m0/systemd/clawos-session@.service"
 grep -Fq 'TTYPath=/dev/tty2' "$root/m0/systemd/clawos-session@.service"
 grep -Fq 'ExecStartPre=+/usr/bin/chvt 2' "$root/m0/systemd/clawos-session@.service"

@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec /usr/bin/fuzzel --config=/etc/clawos/fuzzel.ini

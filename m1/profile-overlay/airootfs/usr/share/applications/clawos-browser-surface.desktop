@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=ClawOS Browser
+Comment=Inspect the browser attached to this activity
+Exec=/usr/lib/clawos/clawos-surface browser
+Icon=web-browser-symbolic
+Terminal=false
+Categories=ClawOS;Network;WebBrowser;
+X-ClawOS-AppId=surface:browser
+X-ClawOS-Kind=surface
+X-ClawOS-Surface=browser

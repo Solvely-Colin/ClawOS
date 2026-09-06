@@ -23,6 +23,36 @@ install -m 0644 "$repo_root/m1/config/mirrorlist" \
   "$destination/airootfs/etc/pacman.d/mirrorlist"
 install -m 0644 "$repo_root/m1/config/versions.env" \
   "$destination/airootfs/etc/clawos/versions.env"
+mkdir -p "$destination/airootfs/usr/lib/clawos/openclaw-plugin"
+cp -a "$repo_root/m2/openclaw-plugin/." \
+  "$destination/airootfs/usr/lib/clawos/openclaw-plugin/"
+rm -rf "$destination/airootfs/usr/lib/clawos/openclaw-plugin/node_modules"
+mkdir -p \
+  "$destination/airootfs/usr/lib/clawos/clawosd" \
+  "$destination/airootfs/etc/dbus-1/system.d" \
+  "$destination/airootfs/usr/share/dbus-1/system-services" \
+  "$destination/airootfs/usr/share/dbus-1/interfaces" \
+  "$destination/airootfs/usr/share/polkit-1/actions"
+install -m 0644 "$repo_root/m3/clawosd/clawosd_core.py" \
+  "$destination/airootfs/usr/lib/clawos/clawosd/clawosd_core.py"
+install -m 0755 "$repo_root/m3/clawosd/clawosd_service.py" \
+  "$destination/airootfs/usr/lib/clawos/clawosd/clawosd_service.py"
+install -m 0755 "$repo_root/m3/clawosd/clawosctl.py" \
+  "$destination/airootfs/usr/lib/clawos/clawosctl"
+install -m 0755 "$repo_root/m3/clawosd/clawos_approval.py" \
+  "$destination/airootfs/usr/lib/clawos/clawos-approval"
+install -m 0644 "$repo_root/m3/config/clawosd.json" \
+  "$destination/airootfs/etc/clawos/clawosd.json"
+install -m 0644 "$repo_root/m3/systemd/clawosd.service" \
+  "$destination/airootfs/etc/systemd/system/clawosd.service"
+install -m 0644 "$repo_root/m3/dbus/org.clawos.System.conf" \
+  "$destination/airootfs/etc/dbus-1/system.d/org.clawos.System.conf"
+install -m 0644 "$repo_root/m3/dbus/org.clawos.System.service" \
+  "$destination/airootfs/usr/share/dbus-1/system-services/org.clawos.System.service"
+install -m 0644 "$repo_root/m3/dbus/org.clawos.System.xml" \
+  "$destination/airootfs/usr/share/dbus-1/interfaces/org.clawos.System.xml"
+install -m 0644 "$repo_root/m3/polkit/org.clawos.system.policy" \
+  "$destination/airootfs/usr/share/polkit-1/actions/org.clawos.system.policy"
 
 "$repo_root/m1/tests/no-omarchy.sh" "$destination/airootfs"
 echo "Materialized clean profile at $destination"

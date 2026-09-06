@@ -1,9 +1,40 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-profile_dir="${XDG_STATE_HOME:-$HOME/.local/state}/clawos/chromium"
+profile_root="${XDG_STATE_HOME:-$HOME/.local/state}/clawos/chromium"
 runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
-bootstrap="$runtime_dir/clawos-control-ui-bootstrap.html"
+route=/
+profile=agent
+app_id=clawos-agent
+
+while (( $# )); do
+  case "$1" in
+    --route)
+      route="${2:-}"
+      shift 2
+      ;;
+    --profile)
+      profile="${2:-}"
+      shift 2
+      ;;
+    --app-id)
+      app_id="${2:-}"
+      shift 2
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      exit 2
+      ;;
+  esac
+done
+
+route_pattern='^/[A-Za-z0-9/?=&%._~-]*$'
+[[ "$route" =~ $route_pattern ]] || exit 1
+[[ "$profile" =~ ^[A-Za-z0-9_-]+$ ]] || exit 1
+[[ "$app_id" =~ ^[A-Za-z0-9_-]+$ ]] || exit 1
+
+profile_dir="${profile_root}-${profile}"
+bootstrap="$runtime_dir/clawos-control-ui-bootstrap-${profile}.html"
 mode="$(/usr/bin/openclaw config get gateway.mode 2>/dev/null || true)"
 token=
 
@@ -20,26 +51,50 @@ read_config_string() {
   ' "${OPENCLAW_CONFIG_PATH:-$HOME/.openclaw/openclaw.json}" "$key"
 }
 
+read_openclaw_env() {
+  local key="$1"
+  /usr/bin/node -e '
+    const fs = require("fs");
+    const [path, key] = process.argv.slice(1);
+    try {
+      const line = fs.readFileSync(path, "utf8").split(/\r?\n/).find((entry) => entry.startsWith(`${key}=`));
+      if (line) process.stdout.write(line.slice(key.length + 1));
+    } catch {}
+  ' "${OPENCLAW_STATE_DIR:-$HOME/.openclaw}/.env" "$key"
+}
+
+gateway_token() {
+  local config_key="$1"
+  local value="${OPENCLAW_GATEWAY_TOKEN:-}"
+  [[ -n "$value" ]] || value="$(read_config_string "$config_key")"
+  [[ -n "$value" ]] || value="$(read_openclaw_env OPENCLAW_GATEWAY_TOKEN)"
+  printf '%s' "$value"
+}
+
 case "$mode" in
   local)
     port="$(/usr/bin/openclaw config get gateway.port 2>/dev/null || true)"
     [[ "$port" =~ ^[0-9]+$ ]] || port=18789
     control_ui_url="http://127.0.0.1:$port/"
-    token="${OPENCLAW_GATEWAY_TOKEN:-$(read_config_string gateway.auth.token)}"
+    health_url="http://127.0.0.1:$port/"
+    token="$(gateway_token gateway.auth.token)"
     ;;
   remote)
     remote_url="$(/usr/bin/openclaw config get gateway.remote.url 2>/dev/null || true)"
-    token="${OPENCLAW_GATEWAY_TOKEN:-$(read_config_string gateway.remote.token)}"
+    token="$(gateway_token gateway.remote.token)"
     case "$remote_url" in
       ws://*) control_ui_url="http://${remote_url#ws://}" ;;
       wss://*) control_ui_url="https://${remote_url#wss://}" ;;
       *) exit 1 ;;
     esac
+    health_url="$control_ui_url"
     ;;
   *)
     exit 1
     ;;
 esac
+
+control_ui_url="${control_ui_url%/}${route}"
 
 url_pattern='^https?://[A-Za-z0-9._~:/?=&%-]+$'
 [[ "$control_ui_url" =~ $url_pattern ]] || exit 1
@@ -49,24 +104,60 @@ fi
 
 mkdir -p "$profile_dir" "$runtime_dir"
 umask 077
-if [[ -n "$token" ]]; then
-  printf '%s\n' \
-    '<!doctype html><meta charset="utf-8">' \
-    "<script>location.replace('${control_ui_url}#token=${token}')</script>" \
-    >"$bootstrap"
-  start_url="file://$bootstrap"
-  (/usr/bin/sleep 10; /usr/bin/rm -f -- "$bootstrap") &
-else
-  start_url="$control_ui_url"
+cat >"$bootstrap" <<EOF
+<!doctype html>
+<meta charset="utf-8">
+<meta name="color-scheme" content="dark">
+<title>OpenClaw Control</title>
+<style>
+  :root { color-scheme: dark; font-family: "Inter Variable", "Noto Sans", system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+  body { min-height: 100vh; margin: 0; display: grid; place-items: center; color: #f3f1ee; background: #090b0b; }
+  main { display: grid; place-items: center; padding: 48px; }
+  .state { width: min(520px, 100%); text-align: center; }
+  .mark { width: 42px; height: 42px; margin: 0 auto 22px; display: block; }
+  small { color: #ff684f; font: 600 10px "GeistMono Nerd Font", ui-monospace, monospace; letter-spacing: .16em; }
+  h1 { margin: 15px 0 9px; font-size: 30px; letter-spacing: -.035em; }
+  p { margin: 0; color: #a5a19f; line-height: 1.55; }
+  i { display: block; width: 240px; height: 2px; margin: 28px auto 0; overflow: hidden; background: #292d2b; }
+  b { display: block; width: 34%; height: 100%; background: #ff684f; animation: load 1.15s ease-in-out infinite alternate; }
+  @keyframes load { to { width: 84%; transform: translateX(18%); } }
+</style>
+<main><div class="state"><img class="mark" src="file:///usr/share/clawos/theme/clawos-pin.svg" alt=""><small>CLAWOS · AGENT SURFACE</small><h1>Bringing the agent online</h1><p>Starting the Gateway and reconnecting this machine. You can stay here—ClawOS will open the session when it is ready.</p><i><b></b></i></div></main>
+<script>
+  const gateway = '${control_ui_url}';
+  const destination = gateway + '${token:+#token=$token}';
+  const connect = async () => {
+    try {
+      await fetch(gateway, { mode: 'no-cors', cache: 'no-store' });
+      location.replace(destination);
+    } catch (_) {
+      setTimeout(connect, 650);
+    }
+  };
+  connect();
+</script>
+EOF
+start_url="file://$bootstrap"
+(/usr/bin/sleep 120; /usr/bin/rm -f -- "$bootstrap") &
+
+# Once the local Gateway has served a healthy UI, replace this browser through
+# the bootstrap path if a restart interrupts its asset load. Remote Gateways own
+# their reconnect policy and are not terminated by a local transient.
+if [[ "$mode" == local ]]; then
+  /usr/lib/clawos/clawos-gateway-watchdog "$$" "$health_url" &
 fi
 
 exec /usr/lib/chromium/chromium \
   --ozone-platform=wayland \
-  --enable-features=UseOzonePlatform \
-  --kiosk \
+  --enable-features=UseOzonePlatform,WebUIDarkMode \
+  --force-dark-mode \
+  --app="$start_url" \
+  --class="$app_id" \
   --no-first-run \
   --no-default-browser-check \
+  --disable-background-mode \
   --disable-session-crashed-bubble \
+  --hide-crash-restore-bubble \
   --disable-pinch \
-  --user-data-dir="$profile_dir" \
-  "$start_url"
+  --user-data-dir="$profile_dir"

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=ClawOS Agent Home
+Comment=Return to the OpenClaw activity canvas
+Exec=/usr/lib/clawos/clawos-surface agent
+Icon=computer-symbolic
+Terminal=false
+Categories=ClawOS;
+X-ClawOS-AppId=surface:agent
+X-ClawOS-Kind=surface
+X-ClawOS-Surface=agent

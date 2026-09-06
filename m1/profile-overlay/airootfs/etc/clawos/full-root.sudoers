@@ -1,0 +1,2 @@
+# ClawOS Full Root profile: the owner explicitly delegates unrestricted root.
+clawos ALL=(ALL:ALL) NOPASSWD: ALL

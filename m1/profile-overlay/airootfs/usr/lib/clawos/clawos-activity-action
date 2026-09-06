@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# The center pill is ClawOS's single spatial navigation control. When a
+# supporting surface is visible it behaves as a visible Back-to-activity
+# action. On the Agent canvas it opens the intent palette.
+focused_json="$(/usr/bin/swaymsg -t get_tree -r 2>/dev/null | /usr/bin/jq -c '
+  .. | objects | select(.focused? == true) |
+  {app: (.app_id // .window_properties.class // ""), marks: (.marks // [])}
+' 2>/dev/null | /usr/bin/head -n 1 || true)"
+focused_app="$(printf '%s' "$focused_json" | /usr/bin/jq -r '.app // ""' 2>/dev/null || true)"
+focused_mark="$(printf '%s' "$focused_json" | /usr/bin/jq -r '.marks[]? | select(startswith("clawos-app-"))' 2>/dev/null | /usr/bin/head -n 1 || true)"
+panel_mark="$(printf '%s' "$focused_json" | /usr/bin/jq -r '.marks[]? | select(. == "clawos-agent-panel")' 2>/dev/null | /usr/bin/head -n 1 || true)"
+
+return_to_agent() {
+  if /usr/lib/clawos/clawos-appctl agent >/dev/null 2>&1; then
+    exit 0
+  fi
+  # The compositor path remains available when the optional broker is down.
+  exec /usr/lib/clawos/clawos-surface agent
+}
+
+case "$focused_app" in
+  clawos-command|clawos-build|clawos-browse)
+    return_to_agent
+    ;;
+esac
+
+if [[ -n "$panel_mark" ]]; then
+  /usr/lib/clawos/clawos-agent-panel close
+  return_to_agent
+fi
+
+if [[ -n "$focused_mark" ]]; then
+  return_to_agent
+fi
+
+exec /usr/lib/clawos/clawos-actions-menu

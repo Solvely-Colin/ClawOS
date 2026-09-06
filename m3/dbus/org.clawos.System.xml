@@ -1,0 +1,15 @@
+<node name="/org/clawos/System">
+  <interface name="org.clawos.System1">
+    <method name="GetStatus"><arg name="response" type="s" direction="out"/></method>
+    <method name="GetCapabilities"><arg name="response" type="s" direction="out"/></method>
+    <method name="Inspect"><arg name="response" type="s" direction="out"/></method>
+    <method name="GetAction"><arg name="action_id" type="s" direction="in"/><arg name="response" type="s" direction="out"/></method>
+    <method name="ListPending"><arg name="response" type="s" direction="out"/></method>
+    <method name="PrepareAction">
+      <arg name="action" type="s" direction="in"/><arg name="parameters" type="s" direction="in"/>
+      <arg name="context" type="s" direction="in"/><arg name="response" type="s" direction="out"/>
+    </method>
+    <method name="CancelAction"><arg name="token" type="s" direction="in"/><arg name="response" type="s" direction="out"/></method>
+    <method name="CommitAction"><arg name="token" type="s" direction="in"/><arg name="response" type="s" direction="out"/></method>
+  </interface>
+</node>

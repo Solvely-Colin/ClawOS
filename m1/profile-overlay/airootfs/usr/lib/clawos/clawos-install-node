@@ -30,4 +30,7 @@ args=(node install --force --host "${connection[0]}" --port "${connection[1]}")
 [[ -n "${connection[3]}" ]] && args+=(--context-path "${connection[3]}")
 
 /usr/bin/openclaw "${args[@]}" >/dev/null
-/usr/bin/openclaw node start >/dev/null 2>&1 || true
+/usr/bin/openclaw node start >/dev/null
+status="$(/usr/bin/openclaw node status --json)"
+printf '%s' "$status" | /usr/bin/jq -e '.service.loaded == true' >/dev/null
+test -s "${OPENCLAW_STATE_DIR:-$HOME/.openclaw}/identity/device.json"

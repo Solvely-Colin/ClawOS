@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+json() {
+  /usr/bin/jq --compact-output --null-input \
+    --arg text "$1" --arg tooltip "$2" --arg class "$3" \
+    '{text: $text, tooltip: $tooltip, class: $class}'
+}
+
+focused_json="$(/usr/bin/swaymsg -t get_tree -r 2>/dev/null | /usr/bin/jq -c '
+  .. | objects | select(.focused? == true) |
+  {name: (.name // ""), app: (.app_id // .window_properties.class // ""), marks: (.marks // [])}
+' | /usr/bin/head -n 1 || true)"
+
+if printf '%s' "$focused_json" | /usr/bin/jq -e '.marks | index("clawos-agent-panel")' >/dev/null 2>&1; then
+  json 'Close Agent' 'Close the Agent side panel and return focus to the supporting surface' open
+elif [[ "$(printf '%s' "$focused_json" | /usr/bin/jq -r '.name // ""')" == 'OpenClaw Control' ]]; then
+  json 'Agent active' 'The Agent conversation is the current activity' home
+else
+  json 'Ask Agent' 'Open the Agent beside the current surface and continue giving direction' available
+fi

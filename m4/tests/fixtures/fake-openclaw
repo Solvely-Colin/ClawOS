@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+config="$HOME/.openclaw/openclaw.json"
+case "${1:-} ${2:-}" in
+  "config get") /usr/bin/jq -r '.gateway.mode // empty' "$config" ;;
+  "config validate") /usr/bin/jq -e '.gateway.mode == "local" or .gateway.mode == "remote"' "$config" >/dev/null ;;
+  "node stop"|"node status") printf '{"service":{"loaded":true}}\n' ;;
+  *) exit 0 ;;
+esac

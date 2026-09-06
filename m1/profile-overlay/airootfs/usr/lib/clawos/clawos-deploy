@@ -1,0 +1,560 @@
+#!/usr/bin/env python3
+"""Local trusted-development deployment of ClawOS runtime files.
+
+This is not the signed production release updater. Run stage as the developer,
+then plan/apply/status/rollback with sudo. Credentials and boot files are excluded.
+"""
+import argparse
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import pwd
+import re
+import shutil
+import stat
+import subprocess
+import sys
+import tempfile
+import time
+import uuid
+
+STORE = Path('/var/lib/clawos/deploy')
+EXCLUDED = {'etc/clawos/preferences.json', 'etc/clawos/clawosd.json',
+            'etc/clawos/full-root.sudoers', 'etc/clawos/versions.env'}
+EXACT = {'etc/systemd/system/clawosd.service',
+         'etc/systemd/system/clawos-deploy-delivery.service',
+         'etc/systemd/system/clawos-deploy-delivery.timer',
+         'etc/systemd/system/clawos-session@.service',
+         'usr/share/dbus-1/interfaces/org.clawos.System.xml'}
+PREFIXES = ('usr/lib/clawos/', 'usr/share/clawos/', 'etc/clawos/')
+EXECUTABLES = {'usr/lib/clawos/clawosctl', 'usr/lib/clawos/clawos-approval',
+               'usr/lib/clawos/clawos-provider-setup',
+               'usr/lib/clawos/clawosd/clawosd_service.py', 'usr/lib/clawos/clawos-deploy',
+               'usr/lib/clawos/clawos-agent-window'}
+
+
+def allowed(name):
+    parts = name.split('/')
+    return (isinstance(name, str) and not name.startswith('/')
+            and all(p not in {'', '.', '..'} for p in parts)
+            and name not in EXCLUDED
+            and (name in EXACT or name.startswith(PREFIXES)))
+
+
+def digest(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def public_receipt(value):
+    # Recovery has read-only tools: expose outcome metadata, never raw errors,
+    # command output, file backups, prompts, credentials, or arbitrary health data.
+    fields = ('jobId', 'state', 'version', 'snapshot', 'startedAt', 'finishedAt')
+    result = {key: value[key] for key in fields if key in value}
+    result['hasError'] = bool(value.get('error') or value.get('recoveryError'))
+    result['healthVerified'] = bool(value.get('health') or value.get('recoveryHealth'))
+    result['recoveryScope'] = 'Managed runtime files only; excludes home, credentials, packages and boot.'
+    if value.get('target'):
+        target = value['target']
+        result['targetHash'] = hashlib.sha256(f"{target['sessionKey']}\n{target['sessionId']}".encode()).hexdigest()
+    return result
+
+
+def publish_receipt(value):
+    identifier = value.get('jobId', '')
+    if not re.fullmatch(r'[0-9a-f-]{36}', identifier):
+        return
+    directory = STORE.parent / 'deploy-receipts'
+    directory.mkdir(mode=0o755, exist_ok=True)
+    target = directory / (identifier + '.json')
+    temporary = directory / (identifier + '.tmp')
+    projection = public_receipt(value)
+    delivery = read_json(STORE / 'jobs' / identifier / 'delivery.json', {})
+    projection['delivery'] = (delivery.get('state', 'pending')
+        if delivery.get('key') == identifier + ':' + value.get('state', '')
+        else ('pending' if value.get('target') else 'unbound'))
+    temporary.write_text(json.dumps(projection, indent=2) + '\n')
+    os.chmod(temporary, 0o644)
+    os.replace(temporary, target)
+
+
+def write_json(path, value):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(path.name + '.tmp')
+    temporary.write_text(json.dumps(value, sort_keys=True, indent=2) + '\n')
+    os.chmod(temporary, 0o600)
+    os.replace(temporary, path)
+    if path.name == 'receipt.json' and path.parent.parent == STORE / 'jobs':
+        publish_receipt(value)
+
+
+def read_json(path, default=None):
+    return json.loads(path.read_text()) if path.exists() else default
+
+
+def run(argv, **kwargs):
+    return subprocess.check_output(argv, text=True, stderr=subprocess.STDOUT,
+                                   timeout=kwargs.pop('timeout', 30), **kwargs).strip()
+
+
+def destination(root, name):
+    if not allowed(name):
+        raise ValueError(f'Not a runtime deployment target: {name}')
+    path = root / name
+    for parent in [path, *path.parents]:
+        if parent == root:
+            break
+        if parent.is_symlink():
+            raise ValueError(f'Symlink deployment target: {name}')
+    if path.exists() and not path.is_file():
+        raise ValueError(f'Non-file deployment target: {name}')
+    return path
+
+
+def verify_payload(directory):
+    manifest = read_json(directory / 'manifest.json')
+    if not isinstance(manifest, dict) or manifest.get('schema') != 1:
+        raise ValueError('Unsupported deployment manifest')
+    files = manifest.get('files', {})
+    if not files or len(files) > 2000:
+        raise ValueError('Invalid runtime file count')
+    for name, record in files.items():
+        if not allowed(name) or record.get('mode') not in (0o644, 0o755):
+            raise ValueError(f'Invalid runtime file: {name}')
+        if name in EXECUTABLES and record['mode'] != 0o755:
+            raise ValueError(f'Runtime command must be executable: {name}')
+        path = destination(directory / 'files', name)
+        if not path.is_file() or digest(path) != record.get('sha256'):
+            raise ValueError(f'Payload hash mismatch: {name}')
+    version = hashlib.sha256(json.dumps(files, sort_keys=True).encode()).hexdigest()
+    if manifest.get('version') != version:
+        raise ValueError('Manifest version does not match its file set')
+    return manifest
+
+
+def stage(repo):
+    repo = repo.resolve()
+    output = repo / 'artifacts/runtime'
+    output.mkdir(parents=True, exist_ok=True)
+    work = Path(tempfile.mkdtemp(prefix='.stage-', dir=output))
+    files = {}
+
+    def include(source, name, mode=None):
+        if source.is_symlink() or not source.is_file():
+            raise ValueError(f'Only ordinary files may be packaged: {source}')
+        if not allowed(name):
+            return
+        mode = mode if mode is not None else (0o755 if source.stat().st_mode & 0o111 else 0o644)
+        target = work / 'files' / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
+        os.chmod(target, mode)
+        files[name] = {'sha256': digest(target), 'mode': mode}
+
+    try:
+        overlay = repo / 'm1/profile-overlay/airootfs'
+        for relative in PREFIXES:
+            for source in sorted((overlay / relative).rglob('*')):
+                if '__pycache__' in source.parts or source.suffix == '.pyc':
+                    continue
+                if source.is_file() or source.is_symlink():
+                    include(source, source.relative_to(overlay).as_posix())
+        include(overlay / 'etc/systemd/system/clawos-session@.service',
+                'etc/systemd/system/clawos-session@.service')
+        for unit in ('clawos-deploy-delivery.service', 'clawos-deploy-delivery.timer'):
+            include(overlay / 'etc/systemd/system' / unit, 'etc/systemd/system/' + unit)
+        for source in sorted((repo / 'm2/openclaw-plugin').rglob('*')):
+            if 'node_modules' in source.parts or 'test' in source.parts:
+                continue
+            if source.is_file():
+                include(source, 'usr/lib/clawos/openclaw-plugin/' +
+                        source.relative_to(repo / 'm2/openclaw-plugin').as_posix())
+        mapping = {
+            'm3/clawosd/clawosd_core.py': 'usr/lib/clawos/clawosd/clawosd_core.py',
+            'm3/clawosd/clawosd_service.py': 'usr/lib/clawos/clawosd/clawosd_service.py',
+            'm3/clawosd/clawosctl.py': 'usr/lib/clawos/clawosctl',
+            'm3/clawosd/clawos_approval.py': 'usr/lib/clawos/clawos-approval',
+            'm3/systemd/clawosd.service': 'etc/systemd/system/clawosd.service',
+            'm3/dbus/org.clawos.System.xml': 'usr/share/dbus-1/interfaces/org.clawos.System.xml',
+        }
+        for source, name in mapping.items():
+            executable = name in EXECUTABLES
+            include(repo / source, name, 0o755 if executable else 0o644)
+        manifest = {'schema': 1, 'files': files,
+                    'sourceRevision': run(['git', '-C', str(repo), 'rev-parse', 'HEAD']),
+                    'sourceDirty': bool(run(['git', '-C', str(repo), 'status', '--porcelain'])),
+                    'createdAt': int(time.time())}
+        manifest['version'] = hashlib.sha256(json.dumps(files, sort_keys=True).encode()).hexdigest()
+        write_json(work / 'manifest.json', manifest)
+        verify_payload(work)
+        final = output / manifest['version']
+        if final.exists():
+            verify_payload(final)
+            shutil.rmtree(work)
+        else:
+            os.rename(work, final)
+        print(final)
+    except Exception:
+        shutil.rmtree(work, ignore_errors=True)
+        raise
+
+
+def file_state(root, name):
+    path = destination(root, name)
+    if not path.exists():
+        return None
+    metadata = path.stat()
+    return {'sha256': digest(path), 'mode': stat.S_IMODE(metadata.st_mode),
+            'uid': metadata.st_uid, 'gid': metadata.st_gid}
+
+
+def changed_files(root, manifest):
+    return [name for name, target in manifest['files'].items()
+            if (file_state(root, name) or {}).get('sha256') != target['sha256']
+            or (file_state(root, name) or {}).get('mode') != target['mode']]
+
+
+def backup(root, job, names):
+    prior = {}
+    for name in names:
+        prior[name] = file_state(root, name)
+        if prior[name] is not None:
+            target = job / 'backup' / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(root / name, target)
+    write_json(job / 'before.json', prior)
+    return prior
+
+
+def install_file(source, target, mode, uid=0, gid=0):
+    target.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(prefix='.clawos-deploy-', dir=target.parent)
+    os.close(fd)
+    try:
+        shutil.copyfile(source, temporary)
+        os.chmod(temporary, mode)
+        if os.geteuid() == 0:
+            os.chown(temporary, uid, gid)
+        with open(temporary, 'rb') as stream:
+            os.fsync(stream.fileno())
+        os.replace(temporary, target)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
+
+
+def restore(root, job):
+    for name, prior in read_json(job / 'before.json').items():
+        target = destination(root, name)
+        if prior is None:
+            target.unlink(missing_ok=True)
+        else:
+            source = job / 'backup' / name
+            if digest(source) != prior['sha256']:
+                raise ValueError(f'Backup hash mismatch: {name}')
+            install_file(source, target, prior['mode'], prior['uid'], prior['gid'])
+
+
+def user_command(owner, args):
+    account = pwd.getpwnam(owner)
+    runtime = Path(f'/run/user/{account.pw_uid}')
+    env = [f'HOME={account.pw_dir}', f'XDG_RUNTIME_DIR={runtime}',
+           f'DBUS_SESSION_BUS_ADDRESS=unix:path={runtime}/bus']
+    sockets = list(runtime.glob('sway-ipc.*.sock'))
+    if len(sockets) == 1:
+        env.append(f'SWAYSOCK={sockets[0]}')
+    return ['runuser', '-u', owner, '--', 'env', *env, *args]
+
+
+def reload_runtime(owner, names):
+    run(['systemctl', 'daemon-reload'])
+    if any('/clawosd/' in n or n.endswith('clawosd.service') or n.endswith('/clawosctl') for n in names):
+        run(['systemctl', 'restart', 'clawosd.service'])
+    if any('/openclaw-plugin/' in n for n in names):
+        # The pinned Gateway allows 330 seconds to drain active agent turns.
+        # A short CLI timeout does not cancel systemd's queued restart, so
+        # timing out here would race file rollback against a still-live process.
+        run(user_command(owner, ['systemctl', '--user', 'restart', 'openclaw-gateway.service']),
+            timeout=420)
+    run(['systemctl', 'restart', f'clawos-session@{owner}.service'])
+    if Path('/etc/systemd/system/clawos-deploy-delivery.timer').exists():
+        run(['systemctl', 'enable', '--now', 'clawos-deploy-delivery.timer'])
+
+
+def gateway_call(owner, method, params):
+    return json.loads(run(user_command(owner, ['/usr/bin/openclaw', 'gateway', 'call', method,
+        '--params', json.dumps(params), '--json', '--timeout', '10000']), timeout=20))
+
+
+def deliver_pending():
+    with open(STORE / 'delivery.lock', 'a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        for path in (STORE / 'jobs').glob('*/receipt.json'):
+            receipt = read_json(path)
+            if not receipt.get('target') or receipt['state'] not in {'complete', 'rolled-back', 'failed', 'recovery-required'}:
+                continue
+            target = path.parent / 'delivery.json'
+            previous = read_json(target, {})
+            key = receipt['jobId'] + ':' + receipt['state']
+            if previous.get('key') == key and previous.get('state') == 'delivered':
+                continue
+            value = {'key': key, 'state': 'pending', 'attemptedAt': int(time.time())}
+            try:
+                result = gateway_call(receipt['owner'], 'clawos.deploy.deliver',
+                    {'jobId': receipt['jobId'], **receipt['target']})
+                if not result.get('messageId'):
+                    raise ValueError('Missing delivery acknowledgement')
+                value.update(state='delivered', messageId=result['messageId'])
+            except Exception:
+                value['state'] = 'retrying'
+            write_json(target, value)
+            publish_receipt(receipt)
+
+
+def health(owner, timeout=90):
+    deadline = time.monotonic() + timeout
+    reason = 'Desktop is starting'
+    while time.monotonic() < deadline:
+        try:
+            for service in ('clawosd.service', f'clawos-session@{owner}.service'):
+                if run(['systemctl', 'is-active', service]) != 'active':
+                    raise ValueError(f'{service} is not active')
+            run(user_command(owner, ['openclaw', '--version']))
+            mode = run(user_command(owner, ['openclaw', 'config', 'get', 'gateway.mode']))
+            if mode == 'local':
+                try:
+                    port = run(user_command(owner, ['openclaw', 'config', 'get', 'gateway.port']))
+                except subprocess.CalledProcessError:
+                    port = '18789'
+                port = port if port.isdigit() else '18789'
+                run(['curl', '--fail', '--silent', '--max-time', '3', f'http://127.0.0.1:{port}/health'])
+            run(user_command(owner, ['/usr/lib/clawos/clawosctl', 'status']))
+            plugin = json.loads(run(user_command(owner, ['openclaw', 'plugins', 'inspect',
+                                                         'clawos-system', '--json'])))['plugin']
+            if (plugin.get('status') != 'loaded' or not plugin.get('enabled')
+                    or plugin.get('rootDir') != '/usr/lib/clawos/openclaw-plugin'):
+                raise ValueError('The deployed ClawOS plugin is not loaded from the managed runtime')
+            tree = json.loads(run(user_command(owner, ['swaymsg', '-t', 'get_tree', '-r'])))
+            def nodes(node):
+                yield node
+                for child in node.get('nodes', []) + node.get('floating_nodes', []):
+                    yield from nodes(child)
+            candidates = [n for n in nodes(tree) if n.get('app_id') == 'clawos-agent'
+                          or 'clawos-control-ui-bootstrap-agent.html-' in n.get('app_id', '')
+                          or 'clawos-agent-canvas' in n.get('marks', [])]
+            if len(candidates) != 1:
+                raise ValueError('Expected exactly one Agent window')
+            run(['pgrep', '-u', str(pwd.getpwnam(owner).pw_uid), '-x', 'waybar'])
+            return {'broker': 'ready', 'desktop': 'ready', 'agentWindow': candidates[0]['id'],
+                    'gatewayMode': mode, 'plugin': 'loaded', 'modelRequest': 'not-tested'}
+        except (ValueError, subprocess.SubprocessError) as error:
+            reason = str(error)
+            time.sleep(2)
+    raise RuntimeError(f'Runtime health failed: {reason}')
+
+
+def worker(job_id, rollback=False, root=Path('/')):
+    job = STORE / 'jobs' / job_id
+    with open(STORE / 'lock', 'a') as lock:
+        # The dispatcher holds this lock until systemd has accepted the job.
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        receipt = read_json(job / 'receipt.json')
+        names = receipt['changedFiles']
+        owner = receipt['owner']
+        try:
+            if rollback:
+                if not (job / 'before.json').exists():
+                    raise ValueError('No completed backup exists for this job')
+                receipt['state'] = 'rolling-back'
+                write_json(job / 'receipt.json', receipt)
+                restore(root, job)
+                reload_runtime(owner, names)
+                receipt['health'] = health(owner)
+                write_json(STORE / 'installed.json', read_json(job / 'previous-manifest.json'))
+                receipt['state'] = 'rolled-back'
+            else:
+                package = job / 'package'
+                manifest = verify_payload(package)
+                receipt['state'] = 'checkpointing'
+                write_json(job / 'receipt.json', receipt)
+                snapshot = root / '.snapshots' / f'clawos-deploy-{job_id}'
+                snapshot.parent.mkdir(parents=True, exist_ok=True)
+                run(['btrfs', 'subvolume', 'snapshot', '-r', str(root), str(snapshot)], timeout=120)
+                receipt['snapshot'] = str(snapshot)
+                backup(root, job, names)
+                write_json(job / 'previous-manifest.json', read_json(STORE / 'installed.json'))
+                receipt['state'] = 'applying'
+                write_json(job / 'receipt.json', receipt)
+                for name in names:
+                    target = destination(root, name)
+                    if name in manifest['files']:
+                        install_file(package / 'files' / name, target, manifest['files'][name]['mode'])
+                    else:
+                        target.unlink(missing_ok=True)
+                reload_runtime(owner, names)
+                receipt['state'] = 'verifying'
+                write_json(job / 'receipt.json', receipt)
+                if changed_files(root, manifest):
+                    raise ValueError('Installed files differ from payload')
+                receipt['health'] = health(owner)
+                write_json(STORE / 'installed.json', manifest)
+                receipt['state'] = 'complete'
+        except Exception as error:
+            receipt['error'] = str(error)[:2000]
+            if not rollback and receipt['state'] in {'applying', 'verifying'}:
+                try:
+                    receipt['state'] = 'rolling-back'
+                    write_json(job / 'receipt.json', receipt)
+                    restore(root, job)
+                    reload_runtime(owner, names)
+                    receipt['recoveryHealth'] = health(owner)
+                    receipt['state'] = 'rolled-back'
+                except Exception as recovery_error:
+                    receipt['state'] = 'recovery-required'
+                    receipt['recoveryError'] = str(recovery_error)[:2000]
+            else:
+                receipt['state'] = 'recovery-required' if rollback else 'failed'
+        receipt['finishedAt'] = int(time.time())
+        write_json(job / 'receipt.json', receipt)
+        if receipt['state'] not in {'complete', 'rolled-back'}:
+            raise RuntimeError(receipt.get('error', receipt['state']))
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    sub = parser.add_subparsers(dest='command', required=True)
+    sub.add_parser('stage').add_argument('source', type=Path)
+    for name in ('plan', 'apply'):
+        command = sub.add_parser(name)
+        command.add_argument('payload', type=Path)
+        command.add_argument('--session-key')
+    sub.add_parser('status').add_argument('job', nargs='?')
+    sub.add_parser('check')
+    sub.add_parser('publish-receipts')
+    sub.add_parser('deliver-pending')
+    sub.add_parser('rollback').add_argument('job')
+    internal = sub.add_parser('_worker')
+    internal.add_argument('job')
+    internal.add_argument('--rollback', action='store_true')
+    args = parser.parse_args()
+    if args.command == 'stage':
+        return stage(args.source)
+    if os.geteuid() != 0:
+        raise PermissionError('Use sudo for plan, apply, status, and rollback')
+    STORE.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if getattr(args, 'job', None) and not re.fullmatch(r'[0-9a-f-]{36}', args.job):
+        raise ValueError('Invalid job ID')
+    if args.command == '_worker':
+        return worker(args.job, args.rollback)
+    if args.command == 'publish-receipts':
+        for path in (STORE / 'jobs').glob('*/receipt.json'):
+            publish_receipt(read_json(path))
+        print(json.dumps({'state': 'published', 'directory': str(STORE.parent / 'deploy-receipts')}))
+        return
+    if args.command == 'deliver-pending':
+        return deliver_pending()
+    if args.command == 'check':
+        owner = read_json(Path('/etc/clawos/clawosd.json'))['openclaw']['ownerUser']
+        print(json.dumps(health(owner), indent=2))
+        return
+    if args.command == 'status':
+        if args.job:
+            result = read_json(STORE / 'jobs' / args.job / 'receipt.json')
+            if result is None:
+                raise ValueError('Deployment job not found')
+        else:
+            manifest = read_json(STORE / 'installed.json')
+            result = {'installedVersion': manifest['version'] if manifest else None,
+                      'drift': changed_files(Path('/'), manifest) if manifest else None,
+                      'jobs': [read_json(p) for p in sorted((STORE / 'jobs').glob('*/receipt.json'))]}
+        print(json.dumps(result, indent=2))
+        return
+    with open(STORE / 'lock', 'a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        # Refuse another job even in the brief interval before its worker starts.
+        for pending in (STORE / 'jobs').glob('*/receipt.json'):
+            value = read_json(pending)
+            if value['state'] in {'queued', 'checkpointing', 'applying', 'verifying', 'rolling-back', 'recovery-required'}:
+                if not (args.command == 'rollback' and pending.parent.name == args.job):
+                    raise ValueError(f'Deployment pending: {pending.parent.name}; inspect its receipt first')
+        if args.command == 'rollback':
+            job = STORE / 'jobs' / args.job
+            receipt = read_json(job / 'receipt.json')
+            installed = read_json(STORE / 'installed.json')
+            previous = read_json(job / 'previous-manifest.json')
+            acceptable = {receipt['version']}
+            if receipt['state'] in {'queued', 'checkpointing', 'applying', 'verifying', 'rolling-back', 'recovery-required'}:
+                acceptable.add(previous['version'] if previous else None)
+            if installed and installed['version'] not in acceptable:
+                raise ValueError('Refusing to roll back an older deployment over a newer version')
+            if not (job / 'before.json').exists():
+                raise ValueError('This job has no completed backup to restore')
+            # Keep the original worker as evidence, but allow a repaired recovery
+            # implementation to recover jobs created by a defective updater.
+            shutil.copyfile(Path(__file__).resolve(), job / 'recovery-worker.py')
+            receipt['recoveryWorkerSha256'] = digest(job / 'recovery-worker.py')
+            receipt['recoveryStartedAt'] = int(time.time())
+            receipt['state'] = 'rolling-back'
+            write_json(job / 'receipt.json', receipt)
+            unit = 'clawos-rollback-' + args.job
+        else:
+            manifest = verify_payload(args.payload.resolve())
+            names = changed_files(Path('/'), manifest)
+            installed = read_json(STORE / 'installed.json')
+            removed = sorted(set(installed['files'] if installed else {}) - set(manifest['files']))
+            for name in removed:
+                current = file_state(Path('/'), name)
+                if current and current['sha256'] != installed['files'][name]['sha256']:
+                    raise ValueError(f'Removed managed file has local edits: {name}')
+            names += removed
+            if args.command == 'plan':
+                print(json.dumps({'version': manifest['version'], 'changedFiles': names, 'removedFiles': removed,
+                                  'excluded': sorted(EXCLUDED), 'restart': 'ClawOS session; affected broker/Gateway'}, indent=2))
+                return
+            if not names and installed and installed['version'] == manifest['version']:
+                print(json.dumps({'state': 'already-current', 'version': manifest['version']}))
+                return
+            job_id = str(uuid.uuid4())
+            binding = None
+            owner = read_json(Path('/etc/clawos/clawosd.json'))['openclaw']['ownerUser']
+            if args.session_key:
+                binding = gateway_call(owner, 'clawos.deploy.resolve', {'sessionKey': args.session_key})
+                if not binding.get('sessionId') or not binding.get('sessionKey'):
+                    raise ValueError('Cannot bind original conversation')
+            job = STORE / 'jobs' / job_id
+            job.mkdir(parents=True, mode=0o700)
+            shutil.copytree(args.payload.resolve(), job / 'package', symlinks=True)
+            frozen = verify_payload(job / 'package')
+            if frozen != manifest:
+                raise ValueError('Payload changed during staging; refusing deployment')
+            shutil.copyfile(Path(__file__).resolve(), job / 'worker.py')
+            owner = read_json(Path('/etc/clawos/clawosd.json'))['openclaw']['ownerUser']
+            pwd.getpwnam(owner)
+            receipt = {'jobId': job_id, 'version': manifest['version'], 'owner': owner,
+                      'changedFiles': names, 'state': 'queued', 'startedAt': int(time.time())}
+            if binding:
+                receipt['target'] = binding
+            write_json(job / 'receipt.json', receipt)
+            unit = 'clawos-deploy-' + job_id
+        worker_path = job / ('recovery-worker.py' if args.command == 'rollback' else 'worker.py')
+        argv = ['systemd-run', '--quiet', '--collect', '--service-type=exec', '--unit=' + unit,
+                '/usr/bin/python3', str(worker_path), '_worker', receipt['jobId']]
+        if args.command == 'rollback':
+            argv.append('--rollback')
+        try:
+            run(argv)
+        except Exception:
+            receipt['state'] = 'recovery-required' if args.command == 'rollback' else 'failed'
+            receipt['error'] = 'Could not launch the independent deployment worker'
+            write_json(job / 'receipt.json', receipt)
+            raise
+        print(json.dumps({'jobId': receipt['jobId'], 'unit': unit,
+                          'statusCommand': f"sudo /usr/lib/clawos/clawos-deploy status {receipt['jobId']}"}))
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except Exception as error:
+        print(f'clawos-deploy: {error}', file=sys.stderr)
+        sys.exit(1)

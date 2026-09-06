@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Outlook
+Comment=Open Outlook as a ClawOS activity surface
+Exec=/usr/lib/clawos/clawos-webapp outlook
+Icon=mail-send-receive-symbolic
+StartupWMClass=chrome-outlook.office.com__mail_-Default
+Terminal=false
+Categories=Network;Email;Office;
+StartupNotify=true
+X-ClawOS-AppId=web:outlook
+X-ClawOS-Kind=web
+X-ClawOS-AgentCapability=microsoft-mail
+X-ClawOS-Profile=outlook-default
+X-ClawOS-BrowserProfile=clawos-outlook

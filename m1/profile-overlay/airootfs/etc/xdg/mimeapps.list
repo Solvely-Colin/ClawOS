@@ -1,0 +1,10 @@
+[Default Applications]
+text/html=clawos-browser.desktop
+x-scheme-handler/http=clawos-browser.desktop
+x-scheme-handler/https=clawos-browser.desktop
+
+[Added Associations]
+text/html=clawos-browser.desktop;
+x-scheme-handler/http=clawos-browser.desktop;
+x-scheme-handler/https=clawos-browser.desktop;
+

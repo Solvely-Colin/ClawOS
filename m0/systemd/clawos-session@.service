@@ -1,7 +1,6 @@
 [Unit]
 Description=ClawOS Milestone 0 session for %i
-After=systemd-user-sessions.service network-online.target
-Wants=network-online.target
+After=systemd-user-sessions.service
 Conflicts=getty@tty2.service
 After=getty@tty2.service
 

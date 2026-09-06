@@ -1,0 +1,403 @@
+#!/usr/bin/node
+"use strict";
+
+const fs = require("node:fs");
+const net = require("node:net");
+const os = require("node:os");
+const path = require("node:path");
+const crypto = require("node:crypto");
+const { execFile } = require("node:child_process");
+const {
+  listApplications,
+  resolveApplication,
+  publicApplication,
+  launchApplication,
+} = require(path.join(__dirname, "app-registry.cjs"));
+
+const runtimeDir = process.env.XDG_RUNTIME_DIR || `/run/user/${process.getuid()}`;
+const stateDir = path.join(runtimeDir, "clawos");
+const socketPath = process.env.CLAWOS_SURFACE_SOCKET || (
+  fs.existsSync("/run/clawos-control")
+    ? "/run/clawos-control/surface.sock"
+    : path.join(stateDir, "surface.sock")
+);
+const statePath = path.join(stateDir, "activity.json");
+const persistentStateDir = path.join(process.env.XDG_STATE_HOME || path.join(os.homedir(), ".local", "state"), "clawos");
+const persistentStatePath = path.join(persistentStateDir, "activity.json");
+const lockPath = path.join(stateDir, "surfaced.lock");
+const surfaceIds = new Set(["terminal", "browser", "build"]);
+const appIds = {
+  terminal: "clawos-command",
+  browser: "clawos-browse",
+  build: "clawos-build",
+};
+const activityStates = new Set(["idle", "running", "waiting", "needs-approval", "needs-attention", "complete", "failed"]);
+
+let state = {
+  version: 1,
+  activity: { id: "main", title: "Main", state: "idle", summary: "" },
+  attention: { count: 0, message: "" },
+  surface: { visible: "agent" },
+  apps: {},
+  updatedAt: new Date().toISOString(),
+};
+
+function acquireSingleton() {
+  fs.mkdirSync(stateDir, { recursive: true, mode: 0o700 });
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      fs.mkdirSync(lockPath, { mode: 0o700 });
+      fs.writeFileSync(path.join(lockPath, "pid"), `${process.pid}\n`, { mode: 0o600 });
+      return;
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+      let owner = 0;
+      try { owner = Number.parseInt(fs.readFileSync(path.join(lockPath, "pid"), "utf8"), 10); } catch {}
+      let liveOwner = false;
+      if (Number.isInteger(owner) && owner > 1) {
+        try {
+          const command = fs.readFileSync(`/proc/${owner}/cmdline`, "utf8");
+          liveOwner = command.includes("clawos-surfaced");
+        } catch {}
+      }
+      if (liveOwner) process.exit(0);
+      fs.rmSync(lockPath, { recursive: true, force: true });
+    }
+  }
+  throw new Error("Unable to acquire the ClawOS surface broker lock.");
+}
+
+function releaseSingleton() {
+  try { fs.rmSync(lockPath, { recursive: true, force: true }); } catch {}
+}
+
+function cleanText(value, fallback = "", max = 160) {
+  if (typeof value !== "string") return fallback;
+  const cleaned = value.replace(/[\u0000-\u001f\u007f]/g, " ").trim();
+  return cleaned.slice(0, max) || fallback;
+}
+
+function loadPersistentState() {
+  try {
+    const stored = JSON.parse(fs.readFileSync(persistentStatePath, "utf8"));
+    if (stored?.version !== 1 || typeof stored.activity !== "object") return;
+    state.activity.id = cleanText(stored.activity.id, "main", 72);
+    state.activity.title = cleanText(stored.activity.title, "Main", 72);
+    state.activity.summary = cleanText(stored.activity.summary, "", 240);
+    if (activityStates.has(stored.activity.state)) state.activity.state = stored.activity.state;
+    if (stored.attention?.count === 1) {
+      state.attention = { count: 1, message: cleanText(stored.attention.message, "Agent needs attention", 160), id: stored.attention.id };
+    }
+    // Window identity does not survive a graphical-session restart. Restore
+    // the work, but make the Agent canvas authoritative until asked otherwise.
+    state.surface.visible = "agent";
+    state.apps = {};
+    if (state.activity.state === "running") {
+      state.activity.state = "waiting";
+      state.activity.summary = "Work restored; waiting for Gateway activity";
+    }
+  } catch (error) {
+    if (error.code !== "ENOENT") process.stderr.write(`clawos-surfaced: ignored invalid saved state: ${error.message}\n`);
+  }
+}
+
+function writeState() {
+  state.updatedAt = new Date().toISOString();
+  const temp = `${statePath}.${process.pid}.tmp`;
+  fs.writeFileSync(temp, `${JSON.stringify(state)}\n`, { mode: 0o600 });
+  fs.renameSync(temp, statePath);
+  fs.mkdirSync(persistentStateDir, { recursive: true, mode: 0o700 });
+  const persistentTemp = `${persistentStatePath}.${process.pid}.tmp`;
+  fs.writeFileSync(persistentTemp, `${JSON.stringify(state)}\n`, { mode: 0o600 });
+  fs.renameSync(persistentTemp, persistentStatePath);
+}
+
+function run(file, args, timeout = 5000) {
+  return new Promise((resolve, reject) => {
+    execFile(file, args, { timeout }, (error, stdout) => {
+      if (error) reject(error);
+      else resolve(stdout);
+    });
+  });
+}
+
+function applicationMark(appId) {
+  return `clawos-app-${crypto.createHash("sha256").update(appId).digest("hex").slice(0, 20)}`;
+}
+
+function treeContainers(node, containers = []) {
+  if (!node || typeof node !== "object") return containers;
+  if (["con", "floating_con"].includes(node.type) && Number.isInteger(node.id) && (node.pid || node.app_id || node.window_properties)) {
+    containers.push(node);
+  }
+  for (const child of [...(node.nodes || []), ...(node.floating_nodes || [])]) treeContainers(child, containers);
+  return containers;
+}
+
+async function swayTree() {
+  return JSON.parse(await run("/usr/bin/swaymsg", ["-t", "get_tree", "-r"]));
+}
+
+function markedContainer(tree, mark) {
+  return treeContainers(tree).find((container) => Array.isArray(container.marks) && container.marks.includes(mark));
+}
+
+function applicationContainer(tree, application) {
+  const mark = applicationMark(application.id);
+  const marked = markedContainer(tree, mark);
+  if (marked) return marked;
+  const expected = application.startupWmClass?.toLowerCase();
+  if (!expected) return null;
+  return treeContainers(tree).find((container) =>
+    container.app_id?.toLowerCase() === expected ||
+    container.window_properties?.class?.toLowerCase() === expected,
+  ) || null;
+}
+
+function activityCanvas(tree) {
+  return (tree.nodes || [])
+    .flatMap((output) => output.nodes || [])
+    .find((workspace) => workspace.type === "workspace" && workspace.name !== "__i3_scratch");
+}
+
+async function fitContainer(container, mark) {
+  const tree = await swayTree();
+  const workspace = activityCanvas(tree);
+  if (!workspace?.rect?.width || !workspace?.rect?.height) {
+    throw new Error("ClawOS activity canvas is unavailable.");
+  }
+  const criteria = container ? `[con_id="${container.id}"]` : `[con_mark="${mark}"]`;
+  await run("/usr/bin/swaymsg", [
+    `${criteria} floating enable, resize set width ${workspace.rect.width} px height ${workspace.rect.height} px, move position 0 0, focus`,
+  ]);
+}
+
+async function focusContainer(container, mark) {
+  const criteria = container ? `[con_id="${container.id}"]` : `[con_mark="${mark}"]`;
+  if (!container || (container.scratchpad_state && container.scratchpad_state !== "none")) {
+    await run("/usr/bin/swaymsg", [`${criteria} scratchpad show`]).catch(() => {});
+  }
+  await run("/usr/bin/swaymsg", [`${criteria} focus`]);
+}
+
+async function hideAllApplications() {
+  const tree = await swayTree().catch(() => null);
+  if (!tree) return;
+  for (const application of Object.values(state.apps)) {
+    const container = markedContainer(tree, application.mark);
+    if (container) await run("/usr/bin/swaymsg", [`[con_id="${container.id}"] move scratchpad`]).catch(() => {});
+  }
+}
+
+async function waitForApplicationWindow(beforeIds, beforeFocusedId, timeoutMs = 8000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const tree = await swayTree();
+    const containers = treeContainers(tree);
+    const created = containers.find((container) => !beforeIds.has(container.id));
+    if (created) return created;
+    const focused = containers.find((container) => container.focused);
+    if (focused && focused.id !== beforeFocusedId) return focused;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  return null;
+}
+
+async function presentApplication(application) {
+  await run("/usr/lib/clawos/clawos-agent-panel", ["close"]).catch(() => {});
+  if (application.kind === "surface") {
+    if (!new Set(["agent", "terminal", "browser", "build"]).has(application.surface)) {
+      throw new Error("Application declares an unknown ClawOS surface.");
+    }
+    await run("/usr/lib/clawos/clawos-surface", [application.surface]);
+    state.surface.visible = application.surface;
+    writeState();
+    return state;
+  }
+
+  const mark = applicationMark(application.id);
+  const existingTree = await swayTree();
+  const existing = applicationContainer(existingTree, application);
+  if (existing) {
+    const criteria = `[con_id="${existing.id}"]`;
+    await focusContainer(existing, mark);
+    if (!existing.marks?.includes(mark)) await run("/usr/bin/swaymsg", [`${criteria} mark --add ${mark}`]);
+    await fitContainer(existing, mark);
+  } else {
+    const beforeContainers = treeContainers(existingTree);
+    const beforeIds = new Set(beforeContainers.map((container) => container.id));
+    const beforeFocused = beforeContainers.find((container) => container.focused)?.id;
+    launchApplication(application);
+    const container = await waitForApplicationWindow(beforeIds, beforeFocused);
+    if (!container) throw new Error("Application did not create a visible surface.");
+    const criteria = `[con_id="${container.id}"]`;
+    await run("/usr/bin/swaymsg", [`${criteria} mark --add ${mark}`]);
+    await fitContainer(container, mark);
+  }
+  state.apps[application.id] = {
+    id: application.id,
+    desktopId: application.desktopId,
+    name: application.name,
+    kind: application.kind,
+    browserProfile: application.browserProfile || "",
+    mark,
+  };
+  state.surface.visible = `app:${application.id}`;
+  writeState();
+  return state;
+}
+
+async function hideSurface(surface) {
+  const appId = appIds[surface];
+  await run("/usr/bin/swaymsg", [`[app_id=\"${appId}\"] move scratchpad`]).catch(() => {});
+}
+
+async function handle(request) {
+  if (!request || typeof request !== "object" || typeof request.action !== "string") {
+    throw new Error("A typed action is required.");
+  }
+
+  switch (request.action) {
+    case "status":
+      return state;
+    case "surface.present": {
+      if (!surfaceIds.has(request.surface)) throw new Error("Unknown surface.");
+      await run("/usr/lib/clawos/clawos-surface", [request.surface]);
+      state.surface.visible = request.surface;
+      writeState();
+      return state;
+    }
+    case "surface.hide": {
+      if (request.surface === "all") {
+        for (const surface of surfaceIds) await hideSurface(surface);
+        await hideAllApplications();
+      } else {
+        if (!surfaceIds.has(request.surface)) throw new Error("Unknown surface.");
+        await hideSurface(request.surface);
+      }
+      await run("/usr/lib/clawos/clawos-surface", ["agent"]);
+      state.surface.visible = "agent";
+      writeState();
+      return state;
+    }
+    case "surface.agent":
+      await hideAllApplications();
+      await run("/usr/lib/clawos/clawos-surface", ["agent"]);
+      state.surface.visible = "agent";
+      writeState();
+      return state;
+    case "app.list":
+      return {
+        applications: listApplications().map(publicApplication),
+        running: Object.values(state.apps),
+        visible: state.surface.visible,
+      };
+    case "app.status": {
+      const tree = await swayTree();
+      const running = Object.values(state.apps).filter((application) => markedContainer(tree, application.mark));
+      return { running, visible: state.surface.visible };
+    }
+    case "app.open": {
+      const application = resolveApplication({ appId: request.appId, desktopId: request.desktopId });
+      if (!application) throw new Error("Unknown application.");
+      return presentApplication(application);
+    }
+    case "app.focus": {
+      const application = resolveApplication({ appId: request.appId });
+      if (!application) throw new Error("Unknown application.");
+      if (application.kind === "surface") return presentApplication(application);
+      await run("/usr/lib/clawos/clawos-agent-panel", ["close"]).catch(() => {});
+      const mark = applicationMark(application.id);
+      const container = markedContainer(await swayTree(), mark);
+      if (!container) throw new Error("Application is not running.");
+      await focusContainer(container, mark);
+      state.surface.visible = `app:${application.id}`;
+      writeState();
+      return state;
+    }
+    case "app.hide": {
+      const application = resolveApplication({ appId: request.appId });
+      if (!application || application.kind === "surface") throw new Error("Application is not a hideable app surface.");
+      const mark = applicationMark(application.id);
+      const container = markedContainer(await swayTree(), mark);
+      if (!container) throw new Error("Application is not running.");
+      await run("/usr/bin/swaymsg", [`[con_id="${container.id}"] move scratchpad`]);
+      await run("/usr/lib/clawos/clawos-surface", ["agent"]);
+      state.surface.visible = "agent";
+      writeState();
+      return state;
+    }
+    case "app.close": {
+      const application = resolveApplication({ appId: request.appId });
+      if (!application || application.kind === "surface") throw new Error("Application is not a closeable app surface.");
+      const mark = applicationMark(application.id);
+      const container = markedContainer(await swayTree(), mark);
+      if (!container) throw new Error("Application is not running.");
+      await run("/usr/bin/swaymsg", [`[con_id="${container.id}"] kill`]);
+      delete state.apps[application.id];
+      await run("/usr/lib/clawos/clawos-surface", ["agent"]);
+      state.surface.visible = "agent";
+      writeState();
+      return state;
+    }
+    case "activity.update": {
+      state.activity.title = cleanText(request.title, state.activity.title, 72);
+      state.activity.summary = cleanText(request.summary, state.activity.summary, 240);
+      if (request.state !== undefined) {
+        if (!activityStates.has(request.state)) throw new Error("Unknown activity state.");
+        state.activity.state = request.state;
+      }
+      writeState();
+      return state;
+    }
+    case "attention.set":
+      state.attention.id = crypto.randomUUID();
+      state.attention.count = 1;
+      state.attention.message = cleanText(request.message, "Agent needs attention", 160);
+      state.activity.state = request.kind === "approval" ? "needs-approval" : "needs-attention";
+      writeState();
+      return state;
+    case "attention.clear":
+      state.attention = { count: 0, message: "" };
+      if (state.activity.state === "needs-approval" || state.activity.state === "needs-attention") {
+        state.activity.state = "running";
+      }
+      writeState();
+      return state;
+    default:
+      throw new Error("Unsupported action.");
+  }
+}
+
+acquireSingleton();
+try { fs.unlinkSync(socketPath); } catch (error) { if (error.code !== "ENOENT") throw error; }
+loadPersistentState();
+writeState();
+
+const server = net.createServer({ allowHalfOpen: true }, (connection) => {
+  let input = "";
+  connection.setEncoding("utf8");
+  connection.on("data", (chunk) => {
+    input += chunk;
+    if (input.length > 16384) connection.destroy(new Error("Request too large."));
+    if (!input.includes("\n")) return;
+    const line = input.slice(0, input.indexOf("\n"));
+    Promise.resolve()
+      .then(() => handle(JSON.parse(line)))
+      .then((result) => connection.end(`${JSON.stringify({ ok: true, result })}\n`))
+      .catch((error) => connection.end(`${JSON.stringify({ ok: false, error: cleanText(error.message, "Request failed") })}\n`));
+  });
+});
+
+server.listen(socketPath, () => fs.chmodSync(socketPath, 0o660));
+
+function shutdown() {
+  server.close(() => {
+    try { fs.unlinkSync(socketPath); } catch {}
+    releaseSingleton();
+    process.exit(0);
+  });
+}
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
+process.on("exit", releaseSingleton);

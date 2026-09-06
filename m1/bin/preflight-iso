@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
+
+cd "$repo_root"
+
+python3 -m unittest discover -s m1/tests -p 'test_*.py'
+
+echo "[1/7] Clean Arch profile and static integration"
+./m1/tests/no-omarchy.sh ./m1/profile-overlay/airootfs
+./m1/tests/validate-profile.sh
+
+echo "[2/7] Milestone 0 recovery/session contract"
+./m0/tests/static-check.sh
+
+echo "[3/7] First-boot, UI lifecycle, and local enrollment"
+./m1/tests/onboarding-static.sh
+
+echo "[4/7] Privileged broker"
+python3 -m unittest discover -s m3/tests -p 'test_*.py'
+
+echo "[5/7] OpenClaw plugin"
+node --test m2/openclaw-plugin/test/*.test.js
+
+echo "[6/7] Standalone/Node transaction"
+./m4/tests/role-switch.sh
+
+echo "[7/7] Patch hygiene"
+git diff --check
+
+echo "ClawOS pre-ISO source gate passed."
+echo "Next: sudo ./m1/bin/build-iso"

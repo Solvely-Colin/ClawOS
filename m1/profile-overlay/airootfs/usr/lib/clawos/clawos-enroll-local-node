@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+openclaw_bin="${CLAWOS_OPENCLAW:-/usr/bin/openclaw}"
+security_config="${CLAWOS_SECURITY_CONFIG:-/etc/clawos/clawosd.json}"
+sleep_bin="${CLAWOS_SLEEP:-/usr/bin/sleep}"
+hostname_bin="${CLAWOS_HOSTNAME:-/usr/bin/hostname}"
+attempts="${CLAWOS_ENROLL_ATTEMPTS:-30}"
+
+security_level="$(/usr/bin/jq -r '.securityLevel // "full-root"' "$security_config" 2>/dev/null || printf 'full-root')"
+[[ "$security_level" == full-root ]] || exit 0
+[[ "$($openclaw_bin config get gateway.mode 2>/dev/null || true)" == local ]] || exit 0
+[[ "$attempts" =~ ^[1-9][0-9]*$ ]] || exit 2
+
+identity="$($openclaw_bin node identity --json 2>/dev/null)" || {
+  echo "ClawOS could not read the local OpenClaw node identity." >&2
+  exit 1
+}
+device_id="$(printf '%s' "$identity" | /usr/bin/jq -r '[.. | objects | .deviceId? // empty] | first // empty')"
+public_key="$(printf '%s' "$identity" | /usr/bin/jq -r '[.. | objects | (.publicKey? // .publicKeyPem? // empty)] | first // empty')"
+[[ "$device_id" =~ ^[A-Za-z0-9._:-]{16,256}$ ]] || {
+  echo "ClawOS refused an invalid local node identity." >&2
+  exit 1
+}
+
+local_name="$($hostname_bin)"
+
+device_is_paired() {
+  printf '%s' "$1" | /usr/bin/jq -e \
+    --arg device_id "$device_id" --arg public_key "$public_key" '
+      [(.paired // [])[] |
+        select(.deviceId == $device_id) |
+        select(($public_key == "") or ((.publicKey // .publicKeyPem // "") == $public_key)) |
+        select(((.roles // []) | index("node")) != null)
+      ] | length == 1
+    ' >/dev/null
+}
+
+select_device_request() {
+  printf '%s' "$1" | /usr/bin/jq -r \
+    --arg device_id "$device_id" --arg public_key "$public_key" '
+      [(.pending // [])[] |
+        select(.deviceId == $device_id) |
+        select(($public_key == "") or ((.publicKey // .publicKeyPem // "") == $public_key)) |
+        select((.clientId // "") == "node-host") |
+        select((.clientMode // "") == "node") |
+        select(((.roles // [(.role // "")]) | index("node")) != null)
+      ] | if length == 1 then .[0].requestId else empty end
+    '
+}
+
+# Device approval gates the node WebSocket handshake. Full Root deliberately
+# authorizes this exact same-machine identity; every other ClawOS security level
+# leaves the request for the normal approval UI.
+for ((attempt = 1; attempt <= attempts; attempt++)); do
+  devices="$($openclaw_bin devices list --json 2>/dev/null || true)"
+  if [[ -n "$devices" ]] && device_is_paired "$devices"; then
+    break
+  fi
+  request_id="$(select_device_request "$devices")"
+  if [[ -n "$request_id" ]]; then
+    $openclaw_bin devices approve "$request_id" --json >/dev/null 2>&1 || true
+    $openclaw_bin node restart >/dev/null 2>&1 || true
+  fi
+  $sleep_bin 1
+done
+
+devices="$($openclaw_bin devices list --json 2>/dev/null || true)"
+device_is_paired "$devices" || {
+  echo "ClawOS local node device approval did not become ready." >&2
+  exit 1
+}
+
+select_surface_request() {
+  printf '%s' "$1" | /usr/bin/jq -r \
+    --arg device_id "$device_id" --arg local_name "$local_name" '
+      [(. // [])[] |
+        select(.nodeId == $device_id) |
+        select((.platform // "linux") == "linux") |
+        select((.displayName // $local_name) == $local_name) |
+        select(
+          (((.caps // []) | index("clawos.system")) != null) or
+          (((.commands // []) | index("clawos.system")) != null)
+        )
+      ] | if length == 1 then .[0].requestId else empty end
+    '
+}
+
+node_is_ready() {
+  printf '%s' "$1" | /usr/bin/jq -e \
+    --arg device_id "$device_id" '
+      [(.nodes // [])[] |
+        select(.nodeId == $device_id) |
+        select(.paired == true) |
+        select(.connected == true) |
+        select((.approvalState // "approved") == "approved")
+      ] | length == 1
+    ' >/dev/null
+}
+
+# OpenClaw separately approves the command/capability surface. Re-list before
+# every attempt because an updated declaration supersedes the prior request ID.
+for ((attempt = 1; attempt <= attempts; attempt++)); do
+  status="$($openclaw_bin nodes status --json 2>/dev/null || true)"
+  if [[ -n "$status" ]] && node_is_ready "$status"; then
+    exit 0
+  fi
+  pending="$($openclaw_bin nodes pending --json 2>/dev/null || true)"
+  request_id="$(select_surface_request "$pending")"
+  if [[ -n "$request_id" ]]; then
+    $openclaw_bin nodes approve "$request_id" --json >/dev/null 2>&1 || true
+    $openclaw_bin node restart >/dev/null 2>&1 || true
+  fi
+  $sleep_bin 1
+done
+
+echo "ClawOS local node command surface is not ready." >&2
+exit 1

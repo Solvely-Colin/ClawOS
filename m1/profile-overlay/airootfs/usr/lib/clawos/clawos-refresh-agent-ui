@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# OpenClaw intentionally rejects a Control UI bundle from a different build.
+# After a core update, close only the canonical Agent surface; clawos-entry's
+# supervisor loop immediately recreates it against the updated Gateway while
+# preserving the Chromium profile and its authenticated device state.
+runtime_dir="/run/user/$(id -u)"
+
+for sway_socket in "$runtime_dir"/sway-ipc.*.sock; do
+  [[ -S "$sway_socket" ]] || continue
+  while IFS= read -r pid; do
+    [[ "$pid" =~ ^[0-9]+$ ]] || continue
+    /usr/bin/swaymsg -s "$sway_socket" "[pid=$pid] kill" >/dev/null 2>&1 || true
+  done < <(
+    /usr/bin/swaymsg -s "$sway_socket" -t get_tree -r 2>/dev/null |
+      /usr/bin/jq -r '
+        .. | objects |
+        select((.app_id? // "") | contains("clawos-control-ui-bootstrap-agent")) |
+        .pid // empty
+      ' 2>/dev/null || true
+  )
+done
+
+exit 0

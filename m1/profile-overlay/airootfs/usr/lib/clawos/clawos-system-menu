@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+import subprocess
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("GtkLayerShell", "0.1")
+from gi.repository import Gdk, Gtk, GtkLayerShell  # noqa: E402
+
+
+class SystemMenu(Gtk.Window):
+    def __init__(self):
+        super().__init__(title="ClawOS System Menu")
+        self.set_name("clawos-system-menu")
+        self.set_resizable(False)
+        GtkLayerShell.init_for_window(self)
+        GtkLayerShell.set_layer(self, GtkLayerShell.Layer.OVERLAY)
+        for edge in (GtkLayerShell.Edge.TOP, GtkLayerShell.Edge.RIGHT, GtkLayerShell.Edge.BOTTOM, GtkLayerShell.Edge.LEFT):
+            GtkLayerShell.set_anchor(self, edge, True)
+        GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.EXCLUSIVE)
+        GtkLayerShell.set_namespace(self, "clawos-system-menu")
+
+        provider = Gtk.CssProvider()
+        provider.load_from_path("/etc/clawos/system-menu.css")
+        Gtk.StyleContext.add_provider_for_screen(
+            self.get_screen(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+
+        overlay = Gtk.Overlay()
+        dismiss = Gtk.EventBox()
+        dismiss.set_name("menu-scrim")
+        dismiss.connect("button-press-event", lambda *_: self.destroy())
+        overlay.add(dismiss)
+
+        panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
+        panel.set_name("menu-panel")
+        panel.set_halign(Gtk.Align.START)
+        panel.set_valign(Gtk.Align.START)
+        panel.set_margin_start(14)
+        panel.set_margin_top(6)
+        overlay.add_overlay(panel)
+        self.add(overlay)
+        eyebrow = Gtk.Label(label="CLAWOS · SYSTEM", xalign=0)
+        eyebrow.set_name("menu-eyebrow")
+        panel.pack_start(eyebrow, False, False, 0)
+        self.add_action(panel, "Work and decisions", "view-list-symbolic", ["/usr/lib/clawos/clawos-approval"])
+        self.add_action(panel, "Accessibility", "preferences-desktop-accessibility-symbolic", ["/usr/lib/clawos/clawos-screen-reader-toggle"])
+        self.add_action(panel, "Lock", "system-lock-screen-symbolic", ["/usr/lib/clawos/clawos-lock"])
+        separator = Gtk.Separator()
+        separator.set_name("menu-separator")
+        panel.pack_start(separator, False, False, 0)
+        self.add_action(panel, "Restart", "system-reboot-symbolic", ["/usr/lib/clawos/clawos-power-action", "reboot"])
+        self.add_action(panel, "Shut down", "system-shutdown-symbolic", ["/usr/lib/clawos/clawos-power-action", "poweroff"], danger=True)
+        self.connect("key-press-event", self.on_key)
+
+    def add_action(self, panel, label, icon, command, danger=False):
+        button = Gtk.Button()
+        if danger:
+            button.set_name("menu-danger")
+        content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        content.pack_start(Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.MENU), False, False, 0)
+        content.pack_start(Gtk.Label(label=label, xalign=0), True, True, 0)
+        button.add(content)
+        button.set_tooltip_text(label)
+        button.connect("clicked", self.run, command)
+        panel.pack_start(button, False, False, 0)
+
+    def run(self, _button, command):
+        self.destroy()
+        subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    def on_key(self, _window, event):
+        if event.keyval == Gdk.KEY_Escape:
+            self.destroy()
+            return True
+        return False
+
+
+window = SystemMenu()
+window.connect("destroy", Gtk.main_quit)
+window.show_all()
+Gtk.main()

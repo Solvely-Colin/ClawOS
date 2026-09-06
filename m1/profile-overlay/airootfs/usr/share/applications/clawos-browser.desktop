@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=ClawOS Browse
+Comment=Attach links to the current ClawOS activity
+Exec=/usr/lib/clawos/clawos-open-url %U
+Terminal=false
+NoDisplay=true
+MimeType=text/html;x-scheme-handler/http;x-scheme-handler/https;
+Categories=Network;WebBrowser;

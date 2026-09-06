@@ -1,0 +1,41 @@
+@import url("design-system.css");
+
+window#clawos-system-menu { background: transparent; }
+#menu-scrim { background: transparent; }
+#menu-panel {
+  min-width: 264px;
+  padding: 8px;
+  color: @claw_text;
+  background: @claw_surface;
+  border: 1px solid @claw_line_strong;
+  border-radius: 10px;
+  box-shadow: 0 18px 45px alpha(black, 0.44);
+  font-family: "Inter Variable", "Noto Sans", sans-serif;
+}
+#menu-eyebrow {
+  padding: 9px 10px 8px;
+  color: @claw_quiet;
+  font-family: "GeistMono Nerd Font", "Noto Sans Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 1.4px;
+}
+#menu-panel button {
+  min-height: 42px;
+  padding: 0 10px;
+  color: @claw_text;
+  background: transparent;
+  background-image: none;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  box-shadow: none;
+}
+#menu-panel button:hover,
+#menu-panel button:focus {
+  color: @claw_text;
+  background: @claw_raised;
+  border-color: @claw_line;
+}
+#menu-panel button:focus { box-shadow: inset 0 0 0 1px @claw_coral; }
+#menu-panel image { color: @claw_muted; margin-right: 10px; }
+#menu-danger { color: @claw_danger; }
+#menu-separator { margin: 7px 4px; background: @claw_line; min-height: 1px; }

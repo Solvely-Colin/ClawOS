@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+desktop_id="${DESKTOP_ENTRY_ID:-${FUZZEL_DESKTOP_FILE_ID:-}}"
+if [[ ! "$desktop_id" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$ ]]; then
+  printf 'ClawOS refused an invalid application identifier.\n' >&2
+  exit 2
+fi
+
+exec /usr/lib/clawos/clawos-appctl open-desktop "$desktop_id"

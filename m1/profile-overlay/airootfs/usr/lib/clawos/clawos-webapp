@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+app_id="${1:-}"
+if [[ ! "$app_id" =~ ^[a-z][a-z0-9-]{0,63}$ ]]; then
+  printf 'ClawOS refused an invalid web application identifier.\n' >&2
+  exit 2
+fi
+
+manifest="/usr/share/clawos/webapps/$app_id.json"
+if [[ ! -f "$manifest" ]]; then
+  printf 'Unknown ClawOS web application: %s\n' "$app_id" >&2
+  exit 2
+fi
+
+url="$(/usr/bin/jq -er '.url | select(type == "string" and startswith("https://"))' "$manifest")"
+profile="$(/usr/bin/jq -er '.profile | select(type == "string" and test("^[a-z][a-z0-9-]{0,63}$"))' "$manifest")"
+cdp_port="$(/usr/bin/jq -er '.cdpPort | select(type == "number" and . >= 1024 and . <= 65535 and floor == .)' "$manifest")"
+profile_dir="${XDG_STATE_HOME:-$HOME/.local/state}/clawos/webapps/$profile"
+mkdir -p "$profile_dir"
+
+nohup /usr/lib/chromium/chromium \
+  --ozone-platform=wayland \
+  --enable-features=UseOzonePlatform,WebUIDarkMode \
+  --force-dark-mode \
+  --remote-debugging-address=127.0.0.1 \
+  --remote-debugging-port="$cdp_port" \
+  --class="clawos-web-$app_id" \
+  --app="$url" \
+  --no-first-run \
+  --no-default-browser-check \
+  --disable-background-mode \
+  --disable-session-crashed-bubble \
+  --hide-crash-restore-bubble \
+  --user-data-dir="$profile_dir" >/dev/null 2>&1 &

@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+json() {
+  /usr/bin/jq --compact-output --null-input \
+    --arg text "$1" --arg tooltip "$2" --arg class "$3" \
+    '{text: $text, tooltip: $tooltip, class: $class}'
+}
+
+case "${1:-}" in
+  context)
+    workspace="$(/usr/bin/swaymsg -t get_workspaces -r 2>/dev/null | \
+      /usr/bin/jq -r '.[] | select(.focused) | .name' 2>/dev/null || true)"
+    case "$workspace" in
+      1:Main) json 'MAIN ACTIVITY' 'OpenClaw with attached machine surfaces' agent ;;
+      *) json 'CLAWOS' 'Agent operating system' idle ;;
+    esac
+    ;;
+  gateway)
+    mode="$(/usr/bin/openclaw config get gateway.mode 2>/dev/null || true)"
+    if [[ "$mode" != local && "$mode" != remote ]]; then
+      json 'Setup required' 'Finish first-boot setup · click to return' setup-required
+      exit 0
+    fi
+    if [[ "$mode" == local ]]; then
+      port="$(/usr/bin/openclaw config get gateway.port 2>/dev/null || true)"
+      [[ "$port" =~ ^[0-9]+$ ]] || port=18789
+      if /usr/bin/curl --fail --silent --max-time 1 "http://127.0.0.1:$port/health" >/dev/null 2>&1; then
+        json 'Gateway online' 'Local OpenClaw Gateway is online' online
+      else
+        json 'Gateway offline' 'OpenClaw Gateway is unavailable' offline
+      fi
+    else
+      remote_url="$(/usr/bin/openclaw config get gateway.remote.url 2>/dev/null || true)"
+      case "$remote_url" in
+        ws://*) controller_url="http://${remote_url#ws://}" ;;
+        wss://*) controller_url="https://${remote_url#wss://}" ;;
+        *) controller_url= ;;
+      esac
+      if [[ -n "$controller_url" ]] &&
+         /usr/bin/curl --fail --silent --max-time 2 "$controller_url" >/dev/null 2>&1; then
+        json 'Controller online' 'Remote OpenClaw controller is reachable' online
+      else
+        json 'Controller offline' 'Remote OpenClaw controller is unavailable' offline
+      fi
+    fi
+    ;;
+  *)
+    json 'CLAWOS' 'Unknown panel status request' offline
+    ;;
+esac

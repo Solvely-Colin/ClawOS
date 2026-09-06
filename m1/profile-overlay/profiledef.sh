@@ -2,9 +2,9 @@
 # shellcheck disable=SC2034
 
 iso_name="clawos"
-iso_label="CLAWOS_M1"
+iso_label="CLAWOS_M2"
 iso_publisher="ClawOS"
-iso_application="ClawOS clean Arch base"
+iso_application="ClawOS graphical live and installer"
 iso_version="$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%Y.%m.%d)"
 install_dir="arch"
 buildmodes=('iso')
@@ -22,4 +22,7 @@ file_permissions=(
   ["/usr/local/bin/Installation_guide"]="0:0:755"
   ["/usr/local/bin/livecd-sound"]="0:0:755"
   ["/usr/local/bin/clawos-install-dev"]="0:0:755"
+  ["/usr/lib/clawos/clawos-live-session"]="0:0:755"
+  ["/usr/lib/clawos/clawos-live-welcome"]="0:0:755"
+  ["/usr/lib/clawos/clawos-live-reboot"]="0:0:755"
 )

@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if /usr/bin/pgrep -u "$(/usr/bin/id -u)" -x orca >/dev/null 2>&1; then
+  /usr/bin/pkill -u "$(/usr/bin/id -u)" -x orca
+  exit 0
+fi
+
+if [[ ! -x /usr/bin/orca ]]; then
+  exec /usr/bin/swaynag \
+    --type warning \
+    --message 'The screen reader is not installed in this development image. Fresh ClawOS builds include Orca.' \
+    --dismiss-button 'Return to ClawOS'
+fi
+
+export NO_AT_BRIDGE=0
+exec /usr/bin/orca --replace

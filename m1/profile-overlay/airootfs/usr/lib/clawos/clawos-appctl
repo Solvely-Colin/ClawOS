@@ -1,0 +1,55 @@
+#!/usr/bin/node
+"use strict";
+
+const fs = require("node:fs");
+const net = require("node:net");
+const path = require("node:path");
+
+const runtimeDir = process.env.XDG_RUNTIME_DIR || `/run/user/${process.getuid()}`;
+const socketPath = process.env.CLAWOS_SURFACE_SOCKET || (
+  fs.existsSync("/run/clawos-control")
+    ? "/run/clawos-control/surface.sock"
+    : path.join(runtimeDir, "clawos", "surface.sock")
+);
+
+function request(payload) {
+  return new Promise((resolve, reject) => {
+    const socket = net.createConnection(socketPath);
+    let response = "";
+    const timeout = setTimeout(() => socket.destroy(new Error("ClawOS application service timed out.")), 20000);
+    socket.setEncoding("utf8");
+    socket.on("connect", () => socket.write(`${JSON.stringify(payload)}\n`));
+    socket.on("data", (chunk) => { response += chunk; });
+    socket.on("error", reject);
+    socket.on("close", () => {
+      clearTimeout(timeout);
+      try {
+        const parsed = JSON.parse(response.trim());
+        if (!parsed.ok) reject(new Error(parsed.error || "Application request failed."));
+        else resolve(parsed.result);
+      } catch (error) { reject(error); }
+    });
+  });
+}
+
+async function main() {
+  const [command = "list", value] = process.argv.slice(2);
+  let payload;
+  if (command === "list" || command === "status") payload = { action: `app.${command}` };
+  else if (command === "agent") payload = { action: "surface.agent" };
+  else if (command === "clear-attention") payload = { action: "attention.clear" };
+  else if (command === "attention") payload = { action: "attention.set", kind: "attention", message: value || "Agent needs attention" };
+  else if (["open", "focus", "hide", "close"].includes(command) && value) {
+    payload = { action: `app.${command}`, appId: value };
+  } else if (command === "open-desktop" && value) {
+    payload = { action: "app.open", desktopId: value };
+  } else {
+    throw new Error("Usage: clawos-appctl {list|status|agent|attention|clear-attention|open|open-desktop|focus|hide|close} [value]");
+  }
+  process.stdout.write(`${JSON.stringify(await request(payload))}\n`);
+}
+
+main().catch((error) => {
+  process.stderr.write(`clawos-appctl: ${error.message}\n`);
+  process.exitCode = 1;
+});

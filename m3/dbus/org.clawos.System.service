@@ -1,0 +1,5 @@
+[D-BUS Service]
+Name=org.clawos.System
+Exec=/usr/bin/systemctl start clawosd.service
+User=root
+SystemdService=clawosd.service

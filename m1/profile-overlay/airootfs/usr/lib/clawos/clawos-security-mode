@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+[[ "$EUID" -eq 0 ]] || { echo "clawos-security-mode must run as root." >&2; exit 1; }
+target="${1:-}"
+[[ "$target" == full-root || "$target" == full-user-approvals || "$target" == user-limited ]] || {
+  echo "Usage: clawos-security-mode {full-root|full-user-approvals|user-limited}" >&2
+  exit 2
+}
+
+owner=clawos
+agent=claw
+owner_home=/home/clawos
+agent_home=/var/lib/clawos/agent-home
+
+uid_for() { /usr/bin/id -u "$1"; }
+run_as() {
+  local user="$1" home="$2" uid
+  shift 2
+  uid="$(uid_for "$user")"
+  /usr/bin/systemctl start "user@${uid}.service"
+  /usr/bin/runuser -u "$user" -- /usr/bin/env \
+    "HOME=$home" "XDG_RUNTIME_DIR=/run/user/$uid" \
+    "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$uid/bus" "$@"
+}
+stop_runtime() {
+  local user="$1" home="$2"
+  run_as "$user" "$home" /usr/bin/openclaw gateway stop >/dev/null 2>&1 || true
+  run_as "$user" "$home" /usr/bin/openclaw node stop >/dev/null 2>&1 || true
+  run_as "$user" "$home" /usr/bin/openclaw gateway uninstall >/dev/null 2>&1 || true
+  run_as "$user" "$home" /usr/bin/openclaw node uninstall >/dev/null 2>&1 || true
+}
+copy_state() {
+  local source="$1" destination="$2" user="$3" group="$4"
+  install -d -m 0700 -o "$user" -g "$group" "$destination"
+  if [[ -d "$source" ]]; then
+    cp -a "$source/." "$destination/"
+    chown -R "$user:$group" "$destination"
+    chmod 0700 "$destination"
+  fi
+}
+activate() {
+  local user="$1" home="$2" current target_role
+  current="$(run_as "$user" "$home" /usr/bin/openclaw config get gateway.mode 2>/dev/null || true)"
+  [[ "$current" == local || "$current" == remote ]] || return 0
+  if [[ "$current" == local ]]; then
+    target_role=standalone
+    run_as "$user" "$home" /usr/bin/openclaw gateway install --force >/dev/null
+  else
+    target_role=node
+  fi
+  run_as "$user" "$home" /usr/lib/clawos/clawos-role profile-save
+  run_as "$user" "$home" /usr/lib/clawos/clawos-role switch "$target_role"
+}
+
+if [[ "$target" == user-limited ]]; then
+  [[ -s "$owner_home/.openclaw/openclaw.json" ]] || {
+    echo "Finish OpenClaw enrollment before enabling User Limited." >&2
+    exit 1
+  }
+  owner_mode="$(run_as "$owner" "$owner_home" /usr/bin/openclaw config get gateway.mode 2>/dev/null || true)"
+  [[ "$owner_mode" == local || "$owner_mode" == remote ]] || {
+    echo "Finish OpenClaw enrollment before enabling User Limited." >&2
+    exit 1
+  }
+  stop_runtime "$owner" "$owner_home"
+  copy_state "$owner_home/.openclaw" "$agent_home/.openclaw" "$agent" "$agent"
+  copy_state "$owner_home/.local/state/clawos" "$agent_home/.local/state/clawos" "$agent" "$agent"
+  activate "$agent" "$agent_home"
+else
+  if [[ -s "$agent_home/.openclaw/openclaw.json" ]]; then
+    stop_runtime "$agent" "$agent_home"
+    copy_state "$agent_home/.openclaw" "$owner_home/.openclaw" "$owner" "$owner"
+    copy_state "$agent_home/.local/state/clawos" "$owner_home/.local/state/clawos" "$owner" "$owner"
+    activate "$owner" "$owner_home"
+  elif [[ -s "$owner_home/.openclaw/openclaw.json" ]]; then
+    activate "$owner" "$owner_home"
+  fi
+fi

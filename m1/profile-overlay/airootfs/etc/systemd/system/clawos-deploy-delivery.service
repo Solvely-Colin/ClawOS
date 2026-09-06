@@ -1,0 +1,9 @@
+[Unit]
+Description=Deliver ClawOS deployment receipts to their original conversations
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/clawos/clawos-deploy deliver-pending
+TimeoutStartSec=120
+UMask=0077

@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+profile_dir="${XDG_STATE_HOME:-$HOME/.local/state}/clawos/browser"
+mkdir -p "$profile_dir"
+
+session_alive() {
+  [[ -n "${SWAYSOCK:-}" && -S "$SWAYSOCK" ]] &&
+    /usr/bin/swaymsg -s "$SWAYSOCK" -t get_version >/dev/null 2>&1
+}
+
+# This is a normal local browser workspace, not a second Control UI profile.
+# Keeping Gateway auth in the Agent profile avoids a second OpenClaw pairing.
+# CDP is bound to loopback so the local OpenClaw browser integration can attach
+# without exposing browser control on the network.
+while true; do
+  /usr/lib/chromium/chromium \
+    --ozone-platform=wayland \
+    --enable-features=UseOzonePlatform,WebUIDarkMode \
+    --force-dark-mode \
+    --class=clawos-browse \
+    --no-first-run \
+    --no-default-browser-check \
+    --disable-background-mode \
+    --disable-session-crashed-bubble \
+    --hide-crash-restore-bubble \
+    --remote-debugging-address=127.0.0.1 \
+    --remote-debugging-port=9222 \
+    --user-data-dir="$profile_dir" \
+    "file:///usr/share/clawos/browser/start.html" || true
+  session_alive || exit 0
+  [[ "${CLAWOS_SURFACE_ONCE:-0}" == 1 ]] && exit 0
+  /usr/bin/sleep 2
+done

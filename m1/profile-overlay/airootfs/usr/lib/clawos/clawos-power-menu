@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+/usr/bin/pkill --full '^python3 /usr/lib/clawos/clawos-system-menu$' 2>/dev/null || true
+exec /usr/lib/clawos/clawos-system-menu

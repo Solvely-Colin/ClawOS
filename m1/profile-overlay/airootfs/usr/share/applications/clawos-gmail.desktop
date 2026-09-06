@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Gmail
+Comment=Open Gmail as a ClawOS activity surface
+Exec=/usr/lib/clawos/clawos-webapp gmail
+Icon=mail-unread-symbolic
+StartupWMClass=chrome-mail.google.com__-Default
+Terminal=false
+Categories=Network;Email;Office;
+StartupNotify=true
+X-ClawOS-AppId=web:gmail
+X-ClawOS-Kind=web
+X-ClawOS-AgentCapability=google-mail
+X-ClawOS-Profile=gmail-default
+X-ClawOS-BrowserProfile=clawos-gmail

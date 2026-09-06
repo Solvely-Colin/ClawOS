@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "id": "outlook",
+  "name": "Outlook",
+  "url": "https://outlook.office.com/mail/",
+  "scope": "https://outlook.office.com/",
+  "profile": "outlook-default",
+  "cdpPort": 9224,
+  "browserProfile": "clawos-outlook",
+  "agentCapability": "microsoft-mail"
+}

@@ -7,7 +7,8 @@ Build a real bootable OS whose primary interface and runtime are OpenClaw—not 
 The first release targets the 2019 Intel MacBook Pro `MacBookPro15,1`. It will:
 
 - Boot from a custom, pinned Arch Linux image with the required T2 kernel and firmware.
-- Present OpenClaw’s Control UI as the desktop.
+- Present OpenClaw’s activity canvas as the desktop, with OS surfaces attached
+  to work rather than exposed as permanent application destinations.
 - Run in either:
   - **Standalone mode:** local Gateway, agent runtime, tools, terminal, and local node.
   - **Node mode:** connect the whole machine to another Gateway and display that controller’s UI.
@@ -15,7 +16,7 @@ The first release targets the 2019 Intel MacBook Pro `MacBookPro15,1`. It will:
   identities, workspaces, credentials, sessions, skills, and runtimes.
 - Allow authorized agents full access as the normal OS user, bounded by the
   machine security level and any narrower per-agent policy.
-- Require typed, visible approval for privileged OS changes.
+- Give the explicitly selected Full Root OS agent unrestricted machine authority while retaining typed actions, audit, snapshots, and rollback as the preferred safety path.
 - Follow tested OpenClaw releases without maintaining a permanent hard fork.
 - Retain a native recovery surface even if OpenClaw, networking, or the WebUI fails.
 - Install from a complete offline image; networking is only required after the
@@ -46,8 +47,13 @@ The image includes:
   Git, SSH, BlueZ, and optional Tailscale and 1Password CLI integrations.
 - Node.js versions supported by the pinned OpenClaw release.
 
-Sway uses a root-owned, minimal kiosk configuration with no bar, launcher,
-workspace workflow, theme layer, or user-writable startup commands. It is chosen
+Sway uses a root-owned, minimal configuration with a thin ClawOS system panel,
+an activity-oriented canvas, no permanent application-centric navigation, no
+general-purpose theme layer, and no user-writable startup commands. A native
+intent palette presents work actions such as continue, review, inspect, browse,
+or take over. Standard freedesktop applications and registered web apps remain
+an invisible capability registry, with a secondary application search only as
+an explicit escape hatch. It is chosen
 because it supports the session-lock and idle protocols required by swaylock and
 swayidle. ClawOS deliberately does not inherit Omarchy's Hyprland desktop model,
 Super-key bindings, shell, themes, or application workflow. Arch supplies the
@@ -108,15 +114,21 @@ path must be verified as a dedicated subvolume or explicit bind mount before
 installation. Hibernation is disabled in ClawOS MVP so the host's resume
 configuration and swap state are never shared across installations.
 
-The live installer is a narrow native/TUI workflow that collects only hardware,
-disk, encryption, locale, and local-account information. It does not introduce
-a second browser application before OpenClaw exists.
+The live installer is a narrow native graphical workflow that collects only
+hardware, disk, encryption, locale, and local-account information. Its first
+surface is **Try / Install ClawOS**, not a terminal or a second browser
+application. It keeps the standard recovery TTY visible and available before
+OpenClaw exists. A terminal implementation remains recovery-only.
 
-First boot uses a fullscreen terminal for one ClawOS-owned decision—Standalone
-or Node—then invokes the pinned upstream `openclaw onboard` wizard. OpenClaw
-owns provider credentials, Gateway authentication, workspace/bootstrap state,
-daemon installation, and remote connection details. ClawOS never mirrors those
-secrets or passes provider secrets on command lines. The flow covers:
+First boot opens a root-owned-code, loopback-only graphical setup surface in the
+Agent workspace. It collects the narrow ClawOS decisions—Standalone or Node and
+the machine access ceiling—then invokes pinned upstream `openclaw onboard`
+non-interactively. OpenClaw owns Gateway authentication, provider profiles,
+workspace/bootstrap state, daemon installation, and remote connection details.
+Provider and Gateway secrets are written mode 0600 to OpenClaw's standard
+`.openclaw/.env`, referenced from upstream config through `secret-input-mode=ref`,
+and passed to the pinned child only through its environment; they are never put
+in process arguments, browser URLs, logs, or ClawOS policy files. The flow covers:
 
 - Timezone and network.
 - Standalone or Node role.
@@ -125,8 +137,9 @@ secrets or passes provider secrets on command lines. The flow covers:
 - Optional guided Tailscale and 1Password enrollment. Node mode accepts any
   supported secure Gateway connection; Tailscale is recommended, not required.
 - Device name and remote-access preference.
-- Agent security level remains Full User + Approvals for the initial proof;
-  User Limited is introduced with the policy broker milestone.
+- Full Root, Full User + Approvals, or User Limited as the requested machine
+  policy, with Full Root selected by default. The first proof stores
+  this selection; broker enforcement is introduced by the security milestone.
 
 Standalone onboarding creates the first owner agent using OpenClaw's normal
 agent setup and initially designates it as the OS agent. A fresh installation
@@ -134,16 +147,17 @@ can remain a simple one-agent system, but users can add isolated agents
 immediately through OpenClaw without reinstalling or enabling a separate ClawOS
 orchestrator.
 
-The default security level is **Full User + Approvals**. User Limited runs all
+The default security level is **Full Root** for the agent-owned OS experience. Full User + Approvals remains available for users who want a human authorization boundary. User Limited runs all
 OpenClaw agents under one separate `claw` UID with explicitly shared resources;
-per-agent Unix accounts are deferred. Full Root is intentionally absent from
-onboarding and can be enabled only after installation from System → Security,
-with a prominent warning and authentication. The level can be changed later,
-and raising privilege always requires authentication.
+per-agent Unix accounts are deferred. Full Root is visible during onboarding so
+the authority decision is explicit, but selecting it records intent rather than
+silently creating a passwordless-root path; activating root authority requires
+the authenticated policy broker. The level can be changed later, and raising
+privilege always requires authentication.
 
 After disk unlock, the primary user is automatically logged into the ClawOS
 session without a second boot-time login. The account password remains required
-for privilege approvals and screen unlock. Default idle policy locks after 10
+for privilege approvals in approval-gated modes and for screen unlock. Default idle policy locks after 10
 minutes, turns off the display after 15 minutes, suspends after 30 minutes on
 battery, uses a longer plugged-in timeout, and locks before lid-close suspend;
 all values are configurable.
@@ -163,17 +177,17 @@ The visible boot sequence is:
 
 ```text
 Firmware → LUKS unlock → systemd → Sway
-         → Chromium kiosk → OpenClaw Control UI
+         → native ClawOS panel → Chromium app-mode OpenClaw Control UI
 ```
 
 For MVP, the ClawOS shell is launched by a system-level
 `clawos-session@.service` (or an equivalently locked-down greetd configuration),
 not an overridable systemd user unit. It runs Sway as the selected owner with an
 explicit `sway -c /etc/clawos/sway.conf`, so user configuration cannot replace
-the root-owned kiosk policy. A small root-owned launcher script:
+the root-owned shell policy. A small root-owned launcher script:
 
 - Waits for network and the selected OpenClaw endpoint.
-- Starts Chromium in Wayland kiosk mode without browser chrome, with validated
+- Starts Chromium in borderless Wayland app mode beneath the native panel, with validated
   HiDPI and hardware-acceleration settings for the reference display. The
   launcher owns and tests the exact Wayland flags, including
   `--ozone-platform=wayland` and any version-required Ozone feature flag.
@@ -187,10 +201,25 @@ Gateway or explicitly enrolled controller origins. Updating a Node controller
 origin is a typed `clawosd` operation; a user-writable Chromium profile cannot
 relax managed policy.
 
-It does not implement a desktop bar, application launcher, window-manager
-shortcuts, native file manager, or parallel desktop UX. A richer native shell is
-written only if living in the MVP proves that OpenClaw cannot own a required
-workflow.
+It implements only a thin native system panel and an activity canvas. The fixed
+Agent, Command, Build, and Browse workspaces were Milestone 1 scaffolding, not
+the final navigation model. OpenClaw fills the activity canvas; terminal,
+browser, files, review, logs, preview, and remote-node views are temporary
+surfaces attached to the current activity. The panel owns current-activity
+context, a visible `← Activity / Surface` return path, machine presence, time,
+connectivity, approvals, and recovery. Supporting surfaces fit the exact
+activity canvas rather than behaving as independently sized app windows. ClawOS
+does not add an application launcher, native file manager, duplicated session
+navigation, or a parallel desktop dashboard. The detailed contract is in
+`m2/ACTIVITY-SHELL.md`.
+
+An in-context Agent proof now lets the same OpenClaw conversation open over a
+visible supporting surface, accept more direction, and dismiss back without
+losing either state. Registered web apps expose dedicated loopback-only browser
+profiles so the agent can operate the same visible page. The interaction model
+is accepted, while its first large GTK Actions sheet and crowded bar treatment
+are explicitly visual scaffolding, not release UI. The reduction and
+accessibility contract is tracked in `m2/ACCESSIBILITY-AND-COPILOT.md`.
 
 A bundled `clawos-system` OpenClaw plugin contributes a first-class **System** tab using OpenClaw’s existing Control UI plugin descriptors. External plugins can already supply sidebar tabs through this supported interface. [OpenClaw Plugin SDK](https://docs.openclaw.ai/plugins/sdk-overview)
 
@@ -238,7 +267,12 @@ manager, generic systemd editor, arbitrary kernel controls, and shell-command
 input. OpenClaw chat, terminal, Browser, Files/Review, and the standard recovery
 TTY own those workflows.
 
-The existing OpenClaw terminal remains the primary terminal UI. Configure `gateway.terminal.shell` to launch a ClawOS terminal wrapper that attaches to named tmux sessions. This lets shell processes survive browser and Gateway restarts even though OpenClaw’s current PTY registry is process-local.
+The existing OpenClaw terminal remains the primary terminal UI. Configure
+`gateway.terminal.shell` to launch a ClawOS terminal wrapper associated with the
+current activity and attached to a named tmux session. A native terminal surface
+may be opened beside the agent to watch or take over the same work. This lets
+shell processes survive surface, browser, and Gateway restarts even though
+OpenClaw’s current PTY registry is process-local.
 
 OpenClaw's Browser panel and Files/Review surfaces are the primary browser and
 workspace-file experiences. They are not treated as a general personal browser
@@ -309,6 +343,14 @@ read-scoped Gateway credential for attribution. Node mode records the remote
 controller identity and its node-invocation approval; it does not claim locally
 verified per-agent attribution.
 
+ClawOS projects upstream durable tasks and both OpenClaw and machine approvals
+into one native **ClawOS Center**. The Center is an OS-owned interrupt surface,
+not a second task database: it reads `openclaw tasks`, uses OpenClaw's approval
+protocol for model/tool decisions, and uses `clawosd` only for typed machine
+transactions. The top bar derives its working and attention counts from those
+authoritative sources. Opening the Center acknowledges terminal task results;
+stopping work or resolving a decision preserves the upstream history.
+
 Durable task authority is a ClawOS capability built across Milestones 3–5, not
 an assumed OpenClaw feature. Its signed, narrowly scoped grant binds an approved
 task, action classes, targets, expiry, delegation constraints, and recovery
@@ -356,12 +398,12 @@ if neither role is healthy.
 
 OpenClaw's operating identity follows the selected security level:
 
-- **Full Root:** unrestricted root capability; intentionally unsafe and never
-  the default. Enabling it gives the OpenClaw service account passwordless sudo
-  and therefore bypasses `clawosd` approvals; the UI and audit remain advisory
-  in this mode. It is available only as an authenticated post-install change.
+- **Full Root:** the default agent-OS experience. The OpenClaw service account
+  has passwordless root execution, while typed `clawosd` actions remain the
+  preferred path because they create recovery points and durable audit receipts.
+  Typed actions commit without a human Polkit prompt in this mode.
 - **Full User + Approvals:** full desktop-user access, with privileged actions
-  gated through `clawosd`; this is the default developer experience.
+  gated through `clawosd` and a local human authorization prompt.
 - **User Limited:** separate `claw` UID with explicitly shared files and brokered
   capabilities.
 
@@ -372,6 +414,8 @@ D-Bus surface includes:
 ```text
 GetStatus()
 GetCapabilities()
+Inspect()
+GetAction(action ID)
 PrepareAction(action, parameters) → approval token + exact summary
 CommitAction(approval token)
 CancelAction(approval token)
@@ -396,11 +440,13 @@ Rules:
 
 - The broker never accepts arbitrary shell text.
 - Every action has a typed schema and validated target.
-- Destructive or privileged actions require Polkit approval.
+- Destructive or privileged typed actions require Polkit approval in
+  approval-gated modes; Full Root commits them automatically.
 - Approval binds the exact normalized action and expires quickly.
 - The broker records requester, action, result, and rollback information.
 - OpenClaw can propose and prepare changes, but the UI displays the exact root operation before committing it.
-- An emergency developer setting may relax individual action classes, but unrestricted passwordless sudo is not part of the default image.
+- Full Root is explicit throughout onboarding and System settings and can be
+  changed after installation. Recovery and audit remain enabled in every mode.
 
 In Full User + Approvals mode, the approval boundary protects against accidental
 or unapproved root changes; it is not a security boundary against a malicious
@@ -409,6 +455,12 @@ state are therefore in scope for that trust decision. User Limited is the mode
 for a real isolation boundary.
 
 NetworkManager remains responsible for network state; systemd remains responsible for services; `clawosd` coordinates them instead of replacing them.
+
+Full Root is not restricted to the typed action catalog. The catalog is the
+stable, auditable, reversible system API for recurring OS capabilities; the
+core agent retains passwordless root execution as an explicit fallback for
+authorized work that does not yet have a typed action. It must execute and
+verify such work rather than treating root privilege as a reason to refuse.
 
 ## OpenClaw Upstream and Release Strategy
 
@@ -505,7 +557,34 @@ Omarchy-hosted result cannot satisfy any later release gate.
 
 Exit criterion: the ISO can install a minimal encrypted system and reliably return to the live recovery environment.
 
-### Milestone 2: Standalone OpenClaw appliance
+### Milestone 2: Graphically installed Standalone OpenClaw appliance
+
+Graphical-installation gate status (2026-09-01): **passed in clean UEFI QEMU**.
+The fresh ISO, guarded encrypted installation, ISO-detached graphical unlock,
+single-login handoff, image-built agent workspace, and recovery path are
+retained under `artifacts/m1/m2-e2e.T5Npo7/`. See `m2/STATUS.md` for the exact
+ISO checksum and evidence. Offline production packaging and physical T2
+hardware remain separate later gates.
+
+- Boot the live ISO directly into a branded native **Try / Install ClawOS**
+  surface under a dedicated unprivileged live account.
+- Use the selected Carapace-aligned Agent Canvas composition: a native 52-pixel
+  machine bar, open hero, real ClawOS halftone asset, coral primary action,
+  truthful readiness/event panes, and visible recovery affordance. The live
+  surface must not regress into generic cards, a browser kiosk, or a clipped
+  app-sized window.
+- Guide encrypted installation without terminal commands while keeping the
+  destructive implementation restricted to an exact validated device,
+  environment, and confirmation contract.
+- Preserve an independent recovery TTY during live installation and after
+  installed boot.
+- Reboot through branded disk unlock directly into the ClawOS agent workspace
+  with no second login.
+- Materialize the native 52-pixel top bar, persistent in-context agent shelf,
+  display scaling, OpenClaw Control UI, and provider onboarding from the image
+  source rather than applying them to a running VM.
+- Gate the milestone with a fresh disposable VM installation that retains
+  serial logs plus live and installed screenshots.
 
 - Package the pinned OpenClaw Gateway and Control UI.
 - Build OpenClaw from its pinned source commit and `pnpm-lock.yaml` using a
@@ -517,22 +596,77 @@ Exit criterion: the ISO can install a minimal encrypted system and reliably retu
   through upstream OpenClaw surfaces.
 - Enable explicit ownership for multi-agent fleets and preserve OpenClaw's
   agent provenance, workspace, credential, and session boundaries.
-- Start the local Gateway, local node, Sway, Chromium kiosk, and launcher unit.
+- Start the local Gateway, local node, Sway, Chromium app-mode activity canvas,
+  and the typed native surface broker. Agent tools own normal surface lifecycle;
+  compositor bindings remain optional human takeover controls.
 - Implement the System plugin and read-only status surfaces.
+- Project model, agent, and delegated-run lifecycle into the native shell from
+  supported OpenClaw metadata hooks; explicit model tool calls enrich but do not
+  define basic running/completion correctness.
+- Surface durable upstream tasks, failed work, OpenClaw approvals, and typed
+  machine approvals in one native ClawOS Center. Its actions resolve or cancel
+  through the owning subsystem and never duplicate OpenClaw task state.
+- Route every native shelf request through a private mode-0600 message file and
+  a transient user service. The prompt must never appear in process arguments
+  or service logs; closing or restarting the shelf must not stop the OpenClaw
+  task. OpenClaw's task ledger and main-session transcript remain authoritative,
+  while ClawOS stores only a non-secret completion receipt.
+- On boot, treat a leftover handoff as ambiguous instead of auto-repeating it.
+  Surface the private request in ClawOS Center with explicit Resume and Discard
+  decisions; warn that resuming may repeat effects, and never classify a live
+  transient request as interrupted.
+- Add one shared application registry for standard Linux desktop entries and
+  ClawOS web-app manifests. The intent-first palette and typed OpenClaw app
+  tools resolve through that invisible registry, launch only validated entries,
+  and attach their windows to the current activity. A full application search
+  is secondary, never the primary shell model.
+- Inject stable ClawOS machine embodiment through OpenClaw's supported prompt
+  hook on every turn, including existing sessions. Explicit natural requests
+  such as “open Gmail” resolve against the validated registry, and raw GUI
+  process launches are rejected in favor of the typed activity surface API.
+- Ship Gmail and Outlook as initial web-app definitions without duplicating
+  their product UI. Human login remains inside the real app surface; agent mail
+  access uses separately granted OpenClaw connectors or APIs.
+- Replace the Milestone 0 kiosk-only Sway session with the thin native ClawOS
+  panel and single-activity shell while keeping the OpenClaw Control UI as the
+  primary canvas. Terminal, build, and browser views attach on demand rather
+  than booting as fixed workspaces. The activity pill is the canonical spatial
+  control: it opens intent actions on Agent and visibly returns from attached
+  surfaces.
 - Configure the OpenClaw terminal and tmux wrapper.
 
-Exit criterion: booting the Mac reaches a fullscreen OpenClaw desktop; the owner
-agent can work locally; a second logically isolated agent can be created and explicitly
-routed without state collision; terminal sessions function; and native recovery
-remains accessible.
+Exit criterion: a freshly created VM boots the graphical live experience,
+installs an encrypted system without terminal interaction, reboots through disk
+unlock directly into the image-built OpenClaw workspace with no second login,
+and retains graphical/serial evidence plus native recovery access. The owner
+agent can work locally; a second logically isolated agent can be created and
+explicitly routed without state collision; terminal sessions function; and the
+same installed path is ready for reference-Mac validation.
 
 ### Milestone 3: Privileged OS control
 
+- Checkpoint 3A is proven from a fresh ISO and blank encrypted VM disk: a typed,
+  allowlisted package request crosses OpenClaw's preparation-only boundary,
+  renders an OS-native exact-action approval, commits through root-owned
+  `clawosd`, creates a read-only Btrfs recovery point, records a token-free
+  audit event, and rejects token reuse. Milestone 3 remains active for the
+  separately approved installed-VM rollback proof and the broader typed action
+  families below.
 - Implement `clawosd`, D-Bus schemas, Polkit rules, approval UI, and audit log.
+- Evolve the single machine-approval window into the native ClawOS Center so
+  system decisions, OpenClaw decisions, failed work, and running durable tasks
+  have one visible, accessible interruption path.
+- Keep all native shell surfaces on the versioned interface contract in
+  `m2/DESIGN-SYSTEM.md`: compact transient menus, one persistent Agent shelf,
+  centered system overlays, Inter/Geist typography, and shared measured tokens.
+  Permanent secondary sidebars and host-theme action sheets are not allowed.
+- Treat display geometry, keyboard-only navigation, visible focus, accessible
+  names, and truthful capability copy as release gates. Core overlays must
+  adapt to common VM outputs rather than assuming the 1440 x 900 proof canvas.
 - Add package update, service control, power, rollback, and role operations.
 - Implement User Limited with one fleet-wide `claw` UID and explicit sharing.
-- Implement authenticated post-install Full Root enablement and make its
-  approval-bypass semantics unmistakable.
+- Keep Full Root as the explicit default and make its approval-bypass semantics
+  unmistakable; retain Full User + Approvals and User Limited as alternatives.
 - Add per-agent broker action policies and a trusted Gateway execution-identity
   binding; mark missing attribution as unavailable.
 - Introduce task-scoped capability grants with expiry and narrowed subagent
@@ -588,6 +722,13 @@ Exit criterion: a pinned OpenClaw and OS update can be promoted, installed, vali
 - Task-scoped grant narrowing across agent handoff, plus persistence and recovery
   across controlled Gateway restart, crash recovery, and reboot.
 - Node enrollment, reconnect, token persistence, command approval, controller outage, and unpairing.
+- Private VPS demo validation through a provider recovery console or a
+  loopback-only QEMU VNC listener tunneled over SSH; no public VNC/WebSocket
+  listener and no second HTML desktop.
+- Interrupted-onboarding restart at every committed checkpoint; readiness must
+  require the complete ClawOS integration transaction, not only Gateway mode.
+- Gateway restart while the Agent surface is open; the authentic Control UI
+  must return with its full asset/style graph without operator reload.
 - Transactional role-switch success and forced-failure rollback.
 - OpenClaw upstream version-bump compatibility.
 - ClawOS update success, interrupted update, failed health check, previous-kernel boot, and Btrfs rollback.
@@ -605,8 +746,8 @@ Exit criterion: a pinned OpenClaw and OS update can be promoted, installed, vali
   provided by standard TTYs and the recovery boot entry.
 - Authorized agents receive normal-user host access within the machine-wide
   security ceiling; root actions follow the configured approval policy.
-- The default security level is Full User + Approvals; Full Root and User Limited
-  remain explicit alternatives.
+- The default security level is Full Root; Full User + Approvals and User Limited
+  remain explicit alternatives, and safety snapshots/audit remain enabled in every mode.
 - ClawOS uses no Omarchy shell, Hyprland workflow, Super-key command model,
   launcher, bar, or theme layer.
 - The production installer is complete and offline; development coexist mode is

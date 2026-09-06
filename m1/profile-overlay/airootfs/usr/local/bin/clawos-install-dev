@@ -48,8 +48,8 @@ if [[ "$confirmation" != 'ERASE-QEMU-/dev/vda' ]]; then
   echo "Required confirmation: --confirm ERASE-QEMU-/dev/vda" >&2
   exit 1
 fi
-if [[ ! "$key_file" =~ ^/run/[^/]+$ || ! -f "$key_file" ]]; then
-  echo "The LUKS key must be a regular file directly under /run." >&2
+if [[ ! "$key_file" =~ ^/run/user/[0-9]+/clawos-install\.key$ || ! -f "$key_file" || -L "$key_file" ]]; then
+  echo "The LUKS key must be the installer-owned regular file in a live user's runtime directory." >&2
   exit 1
 fi
 if [[ ! "$(stat -c %a "$key_file")" =~ ^(400|600)$ ]]; then
@@ -95,8 +95,15 @@ label: gpt
 size=1G, type=U
 type=L
 EOF
-blockdev --rereadpt "$target"
+# sfdisk already asks the kernel to reload the table. A second BLKRRPART can
+# legitimately return EBUSY while udev is opening the freshly announced
+# partitions, so the proof condition is the partition devices themselves.
+blockdev --rereadpt "$target" 2>/dev/null || true
 udevadm settle
+if [[ ! -b "$esp" || ! -b "$system_partition" ]]; then
+  echo "Kernel did not expose the expected EFI and system partitions." >&2
+  exit 1
+fi
 
 mkfs.fat -F 32 -n CLAWOS_EFI "$esp"
 cryptsetup luksFormat --batch-mode --type luks2 --label CLAWOS_CRYPT \
@@ -122,8 +129,10 @@ mount "$esp" "$mount_root/boot"
 
 pacstrap -K "$mount_root" \
   base linux linux-firmware btrfs-progs cryptsetup dosfstools \
-  networkmanager openssh sudo zsh \
-  chromium foot sway mesa noto-fonts nodejs npm polkit tailscale
+  networkmanager openssh sudo zsh tmux curl jq \
+  chromium foot fuzzel sway swaybg waybar swayidle mesa noto-fonts inter-font otf-geist-mono-nerd \
+  gtklock gtklock-userinfo-module gtk-layer-shell python-gobject orca \
+  nodejs npm polkit lxqt-policykit plymouth tailscale
 
 arch-chroot "$mount_root" env \
   npm_config_audit=false \
@@ -146,37 +155,123 @@ IMAGE_ID=clawos
 IMAGE_VERSION=2026.08.26
 EOF
 
-sed -i 's|^root:[^:]*:|root::|' "$mount_root/etc/shadow"
 sed -i 's|^root:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*$|root:x:0:0:root:/root:/usr/bin/zsh|' \
   "$mount_root/etc/passwd"
 
-arch-chroot "$mount_root" useradd --create-home --groups video,input --shell /usr/bin/zsh clawos
-arch-chroot "$mount_root" passwd --delete clawos
+arch-chroot "$mount_root" groupadd --system clawos-control
+arch-chroot "$mount_root" useradd --create-home --comment 'ClawOS' --groups video,input,clawos-control --shell /usr/bin/zsh clawos
+arch-chroot "$mount_root" useradd --system --create-home --home-dir /var/lib/clawos/agent-home \
+  --comment 'ClawOS agent runtime' --groups clawos-control --shell /usr/bin/zsh claw
+# One secret owns the physical device for this proof: it unlocks the encrypted
+# disk at boot and authenticates an explicit GTK session lock later. Passing it
+# through stdin keeps it out of arguments, environment variables, and logs.
+passwd --root "$mount_root" --stdin root <"$key_file" >/dev/null
+passwd --root "$mount_root" --stdin clawos <"$key_file" >/dev/null
 arch-chroot "$mount_root" runuser -u clawos -- openclaw --version | \
   grep -Fq "$OPENCLAW_VERSION"
 install -d -m 0755 "$mount_root/var/lib/systemd/linger"
 touch "$mount_root/var/lib/systemd/linger/clawos"
+touch "$mount_root/var/lib/systemd/linger/claw"
+install -d -m 2770 "$mount_root/srv/clawos/shared"
+arch-chroot "$mount_root" chown clawos:clawos-control /srv/clawos/shared
 
 install -d -m 0755 \
   "$mount_root/etc/clawos" \
+  "$mount_root/etc/xdg" \
+  "$mount_root/etc/plymouth" \
   "$mount_root/usr/lib/clawos" \
+  "$mount_root/usr/lib/tmpfiles.d" \
+  "$mount_root/usr/share/applications" \
+  "$mount_root/usr/share/clawos" \
+  "$mount_root/usr/share/plymouth/themes/clawos" \
   "$mount_root/etc/systemd/system"
 cp -a /etc/clawos/. "$mount_root/etc/clawos/"
+cp -a /etc/xdg/. "$mount_root/etc/xdg/"
+cp -a /etc/plymouth/. "$mount_root/etc/plymouth/"
+install -d -m 0750 "$mount_root/etc/sudoers.d"
+install -m 0440 /etc/clawos/full-root.sudoers \
+  "$mount_root/etc/sudoers.d/90-clawos-full-root"
 cp -a /usr/lib/clawos/. "$mount_root/usr/lib/clawos/"
+install -m 0644 /usr/lib/tmpfiles.d/clawos-control.conf \
+  "$mount_root/usr/lib/tmpfiles.d/clawos-control.conf"
+cp -a /usr/share/applications/clawos-browser.desktop \
+  "$mount_root/usr/share/applications/clawos-browser.desktop"
+cp -a /usr/share/applications/clawos-agent.desktop \
+  /usr/share/applications/clawos-terminal.desktop \
+  /usr/share/applications/clawos-browser-surface.desktop \
+  /usr/share/applications/clawos-gmail.desktop \
+  /usr/share/applications/clawos-outlook.desktop \
+  "$mount_root/usr/share/applications/"
+cp -a /usr/share/clawos/. "$mount_root/usr/share/clawos/"
+cp -a /usr/share/plymouth/themes/clawos/. \
+  "$mount_root/usr/share/plymouth/themes/clawos/"
 install -m 0644 /etc/systemd/system/clawos-session@.service \
   "$mount_root/etc/systemd/system/clawos-session@.service"
+install -m 0644 /etc/systemd/system/clawosd.service \
+  "$mount_root/etc/systemd/system/clawosd.service"
+install -d -m 0755 \
+  "$mount_root/etc/dbus-1/system.d" \
+  "$mount_root/usr/share/dbus-1/system-services" \
+  "$mount_root/usr/share/dbus-1/interfaces" \
+  "$mount_root/usr/share/polkit-1/actions"
+install -m 0644 /etc/dbus-1/system.d/org.clawos.System.conf \
+  "$mount_root/etc/dbus-1/system.d/org.clawos.System.conf"
+install -m 0644 /usr/share/dbus-1/system-services/org.clawos.System.service \
+  "$mount_root/usr/share/dbus-1/system-services/org.clawos.System.service"
+install -m 0644 /usr/share/dbus-1/interfaces/org.clawos.System.xml \
+  "$mount_root/usr/share/dbus-1/interfaces/org.clawos.System.xml"
+install -m 0644 /usr/share/polkit-1/actions/org.clawos.system.policy \
+  "$mount_root/usr/share/polkit-1/actions/org.clawos.system.policy"
 chmod 0755 "$mount_root/usr/lib/clawos/clawos-session" \
   "$mount_root/usr/lib/clawos/clawos-browser" \
   "$mount_root/usr/lib/clawos/clawos-entry" \
   "$mount_root/usr/lib/clawos/clawos-onboard" \
-  "$mount_root/usr/lib/clawos/clawos-install-node"
+  "$mount_root/usr/lib/clawos/clawos-onboard-ui" \
+  "$mount_root/usr/lib/clawos/clawos-onboard-server" \
+  "$mount_root/usr/lib/clawos/clawos-install-node" \
+  "$mount_root/usr/lib/clawos/clawos-enroll-local-node" \
+  "$mount_root/usr/lib/clawos/clawos-gateway-watchdog" \
+  "$mount_root/usr/lib/clawos/clawos-panel" \
+  "$mount_root/usr/lib/clawos/clawos-panel-status" \
+  "$mount_root/usr/lib/clawos/clawos-clock-status" \
+  "$mount_root/usr/lib/clawos/clawos-activity-status" \
+  "$mount_root/usr/lib/clawos/clawos-activity-action" \
+  "$mount_root/usr/lib/clawos/clawos-actions-menu" \
+  "$mount_root/usr/lib/clawos/clawos-agent-panel" \
+  "$mount_root/usr/lib/clawos/clawos-agent-panel-status" \
+  "$mount_root/usr/lib/clawos/clawos-agent-shelf" \
+  "$mount_root/usr/lib/clawos/clawos-agent-submit" \
+  "$mount_root/usr/lib/clawos/clawos-agent-run" \
+  "$mount_root/usr/lib/clawos/clawos-agent-request" \
+  "$mount_root/usr/lib/clawos/clawos-agent-recover" \
+  "$mount_root/usr/lib/clawos/clawos-approval" \
+  "$mount_root/usr/lib/clawos/clawosctl" \
+  "$mount_root/usr/lib/clawos/clawos-screen-reader-toggle" \
+  "$mount_root/usr/lib/clawos/clawos-attention-status" \
+  "$mount_root/usr/lib/clawos/clawos-surface" \
+  "$mount_root/usr/lib/clawos/clawos-surfaced" \
+  "$mount_root/usr/lib/clawos/clawos-appctl" \
+  "$mount_root/usr/lib/clawos/clawos-app-from-fuzzel" \
+  "$mount_root/usr/lib/clawos/clawos-intent-palette" \
+  "$mount_root/usr/lib/clawos/clawos-app-palette" \
+  "$mount_root/usr/lib/clawos/clawos-webapp" \
+  "$mount_root/usr/lib/clawos/clawos-return-to-setup" \
+  "$mount_root/usr/lib/clawos/clawos-role" \
+  "$mount_root/usr/lib/clawos/clawos-security-mode" \
+  "$mount_root/usr/lib/clawos/clawos-lock" \
+  "$mount_root/usr/lib/clawos/clawos-power-menu" \
+  "$mount_root/usr/lib/clawos/clawos-system-menu" \
+  "$mount_root/usr/lib/clawos/clawos-power-action" \
+  "$mount_root/usr/lib/clawos/clawos-command" \
+  "$mount_root/usr/lib/clawos/clawos-build" \
+  "$mount_root/usr/lib/clawos/clawos-build-activity" \
+  "$mount_root/usr/lib/clawos/clawos-refresh-agent-ui" \
+  "$mount_root/usr/lib/clawos/clawos-browse" \
+  "$mount_root/usr/lib/clawos/clawos-open-url"
 
-mkdir -p "$mount_root/etc/systemd/system/getty@tty1.service.d"
-cat >"$mount_root/etc/systemd/system/getty@tty1.service.d/autologin.conf" <<'EOF'
-[Service]
-ExecStart=
-ExecStart=-/usr/bin/agetty --noreset --noclear --autologin root - $TERM
-EOF
+install -m 0644 /etc/clawos/zshrc "$mount_root/home/clawos/.zshrc"
+chown 1000:1000 "$mount_root/home/clawos/.zshrc"
+
 mkdir -p "$mount_root/etc/systemd/system/serial-getty@ttyS0.service.d"
 cat >"$mount_root/etc/systemd/system/serial-getty@ttyS0.service.d/autologin.conf" <<'EOF'
 [Service]
@@ -185,12 +280,12 @@ ExecStart=-/usr/bin/agetty --noreset --noclear --autologin root 115200,57600,384
 EOF
 
 cat >"$mount_root/etc/mkinitcpio.conf.d/clawos.conf" <<'EOF'
-HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck)
+HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block plymouth sd-encrypt filesystems fsck)
 EOF
 
 arch-chroot "$mount_root" systemctl enable \
   NetworkManager.service sshd.service tailscaled.service \
-  clawos-session@clawos.service
+  clawosd.service clawos-session@clawos.service
 arch-chroot "$mount_root" mkinitcpio -P
 arch-chroot "$mount_root" bootctl --esp-path=/boot --variables=no install
 
@@ -203,10 +298,10 @@ console-mode keep
 editor no
 EOF
 cat >"$mount_root/boot/loader/entries/clawos.conf" <<EOF
-title ClawOS Milestone 1 Installed Proof
+title ClawOS
 linux /vmlinuz-linux
 initrd /initramfs-linux.img
-options rd.luks.name=$crypt_uuid=$mapper root=/dev/mapper/$mapper rootflags=subvol=@ rw console=tty0 console=ttyS0,115200n8
+options rd.luks.name=$crypt_uuid=$mapper root=/dev/mapper/$mapper rootflags=subvol=@ rw quiet splash loglevel=3 rd.systemd.show_status=auto vt.global_cursor_default=0 plymouth.ignore-serial-consoles console=tty0 console=ttyS0,115200n8
 EOF
 
 sync

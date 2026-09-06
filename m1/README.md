@@ -16,12 +16,37 @@ and installation are added only after this base boots in QEMU.
 
 ## Validate and build
 
+For edits to the running ClawOS shell, broker, plugin, or UI assets, use the
+in-guest runtime deployment loop before building another ISO:
+
 ```bash
-./m1/tests/validate-profile.sh
+./m1/bin/deploy-runtime plan
+./m1/bin/deploy-runtime apply
+./m1/bin/deploy-runtime status
+```
+
+Apply runs preflight, stages a hash-versioned payload, and dispatches a root
+system service. Follow the returned job ID until its receipt is `complete`.
+It snapshots root and backs up changed files before applying, and automatically
+restores them if runtime health checks fail. See [live development](../m2/SELF-DEVELOPMENT.md)
+for scope, rollback, and recovery. ISO builds remain the fresh-install test path.
+
+```bash
+./m1/bin/preflight-iso
 sudo ./m1/bin/build-iso
 ./m1/tests/boot-smoke-qemu
+./m1/tests/m2-e2e-qemu
 ./m1/bin/run-qemu
 ```
+
+`preflight-iso` is the required non-root source gate. It covers clean-Arch
+provenance, first-boot resume behavior, Gateway/UI lifecycle, exact local-node
+enrollment policy, the privileged broker, OpenClaw plugin, transactional role
+switching, and patch hygiene before the slower image build begins.
+
+The QEMU proof declares a 1440 x 900 virtual display at device creation time,
+so the boot splash and encrypted unlock screen always initialize on the same
+16:10 canvas even when the host tiles or resizes the GTK window.
 
 Build products live under `artifacts/m1/` and are ignored by Git.
 Every build rematerializes the ArchISO profile and recreates mkarchiso's work
@@ -32,6 +57,19 @@ tree so overlay changes cannot be hidden by stale build state. The previous
 headlessly, controls ClawOS over its serial console, verifies OS identity,
 systemd health, networking, and the live overlay root, then powers the VM off.
 Each run preserves its serial log and transcript in `artifacts/m1/smoke.*`.
+
+`m2-e2e-qemu` is the stronger graphical-installation gate. It creates a fresh
+throwaway qcow2 disk, proves the live graphical session and recovery TTY,
+captures the Try/Install screen, executes the exact guarded installer behind
+the UI, boots the encrypted result with the ISO detached, proves the native
+agent session/top bar/shelf/onboarding/recovery files are image-built, captures
+first boot, then exercises the native Milestone 3 approval broker with a real
+allowlisted package install, pre-change Btrfs snapshot, audit check, and
+single-use authorization check before shutting down cleanly. Evidence is retained under
+`artifacts/m1/m2-e2e.*`.
+If a local assertion fails after installation, set
+`CLAWOS_M2_RESUME_RUNTIME=artifacts/m1/m2-e2e.<id>` to rerun only the
+ISO-detached installed-system phase against that disposable disk.
 
 ## Writable development disk
 
@@ -49,12 +87,28 @@ qcow2.
 Disk creation refuses to overwrite an existing image. The live/recovery base
 must boot independently before installer testing begins.
 
-The live image now contains `clawos-install-dev`, a deliberately narrow,
+The live image boots a dedicated `clawos-live` Wayland session into a branded
+**Try / Install ClawOS** surface. The guided path collects the disk-unlock
+secret, displays installation progress, and offers a graphical restart; it
+does not require terminal commands. The independent `Ctrl+Alt+F3` recovery
+console remains visible throughout the flow.
+
+The live surface follows the selected Carapace-aligned Agent Canvas rather
+than a card launcher: a 52-pixel native machine bar, open installation hero,
+real ClawOS halftone raster, measured Inter/Geist typography, coral action,
+equal readiness/event panes, and a quiet recovery footer. Dynamic disk and
+network copy reports the actual VM state. The compositor and GTK client are
+both constrained to the 1440 x 900 proof geometry so controls cannot exist
+off-screen.
+
+The UI delegates erasure to `clawos-install-dev`, a deliberately narrow,
 network-backed proof installer. It accepts only `/dev/vda` on the expected Q35
-KVM machine, requires the exact `ERASE-QEMU-/dev/vda` token and a mode-0600 key
-file directly under `/run`, and refuses disks that are mounted or already
-partitioned. It is not the production installer and is never authorized on
-physical hardware.
+KVM machine, requires the exact `ERASE-QEMU-/dev/vda` token and a mode-0600,
+byte-exact key file in the live user's runtime directory, and refuses disks
+that are mounted or already partitioned. A Polkit rule authorizes the live user
+for only this guarded installer and an exact reboot helper; it grants neither
+a general root shell nor arbitrary `systemctl`. This path is never authorized
+on physical hardware.
 
 The installed proof uses a 1 GB EFI partition plus a LUKS2-encrypted Btrfs
 system partition with `@`, `@home`, `@var_log`, `@pkg`, and `@snapshots`
@@ -62,20 +116,85 @@ subvolumes. It installs systemd-boot and can boot from qcow2 with the ISO
 removed. Package installation currently uses the pinned network snapshot; a
 complete offline package repository remains an M1 release requirement.
 
-The installer also lays down the first graphical ClawOS appliance proof. It
-installs the exact OpenClaw version in `m1/config/versions.env`, then a
-root-owned Sway session starts for the dedicated `clawos` account on tty2.
+The LUKS passphrase is also the proof's single startup credential boundary.
+Plymouth presents a ClawOS-branded encrypted-root unlock screen, keeps routine
+boot output out of the primary visual path, and then hands the same visual
+identity to the graphical session. There is no second desktop password prompt.
+Boot details remain available with `Esc`, and the independent recovery TTY
+remains available on `Ctrl+Alt+F3` after the root filesystem is unlocked.
 
-On an unconfigured machine, a fullscreen terminal presents one ClawOS decision:
-run the Gateway here or connect to an existing Gateway. It then runs the pinned
-upstream `openclaw onboard` flow. Local mode installs the upstream user Gateway
-service with token auth; remote mode collects the existing Gateway URL and auth
-through OpenClaw. Both modes install this machine's upstream node host. After
-setup, Chromium enters the real Control UI in kiosk mode and receives token auth
-through a mode-0600, short-lived runtime bootstrap file rather than a token on
-its process command line.
+The installer also lays down the first graphical ClawOS appliance proof. It
+installs the exact OpenClaw version in `m1/config/versions.env`, then a Sway
+session starts for the dedicated, unprivileged `clawos` account on tty2 after
+the boot splash exits.
+
+On an unconfigured machine, graphical onboarding begins directly beneath the
+native ClawOS panel; it does not add a second branded application header. The
+panel exposes a clickable **Setup required** state that returns to first boot if
+the user explores another workspace. Onboarding presents one ClawOS decision:
+run the Gateway here or connect to an existing Gateway. It then delegates
+configuration to the pinned upstream `openclaw onboard` flow.
+Local mode installs the upstream user Gateway service with token auth; remote
+mode collects the existing Gateway URL and auth through OpenClaw. Both modes
+install this machine's upstream node host. A fullscreen terminal wizard remains
+only as recovery when the graphical setup cannot start. After setup, Chromium
+enters the real Control UI in borderless app mode beneath a root-owned Wayland
+panel and receives token auth through a mode-0600, short-lived runtime bootstrap
+file rather than a token on its process command line.
+
+The graphical shell does not wait for network-online, Gateway health, or node
+registration before becoming visible. It opens an OpenClaw-shaped Agent
+connection state as soon as Sway starts, brings those services up in parallel,
+and automatically transitions the same window into Control UI. This keeps slow
+or unavailable networking visible as agent readiness instead of presenting an
+empty desktop or terminal.
+
+The panel exposes one **Main activity**, not permanent application tabs. The
+upstream OpenClaw Control UI is the activity canvas. Command, Build, and Browse
+are temporary inspection surfaces in a hidden layer, never splits or app tabs. Command
+and Build attach to named tmux sessions so work survives after their visible
+surface closes; Browse uses a persistent profile and a loopback-only debugging
+endpoint so the local agent can attach without a second Control UI login. The
+restrained 52-pixel panel shows the current activity and focused surface,
+Gateway state, genuine attention state, time, and recovery context.
+
+The bundled `clawos-system` OpenClaw plugin gives the agent a narrow typed API
+to present, hide, and focus Terminal, Browser, or Build and to project activity
+and attention state into the native shell. These tools are added to the active
+OpenClaw tool profile during local onboarding. Automation remains non-visual by default;
+a surface appears only for inspection or takeover. The same broker now owns a
+validated freedesktop application registry and exposes it through the typed
+`clawos_app` tool. The clickable intent palette presents work—continue, review,
+inspect, browse, or take over—while full application search is one secondary
+escape hatch. Standard Linux applications and registered web apps therefore
+occupy the activity canvas without becoming the visible OS model. `Alt+Space`
+opens the intent palette; Gmail and Outlook are the
+first persistent-profile web-app proofs. Their interactive sign-in remains in
+the app surface and does not silently grant the agent connector or mailbox data
+access. `Alt+Enter`, `Alt+B`,
+`Alt+Shift+B`, `Alt+A`, and `Alt+Q` remain optional direct-human controls, not
+the normal workflow. Terminal, Build, and Browse do not start at boot or reopen
+after an intentional close.
+
+The same plugin observes OpenClaw's supported metadata lifecycle hooks. Model
+start, agent completion, and delegated-agent events automatically update the
+native activity state even when the model makes no ClawOS tool call. The handler
+does not inspect or store prompts, replies, or transcript messages. The broker
+persists only its small projection under the user's XDG state directory and
+restores interrupted `running` work as `waiting` after a graphical restart.
+
+Clicking the native **ClawOS** wordmark opens the graphical system surface with Lock,
+Restart, Shut down, and Cancel actions. Lock uses GTK's secure Wayland session
+lock protocol and preserves every workspace. Restart and shutdown require a
+second graphical confirmation, then Plymouth owns the transition so the normal
+path never falls through to a terminal. `Alt+L` locks immediately and
+`Alt+Shift+E` opens the power surface. The proof installer uses the encrypted
+disk secret for explicit session unlock, while boot still authenticates only
+once before starting the dedicated ClawOS session.
 
 The proof installer currently resolves pinned packages over the network. It is
 not yet the complete offline release installer. ClawOS ships no parallel launch
-page, sessions dashboard, or desktop shell. `Ctrl+Alt+F3` remains the independent
-recovery path.
+page, sessions dashboard, or competing desktop UI. Its native activity control
+opens a transient searchable palette rather than a second desktop or permanent
+application navigation. `Ctrl+Alt+F3`
+remains the independent recovery path.
