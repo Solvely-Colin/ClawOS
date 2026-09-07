@@ -601,6 +601,7 @@ class Welcome(Gtk.ApplicationWindow):
         return False
 
     def _run_installer(self, key_path, target, disk_id, passwordless=False):
+        disk_write_started = False
         command = [
             "/usr/bin/pkexec", "/usr/local/bin/clawos-install-dev",
             "--target", target, "--confirm", confirmation_token(target),
@@ -613,6 +614,8 @@ class Welcome(Gtk.ApplicationWindow):
         try:
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             for line in process.stdout:
+                if line.strip() == 'CLAWOS_INSTALL_DISK_WRITE_STARTED':
+                    disk_write_started = True
                 GLib.idle_add(self._append_log, line)
             code = process.wait()
         except OSError as error:
@@ -624,9 +627,9 @@ class Welcome(Gtk.ApplicationWindow):
                     key_path.unlink()
                 except FileNotFoundError:
                     pass
-        GLib.idle_add(self._finish_install, code, passwordless)
+        GLib.idle_add(self._finish_install, code, passwordless, disk_write_started)
 
-    def _finish_install(self, code, passwordless=False):
+    def _finish_install(self, code, passwordless=False, disk_write_started=False):
         self.installing = False
         self._clear()
         content = self._classes(Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=24), "content")
@@ -642,8 +645,12 @@ class Welcome(Gtk.ApplicationWindow):
             content.pack_start(self._button("Restart into ClawOS", "primary", self.reboot, "system-reboot-symbolic"), False, False, 0)
         else:
             content.pack_start(self._screen_header(
-                "INSTALLATION PAUSED", "ClawOS did not change the boot path.",
-                f"The installer stopped with code {code}. Recovery remains available on Ctrl + Alt + F3."), False, False, 0)
+                "INSTALLATION PAUSED",
+                "The target may be partially installed." if disk_write_started else "The target disk was not changed.",
+                f"The installer stopped with code {code}. " +
+                ("Do not treat this disk as bootable; inspect it from the recovery console." if disk_write_started else
+                 "Check the network and retry. Disk protection checks will run again.") +
+                " Recovery remains available on Ctrl + Alt + F3."), False, False, 0)
             content.pack_start(self._button("Return to installer", "quiet", self.show_install, "clawos-arrow-left"), False, False, 0)
         self.stage.pack_start(content, True, True, 0)
         self.show_all()

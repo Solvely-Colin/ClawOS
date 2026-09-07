@@ -2,6 +2,7 @@
 set -euo pipefail
 
 source /etc/clawos/versions.env
+source /usr/lib/clawos/clawos-install-packages.sh
 
 target=
 confirmation=
@@ -10,6 +11,7 @@ disk_id=
 dry_run=false
 vm_test=false
 passwordless=false
+install_files=()
 
 while (( $# )); do
   case "$1" in
@@ -88,15 +90,13 @@ PY
   key_file=$private_key
 fi
 
-# Fail before erasing if the required online sources are not reachable.
-curl --fail --silent --show-error --location --head --max-time 20 \
-  "https://archive.archlinux.org/repos/$ARCH_SNAPSHOT/core/os/x86_64/core.db" >/dev/null &
-archive_probe=$!
-curl --fail --silent --show-error --head --max-time 20 \
-  "https://registry.npmjs.org/openclaw/$OPENCLAW_VERSION" >/dev/null &
-registry_probe=$!
-wait "$archive_probe"
-wait "$registry_probe"
+# The ISO already contains the pinned, built OpenClaw runtime. Verify it before
+# erasing; do not introduce a second network installation after disk changes.
+if [[ ! -s /usr/lib/node_modules/openclaw/openclaw.mjs ]] ||
+   ! openclaw --version | grep -Fq "$OPENCLAW_VERSION"; then
+  echo 'The ISO is missing its pinned OpenClaw runtime. Rebuild the ISO; disk unchanged.' >&2
+  exit 1
+fi
 
 # The caller should use a restrictive umask when creating the LUKS key, but
 # that setting must not leak into the target filesystem. Arch package directory
@@ -112,6 +112,9 @@ fi
 mount_root=$(mktemp -d /mnt/clawos-install.XXXXXX)
 mounted=false
 opened=false
+# ArchISO's root copy-on-write area is only 256 MiB by default. /tmp is a
+# separate RAM-backed filesystem; storage exhaustion still fails before erase.
+download_root=$(mktemp -d /tmp/clawos-download.XXXXXX)
 
 cleanup() {
   local status=0
@@ -122,10 +125,13 @@ cleanup() {
     if cryptsetup close "$mapper"; then opened=false; else status=1; fi
   fi
   [[ -z "$private_key" ]] || rm -f -- "$private_key"
+  rm -rf -- "$download_root"
   if ! $mounted; then rmdir "$mount_root" 2>/dev/null || true; fi
   return "$status"
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 if $passwordless; then
   echo "Installing experimental network-backed ClawOS to $target WITHOUT disk encryption,"
@@ -135,10 +141,15 @@ else
 fi
 echo "This is not the offline production installer."
 
+prepare_install_packages "$download_root"
+sha256sum --check --status "$download_root/packages.sha256"
+echo 'Packages prepared. Beginning the confirmed disk installation.'
+
 # Recheck the same disk and live-media protections immediately before the first
 # destructive command. Hotplug or state changes invalidate the selection.
 recheck validate --confirm "$confirmation" >/dev/null
 
+echo 'CLAWOS_INSTALL_DISK_WRITE_STARTED'
 sfdisk --wipe always "$target" <<'EOF'
 label: gpt
 size=1G, type=U
@@ -186,19 +197,12 @@ mount -o subvol=@pkg,compress=zstd,noatime "$system_device" "$mount_root/var/cac
 mount -o subvol=@snapshots,compress=zstd,noatime "$system_device" "$mount_root/.snapshots"
 mount "$esp" "$mount_root/boot"
 
-pacstrap -K "$mount_root" \
-  base linux linux-firmware intel-ucode amd-ucode btrfs-progs cryptsetup dosfstools \
-  networkmanager openssh sudo zsh tmux curl jq \
-  chromium foot fuzzel sway swaybg waybar swayidle mesa noto-fonts inter-font otf-geist-mono-nerd \
-  gtklock gtklock-userinfo-module gtk-layer-shell python-gobject orca \
-  nodejs npm polkit lxqt-policykit plymouth tailscale
+sha256sum --check --status "$download_root/packages.sha256"
+pacstrap -K -U -C "$download_root/local.conf" "$mount_root" "${install_files[@]}"
 
-arch-chroot "$mount_root" env \
-  npm_config_audit=false \
-  npm_config_fund=false \
-  npm install --global \
-    --allow-scripts='openclaw,@google/genai,tree-sitter-bash,protobufjs' \
-    "openclaw@$OPENCLAW_VERSION"
+install -d "$mount_root/usr/lib/node_modules"
+cp -a /usr/lib/node_modules/openclaw "$mount_root/usr/lib/node_modules/"
+ln -s ../lib/node_modules/openclaw/openclaw.mjs "$mount_root/usr/bin/openclaw"
 arch-chroot "$mount_root" openclaw --version | grep -Fq "$OPENCLAW_VERSION"
 
 genfstab -U "$mount_root" >"$mount_root/etc/fstab"

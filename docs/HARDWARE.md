@@ -17,8 +17,15 @@ Physical-hardware acceptance has not yet been completed.
   before partitioning. Removing/swapping devices invalidates the selection.
   The identity includes the kernel disk generation, not only model/serial text,
   and is checked again before formatting the newly created partitions.
-- Online package sources are checked before erasure. Installation remains
-  network-backed; passing the check cannot guarantee the network stays available.
+- The complete Arch package dependency set is downloaded and signature-verified
+  into the live environment before erasure. Downloads use one connection, tolerate
+  slow archive responses, and have three attempts of at most 15 minutes each.
+  Download, signature or live-storage failures stop before disk writes.
+  The target is installed from those local packages with required signatures;
+  the pinned OpenClaw runtime is copied from the ISO, not fetched again.
+  Internet access and sufficient temporary live storage are still needed for
+  preparation. Hardware, power or installation-hook failures after formatting
+  can still leave a partial installation; this is not an atomic OS installer.
 - The installer does not repartition or migrate an existing OS. Use a blank spare
   disk and back up your machine; do not bypass guards to test on a daily driver.
 

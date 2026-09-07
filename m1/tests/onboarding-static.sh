@@ -259,12 +259,12 @@ if grep -Eq 'config get gateway\.(auth|remote)\.token' "$browser"; then
   echo "ClawOS browser must not use OpenClaw's redacted config output as a token." >&2
   exit 1
 fi
-grep -Fq 'npm install --global' "$installer"
-grep -Fq '"openclaw@$OPENCLAW_VERSION"' "$installer"
-grep -Fq -- "--allow-scripts='openclaw,@google/genai,tree-sitter-bash,protobufjs'" "$installer"
+grep -Fq 'cp -a /usr/lib/node_modules/openclaw' "$installer"
+grep -Fq 'openclaw --version | grep -Fq "$OPENCLAW_VERSION"' "$installer"
+! grep -Fq 'npm install --global' "$installer"
 grep -Fq 'umask 022' "$installer"
 grep -Fq 'runuser -u clawos -- openclaw --version' "$installer"
-grep -Fq 'chromium foot fuzzel sway swaybg waybar' "$installer"
+grep -Fq 'chromium foot fuzzel sway swaybg waybar' "$root/usr/lib/clawos/clawos-install-packages.sh"
 grep -Fq '/usr/share/applications/clawos-gmail.desktop' "$installer"
 grep -Fq 'clawos-app-from-fuzzel' "$installer"
 grep -Fq 'Inspect system' "$live_welcome"

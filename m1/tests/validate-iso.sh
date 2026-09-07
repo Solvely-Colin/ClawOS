@@ -19,4 +19,19 @@ for required in hooks/archiso hooks/archiso_loop_mnt usr/bin/memdiskfind; do
   grep -Fqx "$required" "$initramfs_files"
 done
 
-echo "ClawOS ISO boot-chain validation passed."
+squashfs="$tmpdir/airootfs.sfs"
+bsdtar -xOf "$iso" arch/x86_64/airootfs.sfs >"$squashfs"
+unsquashfs -cat "$squashfs" usr/lib/node_modules/openclaw/openclaw.mjs >"$tmpdir/openclaw.mjs"
+test -s "$tmpdir/openclaw.mjs"
+unsquashfs -no-progress -d "$tmpdir/runtime-check" "$squashfs" \
+  usr/bin/openclaw usr/lib/node_modules/openclaw/openclaw.mjs >/dev/null
+test -x "$tmpdir/runtime-check/usr/bin/openclaw"
+unsquashfs -cat "$squashfs" usr/lib/node_modules/openclaw/package.json >"$tmpdir/openclaw-package.json"
+source "$(dirname "$0")/../config/versions.env"
+python3 - "$tmpdir/openclaw-package.json" "$OPENCLAW_VERSION" <<'PY'
+import json, sys
+with open(sys.argv[1]) as package:
+    assert json.load(package)['version'] == sys.argv[2], 'ISO OpenClaw version differs from the lock'
+PY
+
+echo "ClawOS ISO boot-chain and pinned runtime validation passed."
