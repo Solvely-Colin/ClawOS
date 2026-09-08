@@ -1,6 +1,9 @@
 # Before public source
 
-- [ ] Owner selects an open-source license; add LICENSE without replacing third-party licenses.
+- [x] Owner approved MIT for ClawOS-owned code on 2026-09-08; LICENSE is present
+      and third-party license exceptions remain documented in NOTICE.md.
+- [x] Owner approved retaining the disclosed AI-generated artwork for the
+      experimental launch on 2026-09-08; original branding remains a follow-up.
 - [ ] Complete copied code, icons, fonts and artwork attribution/provenance review (NOTICE.md).
 - [x] Add SECURITY.md with the maintainer-designated email reporting route.
 - [ ] Verify mailbox delivery before publication; optionally enable and verify
