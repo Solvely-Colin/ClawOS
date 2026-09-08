@@ -79,3 +79,30 @@ integration harness. A `--passwordless` mode (no encryption, empty account
 passwords, no screen lock) exists for people who accept that risk explicitly.
 Existing partitions, Secure Boot, legacy BIOS, RAID/multipath and non-x86_64
 installation remain outside this first implementation.
+
+## 2026-09-07: sshd policy and both install modes re-verified
+
+ISO `clawos-fast-2026.09.07-x86_64.iso` (SHA-256
+`dbc1f556389f618369ec6759ab59242f6f4d76e5a1e4a0f8781c6ebd2d8c4094` was the
+09-06 image; the 09-07 image was built from `ee2f4f1` in the builder VM and
+checksum-verified after transfer) on Windows QEMU (WHPX, OVMF), fresh 32 GiB
+virtio disk and fresh firmware variables per run, installer driven from the
+live `tty1` root shell. `systemd-detect-virt` reports `qemu`, so this is the
+hardware branch, not `--vm-test`.
+
+- Encrypted install: exit 0, `Linux Boot Manager` and fallback entries
+  created, first boot through `Boot0004`, LUKS unlocked with the typed
+  passphrase, root login with the same passphrase.
+- Passwordless install: exit 0, same boot entries, first boot to the login
+  prompt with no passphrase, root login with no password.
+- On both installed systems: `sshd -T` reports `PasswordAuthentication no`,
+  `KbdInteractiveAuthentication no`, `PermitRootLogin no`; the drop-in is
+  `/etc/ssh/sshd_config.d/00-clawos.conf`; `clawos-session@clawos`, `clawosd`,
+  `sshd`, `NetworkManager` and `tailscaled` active, zero failed units, Sway
+  running, `clawosctl status` at `full-root`, `tailscale status` logged out.
+- The live ISO in that image still reported `PasswordAuthentication yes`
+  because archiso's `10-archiso.conf` sorted ahead of the drop-in; the drop-in
+  was renamed to `00-clawos.conf` afterwards (`7244a54`) and that live-side
+  fix has not been rebuilt into an ISO yet.
+- Not exercised: the GTK installer path (driven from tty1), onboarding past the
+  first screen, physical hardware.
