@@ -452,9 +452,10 @@ class Welcome(Gtk.ApplicationWindow):
         self._classes(self.passwordless, 'risk-toggle')
         self.passwordless.add(self._label(
             "Passwordless setup: no disk encryption, no screen lock, empty account passwords. "
-            "Anyone with access to this machine can use it and read its data. I accept the risk.",
+            "Anyone with access to this machine can use it and read its data. Approval prompts "
+            "have no password to check, so approval levels protect nothing in this mode. I accept the risk.",
             "body", 56))
-        self.passwordless.get_accessible().set_name('Passwordless setup, accept the risk')
+        self.passwordless.get_accessible().set_name('Passwordless setup, approval levels protect nothing, accept the risk')
         self.passwordless.connect('toggled', self._toggle_passwordless)
         right.pack_start(self.passwordless, False, False, 4)
         right.pack_start(self._label('Type ERASE- followed by the exact selected disk path to confirm installation.', 'warning', 58), False, False, 8)

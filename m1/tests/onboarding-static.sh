@@ -132,6 +132,12 @@ grep -Fq 'The local setup service stopped responding' "$root/usr/share/clawos/on
 grep -Fq 'Enter Agent workspace' "$root/usr/share/clawos/onboarding/index.html"
 ! grep -Fq 'setup-header' "$root/usr/share/clawos/onboarding/index.html"
 ! grep -Fq 'setup-footer' "$root/usr/share/clawos/onboarding/index.html"
+# Onboarding must not promise recovery the code has not proven (KNOWN-ISSUES:
+# coordinated rollback is unproven; recovery.rollback needs a reboot).
+grep -Fq 'whole-system rollback is not yet proven' "$root/usr/share/clawos/onboarding/index.html"
+! grep -Fq 'recoverable' "$root/usr/share/clawos/onboarding/index.html"
+# The passwordless checkbox must say that approval levels then protect nothing.
+grep -Fq 'approval levels protect nothing in this mode' "$live_welcome"
 grep -Fq 'Setup required' "$root/usr/lib/clawos/clawos-panel-status"
 grep -Fq 'gateway.remote.url' "$root/usr/lib/clawos/clawos-panel-status"
 grep -Fq "json 'Controller offline'" "$root/usr/lib/clawos/clawos-panel-status"
