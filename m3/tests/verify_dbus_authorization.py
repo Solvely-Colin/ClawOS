@@ -72,6 +72,8 @@ print(getattr(p,sys.argv[2])(*sys.argv[3:]))
             except RuntimeError:
                 if attempt == 49: raise
                 time.sleep(.1)
+        inspected = call('nobody','Inspect')
+        assert inspected['ok'] and 'token' not in inspected['result'], inspected
         params = json.dumps({'service':'sshd.service','operation':'stop'})
         for context in ('{}', '{"agentId":"main"}'):
             assert not call('nobody','PrepareAction','service.manage',params,context)['ok']
@@ -79,13 +81,16 @@ print(getattr(p,sys.argv[2])(*sys.argv[3:]))
         prepared = call('clawos','PrepareAction','service.manage',params,'{}')
         assert prepared['ok'], prepared
         token = prepared['result']['token']
+        receipt = call('nobody','GetAction',prepared['result']['actionId'])
+        assert receipt['ok'] and 'token' not in receipt['result'], receipt
+        assert receipt['result']['actionId'] == prepared['result']['actionId'], receipt
         assert not call('nobody','CommitAction',token)['ok']
         assert not call('nobody','CancelAction',token)['ok']
         assert call('clawos','ListPending')['result'][0]['token'] == token
         completed = call('clawos','CommitAction',token)
         assert completed['ok'] and completed['result']['state']=='complete', completed
         assert not call('clawos','CommitAction',token)['ok']
-        print('PASS: real D-Bus UID enforcement; unrelated caller denied; separate owner CLI processes work; no real system actions')
+        print('PASS: real D-Bus UID enforcement; unrelated caller denied; public reads carry no token; separate owner CLI processes work; no real system actions')
     finally:
         if server:
             server.terminate()
