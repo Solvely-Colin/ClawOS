@@ -5,7 +5,7 @@
 - [ ] Approve SECURITY.md and a private vulnerability-reporting route.
 - [ ] Repeat a redacted secret scan of source and all history at the publication SHA.
 - [ ] Confirm no VM images, firmware variables, auth stores or personal evidence is tracked.
-- [ ] Confirm README, features and release notes say VM-only development installer.
+- [ ] Clearly distinguish experimental blank-disk eligibility from actual VM/hardware acceptance evidence.
 - [ ] Verify a clean checkout passes CI and the full Arch preflight.
 - [ ] Build an ISO and verify a fresh disposable-disk install and first boot.
 - [ ] Verify a real agent request, live update, rollback and completion delivery.

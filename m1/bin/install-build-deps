@@ -8,6 +8,7 @@ sudo pacman --disable-download-timeout --needed --noconfirm -S \
   git \
   inetutils \
   archiso \
+  mkinitcpio \
   qemu-desktop \
   edk2-ovmf \
   shellcheck \

@@ -85,6 +85,8 @@ grep -Fq '127.0.0.1' "$onboard_server"
 grep -Fq -- '--non-interactive' "$onboard_server"
 grep -Fq -- '--accept-risk' "$onboard_server"
 grep -Fq 'full-approvals' "$onboard_server"
+# Choosing the level the broker already has must not raise a Polkit prompt.
+grep -Fq 'if (status?.securityLevel === level) return { skipped: true, level };' "$onboard_server"
 grep -Fq 'randomBytes(32)' "$onboard_server"
 grep -Fq 'readOpenClawEnv("OPENCLAW_GATEWAY_TOKEN")' "$onboard_server"
 grep -Fq 'if (!savedGatewayToken) await saveOpenClawEnv' "$onboard_server"
@@ -259,12 +261,12 @@ if grep -Eq 'config get gateway\.(auth|remote)\.token' "$browser"; then
   echo "ClawOS browser must not use OpenClaw's redacted config output as a token." >&2
   exit 1
 fi
-grep -Fq 'npm install --global' "$installer"
-grep -Fq '"openclaw@$OPENCLAW_VERSION"' "$installer"
-grep -Fq -- "--allow-scripts='openclaw,@google/genai,tree-sitter-bash,protobufjs'" "$installer"
+grep -Fq 'cp -a /usr/lib/node_modules/openclaw' "$installer"
+grep -Fq 'openclaw --version | grep -Fq "$OPENCLAW_VERSION"' "$installer"
+! grep -Fq 'npm install --global' "$installer"
 grep -Fq 'umask 022' "$installer"
 grep -Fq 'runuser -u clawos -- openclaw --version' "$installer"
-grep -Fq 'chromium foot fuzzel sway swaybg waybar' "$installer"
+grep -Fq 'chromium foot fuzzel sway swaybg waybar' "$root/usr/lib/clawos/clawos-install-packages.sh"
 grep -Fq '/usr/share/applications/clawos-gmail.desktop' "$installer"
 grep -Fq 'clawos-app-from-fuzzel' "$installer"
 grep -Fq 'Inspect system' "$live_welcome"

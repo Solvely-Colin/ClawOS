@@ -30,8 +30,9 @@ as a verified stable release. See [hardware restrictions](HARDWARE.md) and the
 
 Before publishing a draft, independently run the disposable QEMU boot/install
 gates from m1/README.md and attach redacted evidence at the same source SHA.
-The current installer intentionally refuses physical hardware; do not remove
-that protection merely to broaden release claims.
+The experimental installer accepts eligible blank x86_64 UEFI disks, but source
+validation is not physical-hardware proof. Do not describe it as universal Arch
+hardware support; record the exact machine and disk types actually tested.
 
 Builds can fail if the pinned archive/tool versions are unavailable, hosted-runner
 disk space is insufficient, or ArchISO needs kernel capabilities the hosted

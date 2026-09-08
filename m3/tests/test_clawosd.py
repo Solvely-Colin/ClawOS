@@ -2,6 +2,7 @@
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 import sys
@@ -101,6 +102,9 @@ class BtrfsRecoveryTests(unittest.TestCase):
 
 class BrokerTests(unittest.TestCase):
     def setUp(self):
+        identities = patch("clawosd_core.account_uid", side_effect=lambda name: {"clawos": 1000, "claw": 999}[name])
+        identities.start()
+        self.addCleanup(identities.stop)
         self.temporary = tempfile.TemporaryDirectory()
         root = Path(self.temporary.name)
         self.clock_value = 1000
@@ -143,6 +147,106 @@ class BrokerTests(unittest.TestCase):
 
     def tearDown(self):
         self.temporary.cleanup()
+
+    def gateway_peer(self, uid=1000, pid=4242, unit="openclaw-gateway.service"):
+        self.broker.proc_root = Path(self.temporary.name) / "proc"
+        directory = self.broker.proc_root / str(pid)
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "cgroup").write_text(
+            f"0::/user.slice/user-{uid}.slice/user@{uid}.service/app.slice/{unit}\n")
+        return {"uid": uid, "pid": pid}
+
+    def enable_agent_policy(self, level="user-limited"):
+        self.broker.config["securityLevel"] = level
+        self.broker.config["openclaw"]["agentUser"] = "claw"
+        self.broker.config["agentPolicies"] = {
+            "requireTrustedAttribution": True, "defaultAllow": [], "agents": {"main": ["*"]}}
+
+    def test_unrelated_uid_cannot_prepare_list_commit_or_cancel(self):
+        self.broker.config["securityLevel"] = "full-root"
+        token = self.broker.prepare("service.manage", {
+            "service": "sshd.service", "operation": "stop"}, self.peer)["token"]
+        intruder = self.gateway_peer(uid=65534)
+        for context in (None, {}, {"agentId": "main"}, {"agentId": 0}):
+            with self.assertRaises(BrokerError):
+                self.broker.prepare("service.manage", {
+                    "service": "sshd.service", "operation": "stop"}, intruder, context)
+        for operation in (lambda: self.broker.list_pending_for_peer(intruder),
+                          lambda: self.broker.commit(token, intruder, authorized=True),
+                          lambda: self.broker.cancel(token, intruder)):
+            with self.assertRaises(BrokerError):
+                operation()
+        self.assertEqual(self.runner.commands, [])
+        self.assertEqual(self.broker.pending_for_peer(token, self.peer)["state"], "pending")
+
+    def test_gateway_context_cannot_fall_back_to_desktop_privilege(self):
+        self.enable_agent_policy("full-root")
+        gateway = self.gateway_peer()
+        for context in (None, {}, {"agentId": ""}, {"agentId": None}, {"agentId": ["main"]}):
+            with self.assertRaises(BrokerError):
+                self.broker.prepare("package.install", {"package": "tree"}, gateway, context)
+        token = self.broker.prepare("package.install", {"package": "tree"}, gateway,
+                                    {"agentId": "main"})["token"]
+        next_process = self.gateway_peer(pid=4343, unit="openclaw-node.service")
+        self.assertEqual(self.broker.commit(token, next_process)["state"], "complete")
+
+    def test_runtime_requires_exact_unit_and_matching_user_slice(self):
+        self.enable_agent_policy()
+        context = {"agentId": "main"}
+        for unit in ("fake-openclaw-gateway.service", "openclaw-gateway.service.scope",
+                     "openclaw-node.service-evil"):
+            peer = self.gateway_peer(uid=999, unit=unit)
+            with self.assertRaises(BrokerError):
+                self.broker.prepare("package.install", {"package": "tree"}, peer, context)
+        wrong_slice = self.gateway_peer(uid=1000)
+        wrong_slice["uid"] = 999
+        with self.assertRaises(BrokerError):
+            self.broker.prepare("package.install", {"package": "tree"}, wrong_slice, context)
+
+    def test_owner_can_approve_runtime_request_but_runtime_cannot_take_owner_token(self):
+        self.enable_agent_policy()
+        runtime = self.gateway_peer(uid=999)
+        token = self.broker.prepare("package.install", {"package": "tree"}, runtime,
+                                    {"agentId": "main"})["token"]
+        owner = {"uid": 1000, "pid": 8888}
+        self.assertEqual(self.broker.list_pending_for_peer(owner)[0]["token"], token)
+        with self.assertRaisesRegex(BrokerError, "Polkit"):
+            self.broker.commit(token, owner)
+        self.assertEqual(self.broker.commit(token, owner, authorized=True)["state"], "complete")
+        owner_token = self.broker.prepare("package.install", {"package": "tree"}, owner)["token"]
+        self.assertEqual(self.broker.list_pending_for_peer(runtime), [])
+        with self.assertRaisesRegex(BrokerError, "another account"):
+            self.broker.commit(owner_token, runtime, authorized=True)
+        with self.assertRaises(BrokerError):
+            self.broker.cancel(owner_token, runtime)
+        self.assertEqual(self.broker.cancel(owner_token, {"uid": 0, "pid": 123})["state"], "cancelled")
+
+    def test_unbound_and_wrong_boot_tokens_fail_closed(self):
+        token = self.broker.prepare("package.install", {"package": "tree"}, self.peer)["token"]
+        path = self.broker._pending_path(token)
+        original = json.loads(path.read_text())
+        for field in ("requester", "bootId"):
+            record = dict(original)
+            record.pop(field)
+            self.broker._write_json(path, record)
+            with self.assertRaises(BrokerError):
+                self.broker.commit(token, self.peer, authorized=True)
+        self.broker._write_json(path, original)
+        self.boot_id.write_text("22222222-2222-4222-8222-222222222222\n")
+        with self.assertRaises(BrokerError):
+            self.broker.commit(token, self.peer, authorized=True)
+        self.assertEqual(self.runner.commands, [])
+
+    def test_policy_is_rechecked_before_commit_and_cancellation_still_works(self):
+        self.enable_agent_policy("full-root")
+        peer = self.gateway_peer()
+        token = self.broker.prepare("package.install", {"package": "tree"}, peer,
+                                    {"agentId": "main"})["token"]
+        self.broker.config["agentPolicies"]["agents"]["main"] = []
+        with self.assertRaisesRegex(BrokerError, "not allowed"):
+            self.broker.commit(token, peer, authorized=True)
+        self.assertEqual(self.runner.commands, [])
+        self.assertEqual(self.broker.cancel(token, peer)["state"], "cancelled")
 
     def test_prepare_is_allowlisted_typed_and_non_authoritative(self):
         request = self.broker.prepare(

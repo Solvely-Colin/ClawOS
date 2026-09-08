@@ -194,7 +194,8 @@ echo "Running the same guarded installer exposed by the graphical flow."
 install_commands=$'install -d -m 0700 /run/user/0\n'
 install_commands+="printf '%s' '$test_secret' > /run/user/0/clawos-install.key"$'\n'
 install_commands+=$'chmod 0600 /run/user/0/clawos-install.key\n'
-install_commands+=$'clawos-install-dev --target /dev/vda --confirm ERASE-QEMU-/dev/vda --key-file /run/user/0/clawos-install.key\n'
+install_commands+=$'disk_id=$(python3 /usr/lib/clawos/clawos_install_targets.py list | jq -r \'.[] | select(.path=="/dev/vda") | .diskId\')\n'
+install_commands+=$'clawos-install-dev --vm-test --target /dev/vda --disk-id "$disk_id" --confirm ERASE-/dev/vda --key-file /run/user/0/clawos-install.key\n'
 install_commands+=$'install_result=$?; rm -f /run/user/0/clawos-install.key; echo __M2_INSTALL_STATUS_${install_result}__; poweroff\n'
 send_serial "$install_commands"
 wait_log '__M2_INSTALL_STATUS_0__' 1800
@@ -231,6 +232,7 @@ installed_commands+=$'for attempt in {1..90}; do installed_sock=$(find "/run/use
 installed_commands+=$'test -x /usr/lib/clawos/clawos-agent-shelf && echo "${PASS}SHELF_IMAGE_BUILT_OK"\n'
 installed_commands+="test -f /etc/clawos/waybar/config.jsonc && grep -Eq '\"height\"[[:space:]]*:[[:space:]]*52' /etc/clawos/waybar/config.jsonc && echo \"\${PASS}TOP_BAR_IMAGE_BUILT_OK\""$'\n'
 installed_commands+=$'test -f /usr/share/clawos/onboarding/index.html && echo "${PASS}ONBOARDING_IMAGE_BUILT_OK"\n'
+installed_commands+=$'test -s /usr/share/licenses/clawos-radix-icons/LICENSE && echo "${PASS}ICON_LICENSE_INSTALLED_OK"\n'
 installed_commands+=$'test -e /dev/tty3 && echo "${PASS}INSTALLED_RECOVERY_OK"\n'
 installed_commands+=$'systemctl is-active --quiet clawosd.service && echo "${PASS}CLAWOSD_SERVICE_OK"\n'
 installed_commands+=$'test -x /usr/lib/clawos/clawosctl && test -x /usr/lib/clawos/clawos-approval && echo "${PASS}CLAWOSD_CLIENT_UI_OK"\n'
@@ -253,6 +255,7 @@ for marker in \
   SHELF_IMAGE_BUILT_OK \
   TOP_BAR_IMAGE_BUILT_OK \
   ONBOARDING_IMAGE_BUILT_OK \
+  ICON_LICENSE_INSTALLED_OK \
   INSTALLED_RECOVERY_OK \
   CLAWOSD_SERVICE_OK \
   CLAWOSD_CLIENT_UI_OK \

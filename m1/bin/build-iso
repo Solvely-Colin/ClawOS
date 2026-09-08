@@ -2,6 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
+source "$repo_root/m1/config/versions.env"
 mode="release"
 case "${1:-}" in
   ""|--release) mode="release" ;;
@@ -77,7 +78,34 @@ done
 
 sudo -u "${SUDO_USER:-root}" "$repo_root/m1/bin/materialize-profile" "$profile"
 
+# Archive responses can stall under concurrent libalpm transfers, including in
+# QEMU/WHPX. Apply this only to the generated build config, not the host's pacman
+# settings or the installed target. Package signature policy stays unchanged.
+sed -i -e 's/^ParallelDownloads[[:space:]]*=.*/ParallelDownloads = 1/' \
+  -e '/^\[options\]/a DisableDownloadTimeout' "$profile/pacman.conf"
+
 "$repo_root/m1/tests/validate-profile.sh" "$profile"
+
+# Ship the pinned runtime as an ISO build input. Target installation copies
+# this clean package tree, never the builder's personal/global installation.
+for attempt in 1 2 3; do
+  if timeout --kill-after=10s 15m npm install --global \
+    --prefix "$profile/airootfs/usr" --no-audit --no-fund \
+    --allow-scripts='openclaw,@google/genai,tree-sitter-bash,protobufjs' \
+    "openclaw@$OPENCLAW_VERSION"; then
+    break
+  fi
+  (( attempt < 3 )) || { echo 'Pinned OpenClaw ISO preparation failed.' >&2; exit 1; }
+  sleep 3
+done
+"$profile/airootfs/usr/bin/openclaw" --version | grep -Fq "$OPENCLAW_VERSION"
+# ArchISO normalizes overlay file modes to 0644 unless explicitly listed.
+# Preserve executable package entry points and native helpers, not just the
+# top-level openclaw symlink. %q keeps package paths literal in profiledef.sh.
+while IFS= read -r -d '' executable; do
+  printf 'file_permissions[%q]="0:0:755"\n' "${executable#"$profile/airootfs"}" >>"$profile/profiledef.sh"
+done < <(find "$profile/airootfs/usr/lib/node_modules/openclaw" -type f -perm /111 -print0)
+
 if [[ "$mode" == fast ]]; then
   # Development images remain clean, validated ArchISO builds, but zstd cuts
   # the edit/build/boot loop substantially. Keep them visibly distinct from

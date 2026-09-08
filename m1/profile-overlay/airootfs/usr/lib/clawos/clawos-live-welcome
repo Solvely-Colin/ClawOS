@@ -7,18 +7,26 @@ import os
 import pathlib
 import subprocess
 import threading
+import sys
+
+sys.path.insert(0, '/usr/lib/clawos')
+from clawos_install_targets import confirmation_token, describe, list_targets
 
 import gi
 
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
+gi.require_version("Pango", "1.0")
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, Pango  # noqa: E402
 
 
 THEME_ROOT = pathlib.Path("/usr/share/clawos/theme")
 CSS = b"""
 window { background: #090b0b; color: #f3f1ee; font-family: 'Inter Variable', Inter, 'Noto Sans', sans-serif; }
+.target-selector button { background: #202222; background-image: none; color: #f3f1ee; border: 1px solid #343a38; border-radius: 8px; padding: 12px; box-shadow: none; }
+.target-selector button:hover { border-color: #ff684f; }
+.target-selector button:focus { outline: 2px solid #ff684f; outline-offset: 2px; }
 .shell { background-color: transparent; }
 .topbar { min-height: 51px; padding: 0 24px; background: rgba(11,13,13,.96); border-bottom: 1px solid #292d2b; }
 .brand { color: #f3f1ee; font-size: 17px; font-weight: 700; }
@@ -57,8 +65,10 @@ window { background: #090b0b; color: #f3f1ee; font-family: 'Inter Variable', Int
 .content { padding: 22px 72px 12px 72px; }
 .content-pane-left { padding: 28px 42px 28px 0; }
 .content-pane-right { padding: 28px 0 28px 42px; border-left: 1px solid #292d2b; }
-.target-line { min-height: 62px; border-top: 1px solid #292d2b; border-bottom: 1px solid #292d2b; }
 .danger { color: #ff5c5c; font-size: 13px; }
+.risk-toggle { padding: 12px 14px; color: #d8d5d1; background: rgba(255,92,92,.08); border: 1px solid rgba(255,92,92,.34); border-radius: 8px; font-size: 13px; }
+.risk-toggle check { min-width: 18px; min-height: 18px; background: #202121; border: 1px solid #747876; border-radius: 4px; }
+.risk-toggle check:checked { background: #ff5c5c; border-color: #ff5c5c; color: #090b0b; }
 .install-plan { min-height: 38px; color: #a5a19f; font-size: 13px; }
 .warning { padding: 14px 16px; color: #d8d5d1; background: rgba(255,104,79,.08); border: 1px solid rgba(255,104,79,.34); border-radius: 8px; font-size: 13px; }
 entry { min-height: 44px; padding: 0 12px; background: #202121; color: #f3f1ee; border: 1px solid #292d2b; border-radius: 8px; caret-color: #ff684f; }
@@ -239,24 +249,19 @@ class Welcome(Gtk.ApplicationWindow):
 
     @staticmethod
     def _network_ready():
+        # The live ISO runs archiso's systemd-networkd/iwd, the installed system
+        # runs NetworkManager; a default route is the manager-agnostic signal.
         try:
             result = subprocess.run(
-                ["ip", "-brief", "address"], capture_output=True, text=True, timeout=3
+                ["ip", "-json", "route", "show", "default"], capture_output=True, text=True, timeout=3
             )
-            return "10.0.2." in result.stdout or "192.168." in result.stdout
-        except (OSError, subprocess.SubprocessError):
+            return result.returncode == 0 and bool(json.loads(result.stdout or "[]"))
+        except (OSError, subprocess.SubprocessError, ValueError):
             return False
 
     @staticmethod
     def _disks():
-        result = subprocess.run(
-            ["lsblk", "--json", "--bytes", "--nodeps", "--output", "NAME,PATH,SIZE,TYPE,MODEL,RM"],
-            capture_output=True, text=True, check=True,
-        )
-        return [
-            item for item in json.loads(result.stdout).get("blockdevices", [])
-            if item.get("type") == "disk" and item.get("path") == "/dev/vda"
-        ]
+        return list_targets()
 
     def _disk_summary(self):
         try:
@@ -264,10 +269,8 @@ class Welcome(Gtk.ApplicationWindow):
         except (OSError, subprocess.SubprocessError, ValueError):
             disks = []
         if not disks:
-            return ("No guarded disk", "Unavailable")
-        disk = disks[0]
-        size = int(disk.get("size") or 0) / (1024 ** 3)
-        return (f"/dev/vda · {size:.0f} GB", "Guarded")
+            return ("No eligible blank disk", "Unavailable")
+        return (f"{len(disks)} eligible blank disk(s); selection required", "Available")
 
     def _fact_row(self, icon, label, value, state):
         row = self._classes(Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12), "row")
@@ -322,7 +325,7 @@ class Welcome(Gtk.ApplicationWindow):
             ("openclaw", "Agent runtime install staged"),
             ("netd", "Connected to ClawOS live"),
             ("displayd", f"Output active ({self.screen_width}×{self.screen_height}@60Hz)"),
-            ("storaged", "Guarded installation target detected" if disk_state != "Unavailable" else "Waiting for guarded installation target"),
+            ("storaged", "Eligible installation disk detected" if disk_state != "Unavailable" else "Waiting for an eligible blank disk"),
             ("openclaw", "Capability policy staged"),
             ("systemd", "Live environment ready"),
         ]
@@ -380,8 +383,8 @@ class Welcome(Gtk.ApplicationWindow):
         self._clear()
         content = self._classes(Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14), "content")
         content.pack_start(self._screen_header(
-            "INSTALL CLAWOS", "Create the encrypted agent system.",
-            "The guarded development disk will be erased, encrypted with LUKS2, and prepared for the OpenClaw workspace."), False, False, 0)
+            "INSTALL CLAWOS", "Create the agent system.",
+            "Choose a blank disk for this experimental x86_64 UEFI installation. By default it is encrypted with LUKS2 and prepared for OpenClaw."), False, False, 0)
         panes = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         panes.set_homogeneous(True)
         left = self._classes(Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18), "content-pane-left")
@@ -391,32 +394,43 @@ class Welcome(Gtk.ApplicationWindow):
         except (OSError, subprocess.SubprocessError, ValueError) as error:
             disks = []
             left.pack_start(self._label(f"Could not inspect disks: {error}", "danger"), False, False, 0)
-        if disks:
-            disk = disks[0]
-            self.target = disk["path"]
-            size = int(disk.get("size") or 0) / (1024 ** 3)
-            model = (disk.get("model") or "QEMU development disk").strip()
-            target = self._classes(Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14), "target-line")
-            target.pack_start(self._icon("drive-harddisk-symbolic", style="success"), False, False, 0)
-            target.pack_start(self._label("Guarded target", "body-strong"), False, False, 0)
-            target.pack_end(self._label(f"/dev/vda · {size:.0f} GB · {model}", "mono"), True, True, 0)
-            left.pack_start(target, False, False, 0)
-        else:
-            self.target = None
-            left.pack_start(self._label("No supported blank /dev/vda development disk found.", "danger"), False, False, 0)
+        self.target = None
+        self.disk_id = None
+        self.disk_choices = {disk['path']: disk for disk in disks}
+        selector = Gtk.ComboBoxText()
+        self.disk_selector = selector
+        self._classes(selector, 'target-selector')
+        for renderer in selector.get_cells():
+            renderer.set_property('ellipsize', Pango.EllipsizeMode.END)
+            renderer.set_property('width-chars', 32)
+        selector.get_accessible().set_name('Installation target disk')
+        selector.append('', 'Select a blank disk — no default target')
+        for disk in disks:
+            selector.append(disk['path'], disk.get('label') or describe(disk))
+        selector.set_active(0)
+        selector.connect('changed', self._select_disk)
+        left.pack_start(selector, False, False, 0)
+        self.disk_details = self._label('No installation disk selected.', 'body', 58)
+        left.pack_start(self.disk_details, False, False, 8)
+        if not disks:
+            left.pack_start(self._label('No eligible blank disk of at least 32 GiB found.', 'danger'), False, False, 0)
         left.pack_start(self._label(
-            "This proof installer refuses physical hardware, mounted disks, partitioned disks, and any machine outside the expected Q35 KVM environment.", "body", 58), False, False, 0)
+            "Boot media, mounted/in-use disks, and disks with partitions or filesystem signatures are protected. Network access is required. Keep the selected disk connected and the machine powered on.", "body", 58), False, False, 0)
         left.pack_end(self._button("Back", "quiet", self.show_welcome, "clawos-arrow-left"), False, False, 0)
-        right.pack_start(self._label("Disk unlock and session-lock passphrase", "body-strong"), False, False, 0)
-        right.pack_start(self._label(
-            "One passphrase unlocks the encrypted disk and session. There is no second login.",
-            "body", 58), False, False, 0)
+        self.passphrase_title = self._label("Disk unlock and session-lock passphrase", "body-strong")
+        right.pack_start(self.passphrase_title, False, False, 0)
+        self.passphrase_help = self._label(
+            "One passphrase unlocks the encrypted disk and is also the root and clawos account password; approval prompts on this machine ask for it. There is no second login.",
+            "body", 58)
+        right.pack_start(self.passphrase_help, False, False, 0)
         install_plan = self._classes(Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10), "install-plan")
         install_plan.pack_start(self._icon("object-select-symbolic", style="success"), False, False, 0)
-        install_plan.pack_start(self._label(
-            "LUKS2 encryption  ·  Full Root default  ·  Recovery ready", "body"), False, False, 0)
+        self.install_plan_label = self._label(
+            "LUKS2 encryption  ·  Full Root default  ·  Recovery ready", "body")
+        install_plan.pack_start(self.install_plan_label, False, False, 0)
         right.pack_start(install_plan, False, False, 6)
         self.password = Gtk.Entry()
+        self.password.set_max_length(128)
         self.password.set_visibility(False)
         self.password.set_placeholder_text("At least 10 characters")
         self.password.set_input_purpose(Gtk.InputPurpose.PASSWORD)
@@ -424,6 +438,7 @@ class Welcome(Gtk.ApplicationWindow):
         self.password.connect("changed", self._validate_passphrase)
         right.pack_start(self.password, False, False, 8)
         self.confirm = Gtk.Entry()
+        self.confirm.set_max_length(128)
         self.confirm.set_visibility(False)
         self.confirm.set_placeholder_text("Repeat passphrase")
         self.confirm.set_input_purpose(Gtk.InputPurpose.PASSWORD)
@@ -433,9 +448,21 @@ class Welcome(Gtk.ApplicationWindow):
         right.pack_start(self.confirm, False, False, 0)
         self.error = self._label("", "danger")
         right.pack_start(self.error, False, False, 0)
-        right.pack_start(self._label(
-            "This permanently erases /dev/vda. No additional confirmation.",
-            "warning", 58), False, False, 8)
+        self.passwordless = Gtk.CheckButton()
+        self._classes(self.passwordless, 'risk-toggle')
+        self.passwordless.add(self._label(
+            "Passwordless setup: no disk encryption, no screen lock, empty account passwords. "
+            "Anyone with access to this machine can use it and read its data. I accept the risk.",
+            "body", 56))
+        self.passwordless.get_accessible().set_name('Passwordless setup, accept the risk')
+        self.passwordless.connect('toggled', self._toggle_passwordless)
+        right.pack_start(self.passwordless, False, False, 4)
+        right.pack_start(self._label('Type ERASE- followed by the exact selected disk path to confirm installation.', 'warning', 58), False, False, 8)
+        self.erase_confirmation = Gtk.Entry()
+        self.erase_confirmation.set_placeholder_text('Select a disk first')
+        self.erase_confirmation.get_accessible().set_name('Exact disk erase confirmation')
+        self.erase_confirmation.connect('changed', self._validate_passphrase)
+        right.pack_start(self.erase_confirmation, False, False, 0)
         self.install_button = self._button("Erase disk and install", "primary", self.start_install, "go-next-symbolic")
         self.install_button.set_sensitive(False)
         right.pack_end(self.install_button, False, False, 0)
@@ -444,52 +471,107 @@ class Welcome(Gtk.ApplicationWindow):
         content.pack_start(panes, True, True, 0)
         self.stage.pack_start(content, True, True, 0)
         self.show_all()
-        self.password.grab_focus()
+        selector.grab_focus()
+
+    def _select_disk(self, selector):
+        if self.installing:
+            return
+        disk = self.disk_choices.get(selector.get_active_id())
+        self.target = disk['path'] if disk else None
+        self.disk_id = disk['diskId'] if disk else None
+        if disk:
+            self.disk_details.set_text(disk.get('label') or describe(disk))
+        else:
+            self.disk_details.set_text('No installation disk selected.')
+        self.erase_confirmation.set_text('')
+        self.erase_confirmation.set_placeholder_text(
+            confirmation_token(self.target) if self.target else 'Select a disk first')
+        self._validate_passphrase()
+
+    def _passwordless_requested(self):
+        return hasattr(self, "passwordless") and self.passwordless.get_active()
+
+    def _toggle_passwordless(self, *_args):
+        if self.installing:
+            return
+        passwordless = self._passwordless_requested()
+        for entry in (self.password, self.confirm):
+            entry.set_text("")
+            entry.set_sensitive(not passwordless)
+        if passwordless:
+            self.passphrase_title.set_text("No passphrase")
+            self.passphrase_help.set_text(
+                "The disk is not encrypted, the screen never locks, and the root and clawos accounts "
+                "have empty passwords. SSH refuses password login in every mode; use keys for remote access.")
+            self.install_plan_label.set_text("No encryption  ·  Full Root default  ·  Recovery ready")
+        else:
+            self.passphrase_title.set_text("Disk unlock and session-lock passphrase")
+            self.passphrase_help.set_text(
+                "One passphrase unlocks the encrypted disk and is also the root and clawos account password; approval prompts on this machine ask for it. There is no second login.")
+            self.install_plan_label.set_text("LUKS2 encryption  ·  Full Root default  ·  Recovery ready")
+        self._validate_passphrase()
+
+    def _passphrase_problem(self):
+        """Return the passphrase error to show, or an empty string when acceptable."""
+        if self._passwordless_requested():
+            return ""
+        secret = self.password.get_text()
+        confirmation = self.confirm.get_text()
+        if confirmation and secret != confirmation:
+            return "The two passphrases do not match."
+        if secret and len(secret) < 10:
+            return "Use at least 10 characters for the disk passphrase."
+        if not secret or not confirmation:
+            return "incomplete"
+        return ""
 
     def _validate_passphrase(self, *_args):
         if not hasattr(self, "install_button"):
             return
-        secret = self.password.get_text()
-        confirmation = self.confirm.get_text()
-        valid_length = len(secret) >= 10
-        matches = bool(confirmation) and secret == confirmation
-        self.install_button.set_sensitive(bool(self.target) and valid_length and matches)
-        if confirmation and not matches:
-            self.error.set_text("The two passphrases do not match.")
-        elif secret and not valid_length:
-            self.error.set_text("Use at least 10 characters for the disk passphrase.")
-        else:
-            self.error.set_text("")
+        problem = self._passphrase_problem()
+        confirmed = bool(self.target) and self.erase_confirmation.get_text() == confirmation_token(self.target)
+        self.install_button.set_sensitive(confirmed and not problem and not self.installing)
+        self.error.set_text("" if problem == "incomplete" else problem)
 
     def start_install(self, *_args):
-        secret = self.password.get_text()
-        if len(secret) < 10:
-            self.error.set_text("Use at least 10 characters for the disk passphrase.")
+        if self.installing:
             return
-        if secret != self.confirm.get_text():
-            self.error.set_text("The two passphrases do not match.")
+        if not self.target or not self.disk_id or self.erase_confirmation.get_text() != confirmation_token(self.target):
+            self.error.set_text('Select a disk and type its exact erase confirmation.')
+            return
+        passwordless = self._passwordless_requested()
+        problem = self._passphrase_problem()
+        if problem:
+            self.error.set_text("Enter and repeat a passphrase of at least 10 characters." if problem == "incomplete" else problem)
             return
         self.installing = True
-        key_path = pathlib.Path(os.environ["XDG_RUNTIME_DIR"]) / "clawos-install.key"
-        try:
-            fd = os.open(key_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        except FileExistsError:
-            key_path.unlink()
-            fd = os.open(key_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        try:
-            os.write(fd, secret.encode("utf-8"))
-        finally:
-            os.close(fd)
+        selected_target, selected_disk_id = self.target, self.disk_id
+        key_path = None
+        if not passwordless:
+            secret = self.password.get_text()
+            key_path = pathlib.Path(os.environ["XDG_RUNTIME_DIR"]) / "clawos-install.key"
+            try:
+                fd = os.open(key_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            except FileExistsError:
+                key_path.unlink()
+                fd = os.open(key_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            try:
+                os.write(fd, secret.encode("utf-8"))
+            finally:
+                os.close(fd)
         self.password.set_text("")
         self.confirm.set_text("")
-        self._show_progress()
-        threading.Thread(target=self._run_installer, args=(key_path,), daemon=True).start()
+        self._show_progress(passwordless)
+        threading.Thread(
+            target=self._run_installer,
+            args=(key_path, selected_target, selected_disk_id, passwordless), daemon=True).start()
 
-    def _show_progress(self):
+    def _show_progress(self, passwordless=False):
         self._clear()
         content = self._classes(Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=28), "content")
         content.pack_start(self._screen_header(
-            "INSTALLING CLAWOS", "Building the encrypted agent system…",
+            "INSTALLING CLAWOS",
+            "Building the passwordless agent system…" if passwordless else "Building the encrypted agent system…",
             "Keep this machine powered on. Package installation can take several minutes."), False, False, 0)
         self.progress = Gtk.ProgressBar()
         GLib.timeout_add(250, self._pulse)
@@ -518,41 +600,57 @@ class Welcome(Gtk.ApplicationWindow):
         self.log.scroll_mark_onscreen(mark)
         return False
 
-    def _run_installer(self, key_path):
+    def _run_installer(self, key_path, target, disk_id, passwordless=False):
+        disk_write_started = False
         command = [
             "/usr/bin/pkexec", "/usr/local/bin/clawos-install-dev",
-            "--target", self.target, "--confirm", f"ERASE-QEMU-{self.target}",
-            "--key-file", str(key_path),
+            "--target", target, "--confirm", confirmation_token(target),
+            "--disk-id", disk_id,
         ]
+        if passwordless:
+            command.append("--passwordless")
+        else:
+            command += ["--key-file", str(key_path)]
         try:
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             for line in process.stdout:
+                if line.strip() == 'CLAWOS_INSTALL_DISK_WRITE_STARTED':
+                    disk_write_started = True
                 GLib.idle_add(self._append_log, line)
             code = process.wait()
         except OSError as error:
             code = 127
             GLib.idle_add(self._append_log, f"Installer could not start: {error}\n")
         finally:
-            try:
-                key_path.unlink()
-            except FileNotFoundError:
-                pass
-        GLib.idle_add(self._finish_install, code)
+            if key_path is not None:
+                try:
+                    key_path.unlink()
+                except FileNotFoundError:
+                    pass
+        GLib.idle_add(self._finish_install, code, passwordless, disk_write_started)
 
-    def _finish_install(self, code):
+    def _finish_install(self, code, passwordless=False, disk_write_started=False):
         self.installing = False
         self._clear()
         content = self._classes(Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=24), "content")
         if code == 0:
-            content.pack_start(self._screen_header(
-                "CLAWOS IS READY", "Installation complete.",
-                "Restart, remove the installation media, unlock the disk, and ClawOS will enter the agent workspace without a second login."), False, False, 0)
-            content.pack_start(self._event_row(datetime.datetime.now().strftime("%H:%M:%S"), "installer", "Encrypted agent system ready", True), False, False, 24)
+            if passwordless:
+                lede = "Restart and remove the installation media. ClawOS boots straight into the agent workspace with no passphrase, no screen lock and empty account passwords."
+                ready = "Passwordless agent system ready"
+            else:
+                lede = "Restart, remove the installation media, unlock the disk, and ClawOS will enter the agent workspace without a second login."
+                ready = "Encrypted agent system ready"
+            content.pack_start(self._screen_header("CLAWOS IS READY", "Installation complete.", lede), False, False, 0)
+            content.pack_start(self._event_row(datetime.datetime.now().strftime("%H:%M:%S"), "installer", ready, True), False, False, 24)
             content.pack_start(self._button("Restart into ClawOS", "primary", self.reboot, "system-reboot-symbolic"), False, False, 0)
         else:
             content.pack_start(self._screen_header(
-                "INSTALLATION PAUSED", "ClawOS did not change the boot path.",
-                f"The installer stopped with code {code}. Recovery remains available on Ctrl + Alt + F3."), False, False, 0)
+                "INSTALLATION PAUSED",
+                "The target may be partially installed." if disk_write_started else "The target disk was not changed.",
+                f"The installer stopped with code {code}. " +
+                ("Do not treat this disk as bootable; inspect it from the recovery console." if disk_write_started else
+                 "Check the network and retry. Disk protection checks will run again.") +
+                " Recovery remains available on Ctrl + Alt + F3."), False, False, 0)
             content.pack_start(self._button("Return to installer", "quiet", self.show_install, "clawos-arrow-left"), False, False, 0)
         self.stage.pack_start(content, True, True, 0)
         self.show_all()
@@ -571,4 +669,5 @@ class App(Gtk.Application):
         Welcome(self).present()
 
 
-App().run(None)
+if __name__ == '__main__':
+    App().run(None)

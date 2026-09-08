@@ -14,7 +14,7 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: VM backend, guest version, display size and affected component. Physical installation is not currently supported.
+      description: VM backend or physical hardware model, firmware mode, disk type, display size and affected component. Omit hardware serial numbers. Physical installation remains experimental.
     validations:
       required: true
   - type: textarea

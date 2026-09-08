@@ -25,4 +25,5 @@ file_permissions=(
   ["/usr/lib/clawos/clawos-live-session"]="0:0:755"
   ["/usr/lib/clawos/clawos-live-welcome"]="0:0:755"
   ["/usr/lib/clawos/clawos-live-reboot"]="0:0:755"
+  ["/usr/lib/clawos/clawos-live-serial-getty"]="0:0:755"
 )

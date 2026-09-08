@@ -77,8 +77,8 @@ jobs:
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo 'Use a version tag such as v0.1.0-alpha.1'; exit 1; }
           printf '%s\n' \
             "Experimental ClawOS build from $SOURCE_SHA." \
-            'The development installer accepts only QEMU/KVM Q35 and a blank /dev/vda.' \
-            'Physical hardware installation is intentionally blocked.' \
+            'The experimental installer accepts eligible blank x86_64 UEFI disks.' \
+            'Boot media, mounted/in-use disks and nonblank disks are protected. Physical hardware is not yet verified.' \
             'Source preflight and ISO structure passed; boot/install acceptance must be reviewed separately.' \
             'This draft is not a supported or stable release. Review BUILD-METADATA.txt and verify SHA256SUMS.' > notes.md
           gh release create "$RELEASE_TAG" --verify-tag --draft --prerelease \

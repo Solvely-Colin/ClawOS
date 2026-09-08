@@ -6,7 +6,7 @@ import { collectMachineStatus } from "./lib/status.js";
 import { requestSurface, toolResult } from "./lib/surface-client.js";
 import { createActivityLifecycle } from "./lib/activity-lifecycle.js";
 import { buildEmbodimentHookResult, rawGuiLaunchBlock, rawPrivilegedBlock } from "./lib/embodiment.js";
-import { machineContext, parseNodeMachineRequest, requestMachine, requestRoutedMachine } from "./lib/machine-client.js";
+import { bindMachineToolContext, machineContext, parseNodeMachineRequest, requestMachine, requestRoutedMachine } from "./lib/machine-client.js";
 
 const PANEL_PATH = "/plugins/clawos-system/panel";
 const PANEL_TOKEN = randomBytes(32).toString("base64url");
@@ -70,7 +70,7 @@ export default definePluginEntry({
       agentId: context?.agentId,
     }), { timeoutMs: 500 });
 
-    api.registerTool({
+    api.registerTool((toolContext) => bindMachineToolContext({
       name: "clawos_system",
       label: "ClawOS System Action",
       description: "Operate the ClawOS machine itself: inspect live machine state, retrieve durable action receipts, or perform typed system changes such as service management, timezone/clock preferences, packages, and OpenClaw updates. Full Root actions execute immediately; approval modes present the exact change in the native OS surface.",
@@ -252,7 +252,7 @@ export default definePluginEntry({
         }).catch(() => {});
         return toolResult({ ...prepared, executionState: "awaiting-local-approval" });
       },
-    });
+    }, toolContext), { name: "clawos_system" });
 
     api.registerTool({
       name: "clawos_surface",

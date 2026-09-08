@@ -183,6 +183,11 @@ async function applyMachineAccessPolicy(access) {
     "user-limited": "user-limited",
   };
   const level = levels[access] || "full-root";
+  // security.level.configure is a high-impact action and always passes the
+  // Polkit gate, even when it would change nothing. Read the broker's current
+  // level first so the default choice does not raise an authentication prompt.
+  const status = JSON.parse((await command("/usr/lib/clawos/clawosctl", ["status"], { timeout: 30_000 })).stdout);
+  if (status?.securityLevel === level) return { skipped: true, level };
   const prepared = await command("/usr/lib/clawos/clawosctl", [
     "prepare", "security.level.configure", JSON.stringify({ level }),
     "{}",
@@ -190,6 +195,7 @@ async function applyMachineAccessPolicy(access) {
   const request = JSON.parse(prepared.stdout);
   if (!request?.token) throw new Error("The machine security policy could not be prepared.");
   await command("/usr/lib/clawos/clawosctl", ["commit", request.token], { timeout: 660_000 });
+  return { skipped: false, level };
 }
 
 async function enableClawOSTools(secretEnv) {

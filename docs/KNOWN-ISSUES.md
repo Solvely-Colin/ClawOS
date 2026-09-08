@@ -14,6 +14,8 @@
 - **Fresh installs:** repeat the full build/install/onboarding/agent-update loop
   on a clean disk. Existing VM state can hide provisioning defects. Offline
   installation and physical T2 hardware need further proof.
+  The hardware-capable installer is blank-disk-only and still needs fresh SATA,
+  NVMe and physical-machine acceptance. Existing partitions are intentionally refused.
 - **Compatibility:** the version-checked OpenClaw delivery adapter needs review
   when upgrading that dependency.
 - **Design/docs:** plans and prototype guidance include superseded layouts.
