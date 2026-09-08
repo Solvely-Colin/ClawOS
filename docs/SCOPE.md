@@ -23,7 +23,7 @@ network to the pinned Arch archive snapshot (`m1/config/versions.env`) and npm.
 | Supported in VM | Source gate: Python and Node unit tests, `./m1/bin/preflight-iso` | `ci.yml` jobs `unit-tests` and `arch-preflight` on every push |
 | Experimental | GTK installer (`clawos-live-welcome`); onboarding past its first screen; provider enrollment and model inference; the Control UI | synthetic GTK preview only; listed as not exercised on 2026-09-07 |
 | Experimental | Runtime deployment and rollback, broker approvals, remote-node roles, Windows VM lifecycle scripts | development VM and isolated tests only ([FEATURES.md](../FEATURES.md)) |
-| Experimental | CI-built ISO (`release.yml`); physical x86_64 UEFI hardware | workflow has never completed; no physical machine installed ([KNOWN-ISSUES.md](KNOWN-ISSUES.md)) |
+| Experimental | CI-built ISO (`release.yml`); physical x86_64 UEFI hardware | the workflow completed once (run 34270708295 on `main`; validated, not booted; see [EVIDENCE.md](EVIDENCE.md)); no physical machine installed ([KNOWN-ISSUES.md](KNOWN-ISSUES.md)) |
 | Not implemented or by design | Secure Boot, legacy BIOS, ARM/Apple Silicon, RAID/multipath, existing-disk or dual-boot install, offline install | outside the first hardware path ([HARDWARE.md](HARDWARE.md)) |
 | Not implemented or by design | Signed or supported releases; containment of an untrusted agent; multi-user hardening | Full Root is a trusted-agent mode ([SECURITY.md](../SECURITY.md)) |
 
