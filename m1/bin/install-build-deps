@@ -3,13 +3,24 @@ set -euo pipefail
 
 echo "Installing clean ArchISO host tooling. These packages are build tools;"
 echo "they are not copied into the ClawOS image unless listed in packages.x86_64."
+# preflight-iso: git (git diff --check), nodejs (node --check/--test), python
+# (python3 for unittest and AST checks), jq (config assertions and fixtures),
+# inetutils (/usr/bin/hostname used by clawos-enroll-local-node). curl and
+# flock ship with base/util-linux.
+# build-iso: archiso, mkinitcpio (lsinitcpio for validate-iso.sh), npm.
+# Disposable QEMU gates: qemu-desktop, edk2-ovmf, socat (serial/monitor).
 sudo pacman --disable-download-timeout --needed --noconfirm -S \
   base-devel \
   git \
   inetutils \
+  nodejs \
+  npm \
+  python \
+  jq \
   archiso \
   mkinitcpio \
   qemu-desktop \
   edk2-ovmf \
+  socat \
   shellcheck \
   rsync

@@ -23,3 +23,41 @@ jobs:
       - run: python3 -m unittest discover -s m3/tests -p 'test_*.py'
       - run: node --test m2/openclaw-plugin/test/*.test.js
       - run: git diff --check
+  arch-preflight:
+    # The full source gate that README.md tells Arch contributors to run and
+    # that tools/ci/build-release.sh runs before every ISO build: same image,
+    # same pinned package snapshot, same script. Nothing here needs root-only
+    # kernel features, KVM or network beyond the Arch archive.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      image: archlinux:base-devel
+    steps:
+      # base-devel ships no git. Without it actions/checkout silently falls
+      # back to a tarball download and "git diff --check" in preflight-iso
+      # has no repository to inspect, so install git before the checkout.
+      - name: Install git so the checkout is a real repository
+        run: pacman -Syu --noconfirm --needed --disable-download-timeout git
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Install preflight tooling from the pinned Arch snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          source m1/config/versions.env
+          [[ "$ARCH_SNAPSHOT" =~ ^[0-9]{4}/[0-9]{2}/[0-9]{2}$ ]] || { echo 'ARCH_SNAPSHOT must be YYYY/MM/DD'; exit 1; }
+          printf 'Server = https://archive.archlinux.org/repos/%s/$repo/os/$arch\n' "$ARCH_SNAPSHOT" >/etc/pacman.d/mirrorlist
+          pacman -Syyuu --noconfirm --needed --disable-download-timeout \
+            git inetutils nodejs python jq
+      - name: Verify the toolchain the README promises
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --version; python3 --version; jq --version; git --version
+          node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)'
+          python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 12) else 1)'
+      - name: Trust the checkout owned by the runner account
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Run the pre-ISO source gate
+        run: ./m1/bin/preflight-iso
