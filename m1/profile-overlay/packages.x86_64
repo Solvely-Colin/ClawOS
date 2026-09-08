@@ -1,3 +1,5 @@
+# ClawOS package selection in the archiso v89 configs/releng/packages.x86_64 format (archiso,
+# GPL-3.0-or-later); scaffolded from that file 2026-08-26. mkarchiso ignores comment lines.
 arch-install-scripts
 base
 btrfs-progs

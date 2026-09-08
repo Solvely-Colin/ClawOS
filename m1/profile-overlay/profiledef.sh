@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Derived from archiso v89 configs/releng/profiledef.sh (Arch Linux archiso, GPL-3.0-or-later);
+# modified by ClawOS from 2026-08-26. This file stays GPL-3.0-or-later, not MIT.
+# SPDX-License-Identifier: GPL-3.0-or-later
 # shellcheck disable=SC2034
 
 iso_name="clawos"
