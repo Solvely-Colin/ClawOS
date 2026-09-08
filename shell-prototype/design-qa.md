@@ -1,14 +1,16 @@
+> **Historical record.** Describes design or state at that time, not current release acceptance. `artifacts/...` paths cited below were local, git-ignored build outputs and are not in this repository.
+
 # ClawOS Option 3 Design QA
 
 Date: 2026-08-28
 
 ## Evidence
 
-- Source visual truth: `/home/colin/.codex/generated_images/01a03b3b-2a19-7143-b768-5d8f6836dd41/exec-5a0b75c7-aeb3-44a2-8af4-caad6a295042.png`
-- Normalized source: `/home/colin/Work/ClawOS/shell-prototype/artifacts/option-3-reference-1440x900.png`
-- Browser-rendered implementation: `/home/colin/Work/ClawOS/shell-prototype/artifacts/option-3-implementation-focused-final.png`
-- Final same-coordinate comparison: `/home/colin/Work/ClawOS/shell-prototype/artifacts/option-3-focused-comparison-final.png`
-- Earlier full-view comparison: `/home/colin/Work/ClawOS/shell-prototype/artifacts/option-3-comparison.png`
+- Source visual truth: an external generated mock (not tracked); see the normalized copy below.
+- Normalized source: `shell-prototype/artifacts/option-3-reference-1440x900.png`
+- Browser-rendered implementation: `shell-prototype/artifacts/option-3-implementation-focused-final.png`
+- Final same-coordinate comparison: `shell-prototype/artifacts/option-3-focused-comparison-final.png`
+- Earlier full-view comparison: `shell-prototype/artifacts/option-3-comparison.png`
 - Source pixels: 1586 × 992, normalized to the intended 1440 × 900 CSS viewport.
 - Implementation CSS viewport: 1440 × 900 at device pixel ratio 1.
 - The in-app Browser screencast exposed the left 946 × 900 physical crop while preserving a measured 1440 × 900 page and CSS viewport. The final focused comparison therefore crops the normalized source to the identical 946 × 900 coordinates. This is a capture-surface constraint, not application overflow.

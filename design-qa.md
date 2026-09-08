@@ -1,3 +1,5 @@
+> **Historical record.** Describes design or state at that time, not current release acceptance. `artifacts/...` paths cited below were local, git-ignored build outputs and are not in this repository.
+
 # ClawOS boot identity design QA
 
 - Source visual truth: `artifacts/screenshots/clawos-launch-reference.png`
@@ -320,7 +322,7 @@ native-shell result: passed
 
 # M2 live Agent Canvas design QA
 
-- Source visual truth: `/home/colin/.codex/generated_images/01a03b3b-2a19-7143-b768-5d8f6836dd41/exec-d73c412f-b143-4630-9dfa-9b10324ca83a.png`
+- Source visual truth: an external generated mock (not tracked); see the normalized copy below.
 - Normalized source: `artifacts/m2/design/agent-canvas-source-normalized.png`
 - Rendered implementation: `artifacts/m2/design/implemented-agent-canvas-final-inter.png`
 - Full-view comparison: `artifacts/m2/design/agent-canvas-comparison-final-inter.png`

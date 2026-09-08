@@ -1,4 +1,4 @@
-# ClawOS private VPS demo path
+# ClawOS VPS demo path (not for public exposure)
 
 The demo must expose the real ClawOS graphical session. It must not create a
 second HTML desktop or publish an unauthenticated VNC listener.
@@ -13,6 +13,11 @@ the demo.
 Keep SSH and the provider console as independent recovery paths. Restrict SSH
 at the provider firewall to the operator's address or a private Tailnet. Do not
 publish the OpenClaw Gateway port or a VNC port to the public Internet.
+
+Password, keyboard-interactive and root SSH logins are refused on every install
+(`/etc/ssh/sshd_config.d/00-clawos.conf`). Put the operator's public key in
+`/home/clawos/.ssh/authorized_keys` from the provider console or the recovery
+TTY before relying on SSH.
 
 ## Nested or self-hosted QEMU proof
 

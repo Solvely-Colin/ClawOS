@@ -1,3 +1,5 @@
+> **Historical record.** Describes design or state at that time, not current release acceptance. `artifacts/...` paths cited below were local, git-ignored build outputs and are not in this repository.
+
 # ClawOS: An OpenClaw-Native “Jellyware” Operating System
 
 ## Summary
@@ -102,7 +104,7 @@ During development, the installer also has an explicitly experimental
 **coexist mode** for the reference machine. It never edits the partition table
 or formats a filesystem. It snapshots the current `@` root, creates separate
 `@clawos` and `@clawos-home` Btrfs subvolumes, shares only
-`/home/colin/Work`, installs separately named kernel/initramfs files on the
+`~/Work`, installs separately named kernel/initramfs files on the
 existing EFI partition, and adds a Limine entry. This mode proves real installed
 boot behavior without becoming a supported production layout.
 

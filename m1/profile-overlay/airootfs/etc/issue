@@ -1,3 +1,4 @@
-ClawOS Milestone 1 \r (\l)
+ClawOS Live (experimental) \r (\l)
 
-Clean Arch recovery environment. OpenClaw shell is not included in this base proof.
+Experimental Arch-based live image with the guided ClawOS installer and the
+pinned OpenClaw runtime. Verified only in virtual machines. Recovery TTY: Ctrl+Alt+F3.

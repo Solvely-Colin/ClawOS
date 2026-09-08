@@ -11,6 +11,8 @@ experimental and has not yet been used to install a physical machine.
   kernel disk-generation changes, exact confirmation and raw filesystem signatures.
 - Full Arch preflight: 35 M1 tests, 21 broker tests, 26 plugin tests and existing
   profile/onboarding/role integration checks passed.
+- Current suite sizes at the publication baseline: 44 M1, 22 broker and 26 plugin
+  unit tests; the target-policy file now holds 16 tests.
 - Bash syntax and ShellCheck passed for the installer, excluding only SC1091
   for its installed `/etc/clawos/versions.env` include.
 - The new discovery helper was run on the installed development workstation and

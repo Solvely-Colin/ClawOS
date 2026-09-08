@@ -426,7 +426,7 @@ class Welcome(Gtk.ApplicationWindow):
         install_plan = self._classes(Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10), "install-plan")
         install_plan.pack_start(self._icon("object-select-symbolic", style="success"), False, False, 0)
         self.install_plan_label = self._label(
-            "LUKS2 encryption  ·  Full Root default  ·  Recovery ready", "body")
+            "LUKS2 encryption  ·  Full Root (passwordless sudo)  ·  Recovery TTY on Ctrl+Alt+F3", "body")
         install_plan.pack_start(self.install_plan_label, False, False, 0)
         right.pack_start(install_plan, False, False, 6)
         self.password = Gtk.Entry()
@@ -503,12 +503,12 @@ class Welcome(Gtk.ApplicationWindow):
             self.passphrase_help.set_text(
                 "The disk is not encrypted, the screen never locks, and the root and clawos accounts "
                 "have empty passwords. SSH refuses password login in every mode; use keys for remote access.")
-            self.install_plan_label.set_text("No encryption  ·  Full Root default  ·  Recovery ready")
+            self.install_plan_label.set_text("No encryption  ·  Full Root (passwordless sudo)  ·  Recovery TTY on Ctrl+Alt+F3")
         else:
             self.passphrase_title.set_text("Disk unlock and session-lock passphrase")
             self.passphrase_help.set_text(
                 "One passphrase unlocks the encrypted disk and is also the root and clawos account password; approval prompts on this machine ask for it. There is no second login.")
-            self.install_plan_label.set_text("LUKS2 encryption  ·  Full Root default  ·  Recovery ready")
+            self.install_plan_label.set_text("LUKS2 encryption  ·  Full Root (passwordless sudo)  ·  Recovery TTY on Ctrl+Alt+F3")
         self._validate_passphrase()
 
     def _passphrase_problem(self):

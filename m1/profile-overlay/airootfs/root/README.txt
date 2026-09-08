@@ -1,5 +1,6 @@
-ClawOS Milestone 1
+ClawOS Live (experimental)
 
-This image proves a clean Arch base, UEFI boot, networking, recovery, and image
-provenance. It intentionally contains no inherited third-party distribution
-components and no OpenClaw runtime yet.
+This image contains a clean Arch base, the ClawOS live session and installer,
+and the pinned OpenClaw runtime from m1/config/versions.env. It has been
+verified only in QEMU; no physical machine has been installed with it.
+Source: https://github.com/Solvely-Colin/ClawOS

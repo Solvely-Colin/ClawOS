@@ -2,9 +2,9 @@
 # shellcheck disable=SC2034
 
 iso_name="clawos"
-iso_label="CLAWOS_M2"
-iso_publisher="ClawOS"
-iso_application="ClawOS graphical live and installer"
+iso_label="CLAWOS_LIVE"
+iso_publisher="ClawOS <https://github.com/Solvely-Colin/ClawOS>"
+iso_application="ClawOS experimental live image and installer"
 iso_version="$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%Y.%m.%d)"
 install_dir="arch"
 buildmodes=('iso')

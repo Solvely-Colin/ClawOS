@@ -3,16 +3,25 @@
 # ClawOS
 
 An experimental Arch-based OS with OpenClaw as its primary agent interface.
-This is a **private development repository**, not a production-ready distribution.
+This is **experimental, unreleased source**, not a production-ready
+distribution. There are no releases or tags yet, and every install so far has
+been inside a virtual machine.
 
 [Features](FEATURES.md) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md) ·
 [Hardware support](docs/HARDWARE.md) · [Release builds](docs/RELEASING.md)
 
-**Installer boundary:** experimental installation is available for eligible blank
-SATA, NVMe, virtio and eMMC disks on x86_64 UEFI systems. Boot media, mounted/in-use
-disks and nonblank disks are refused. Physical-hardware acceptance is not yet proven.
-A passwordless setup option (no encryption, no screen lock, empty account passwords)
-exists for those who explicitly accept that risk; see [hardware support](docs/HARDWARE.md).
+**Installer boundary:** the experimental installer accepts eligible blank SATA,
+NVMe, virtio and eMMC disks on x86_64 UEFI systems and refuses boot media,
+mounted/in-use disks and nonblank disks. It has only ever run in virtual
+machines: a full `--passwordless` install plus reboot and an encrypted install
+were verified on Windows QEMU (WHPX) on 2026-09-06/07
+([validation record](docs/HARDWARE-INSTALLER-VALIDATION.md)). No physical
+machine has been installed. Installed systems enable `sshd` (key-only: password
+and root login are refused) and `tailscaled`. In encrypted mode the disk
+passphrase is also the `root` and `clawos` account password; the passwordless
+option leaves both accounts with empty passwords, no encryption and no screen
+lock. "Full Root" means the `clawos` account has passwordless sudo. See
+[hardware support](docs/HARDWARE.md).
 
 The aim is an agent that can inspect and change its own machine, deploy ClawOS
 runtime changes live, and return verified results to the originating conversation.
@@ -58,11 +67,13 @@ deployment. ISO builds run inside Linux. Windows manages QEMU through the
 
 ## Evidence and limits
 
-The development VM has demonstrated runtime deployment, file-level rollback,
-native provider/model setup, high-impact broker approvals, and idempotent
-completion notices. Unit checks are not proof of fresh installation, arbitrary
-OS rollback, hardware compatibility or safe root-agent behavior. Full Root
-intentionally grants broad authority.
+All evidence so far comes from virtual machines. The development VM has
+demonstrated runtime deployment, file-level rollback, native provider/model
+setup, high-impact broker approvals, and idempotent completion notices; fresh
+QEMU/WHPX guests have completed encrypted and passwordless installs and booted
+without the ISO. Unit checks are not proof of fresh installation, arbitrary OS
+rollback, hardware compatibility or safe root-agent behavior. Full Root
+intentionally grants the `clawos` account unrestricted passwordless sudo.
 
 Source gates reject known Omarchy dependencies. Historical references and
 negative tests remain intentionally; removing those words would weaken checks.

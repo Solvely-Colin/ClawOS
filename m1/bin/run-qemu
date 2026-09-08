@@ -86,7 +86,7 @@ if $installed; then
 else
   iso="$(find "$repo_root/artifacts/m1/out" -maxdepth 1 -type f -name '*.iso' -print -quit)"
   if [[ -z "$iso" ]]; then
-    echo "No Milestone 1 ISO found. Run sudo ./m1/bin/build-iso first." >&2
+    echo "No ClawOS ISO found. Run sudo ./m1/bin/build-iso first." >&2
     exit 1
   fi
   boot_args=(-cdrom "$iso" -boot d)

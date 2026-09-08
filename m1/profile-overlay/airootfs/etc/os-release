@@ -1,5 +1,7 @@
 NAME="ClawOS"
-PRETTY_NAME="ClawOS Milestone 1"
+PRETTY_NAME="ClawOS Live (experimental)"
+VARIANT="Live"
+VARIANT_ID=live
 ID=clawos
 ID_LIKE=arch
 BUILD_ID=development

@@ -209,7 +209,9 @@ genfstab -U "$mount_root" >"$mount_root/etc/fstab"
 printf 'clawos-installed\n' >"$mount_root/etc/hostname"
 cat >"$mount_root/etc/os-release" <<'EOF'
 NAME="ClawOS"
-PRETTY_NAME="ClawOS Milestone 1 Installed Proof"
+PRETTY_NAME="ClawOS (experimental)"
+VARIANT="Installed"
+VARIANT_ID=installed
 ID=clawos
 ID_LIKE=arch
 BUILD_ID=development
@@ -218,7 +220,6 @@ HOME_URL="https://github.com/Solvely-Colin/ClawOS"
 DOCUMENTATION_URL="https://github.com/Solvely-Colin/ClawOS#readme"
 BUG_REPORT_URL="https://github.com/Solvely-Colin/ClawOS/issues"
 IMAGE_ID=clawos
-IMAGE_VERSION=2026.08.26
 EOF
 
 sed -i 's|^root:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*$|root:x:0:0:root:/root:/usr/bin/zsh|' \
@@ -396,7 +397,7 @@ console-mode keep
 editor no
 EOF
 cat >"$mount_root/boot/loader/entries/clawos.conf" <<EOF
-title ClawOS
+title ClawOS (experimental)
 linux /vmlinuz-linux
 initrd /initramfs-linux.img
 options $root_options rootflags=subvol=@ rw quiet splash loglevel=3 rd.systemd.show_status=auto vt.global_cursor_default=0 plymouth.ignore-serial-consoles console=tty0 console=ttyS0,115200n8
