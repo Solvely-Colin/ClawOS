@@ -26,6 +26,39 @@ export function machineContext(context = {}) {
   });
 }
 
+// OpenClaw 2026.8.2 execute receives AbortSignal, NOT agent context. Bind the
+// factory identity and per-call hook run ID outside model-controlled params.
+// WeakMap retains no completed-call registry and survives hook param rewrites
+// through the SDK's tool-owned preparation/finalization contract.
+export function bindMachineToolContext(tool, factoryContext = {}) {
+  const contexts = new WeakMap();
+  return {
+    ...tool,
+    prepareBeforeToolCallParams(params, { hookContext = {} } = {}) {
+      for (const key of ["agentId", "sessionKey"]) {
+        if (factoryContext[key] && hookContext[key] && factoryContext[key] !== hookContext[key]) {
+          throw new Error("Machine tool runtime identity changed.");
+        }
+      }
+      const prepared = { ...params };
+      contexts.set(prepared, {
+        agentId: factoryContext.agentId || hookContext.agentId,
+        sessionKey: factoryContext.sessionKey || hookContext.sessionKey,
+        runId: hookContext.runId,
+      });
+      return prepared;
+    },
+    finalizeBeforeToolCallParams(params, prepared) {
+      const final = { ...params };
+      contexts.set(final, contexts.get(prepared) || factoryContext);
+      return final;
+    },
+    execute(callId, params) {
+      return tool.execute(callId, params, contexts.get(params) || factoryContext);
+    },
+  };
+}
+
 function nodePayload(result) {
   if (result && typeof result.payload === "object" && result.payload !== null) return result.payload;
   if (typeof result?.payloadJSON === "string") return JSON.parse(result.payloadJSON);

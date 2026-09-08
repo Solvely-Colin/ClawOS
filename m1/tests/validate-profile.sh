@@ -87,6 +87,9 @@ fi
 
 installer="$profile/airootfs/usr/local/bin/clawos-install-dev"
 if [[ -f "$installer" ]]; then
+  test -s "$profile/airootfs/usr/share/licenses/clawos-radix-icons/LICENSE"
+  grep -Fq 'install -D -m 0644 /usr/share/licenses/clawos-radix-icons/LICENSE' "$installer"
+  grep -Fq '"$mount_root/usr/share/licenses/clawos-radix-icons/LICENSE"' "$installer"
   # Pin the guard placement, not just its existence: the pre-erase validate
   # must sit directly above sfdisk and an identity recheck above the first format.
   grep -Fq 'recheck validate --confirm "$confirmation" >/dev/null' "$installer"

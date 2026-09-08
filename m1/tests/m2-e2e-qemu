@@ -232,6 +232,7 @@ installed_commands+=$'for attempt in {1..90}; do installed_sock=$(find "/run/use
 installed_commands+=$'test -x /usr/lib/clawos/clawos-agent-shelf && echo "${PASS}SHELF_IMAGE_BUILT_OK"\n'
 installed_commands+="test -f /etc/clawos/waybar/config.jsonc && grep -Eq '\"height\"[[:space:]]*:[[:space:]]*52' /etc/clawos/waybar/config.jsonc && echo \"\${PASS}TOP_BAR_IMAGE_BUILT_OK\""$'\n'
 installed_commands+=$'test -f /usr/share/clawos/onboarding/index.html && echo "${PASS}ONBOARDING_IMAGE_BUILT_OK"\n'
+installed_commands+=$'test -s /usr/share/licenses/clawos-radix-icons/LICENSE && echo "${PASS}ICON_LICENSE_INSTALLED_OK"\n'
 installed_commands+=$'test -e /dev/tty3 && echo "${PASS}INSTALLED_RECOVERY_OK"\n'
 installed_commands+=$'systemctl is-active --quiet clawosd.service && echo "${PASS}CLAWOSD_SERVICE_OK"\n'
 installed_commands+=$'test -x /usr/lib/clawos/clawosctl && test -x /usr/lib/clawos/clawos-approval && echo "${PASS}CLAWOSD_CLIENT_UI_OK"\n'
@@ -254,6 +255,7 @@ for marker in \
   SHELF_IMAGE_BUILT_OK \
   TOP_BAR_IMAGE_BUILT_OK \
   ONBOARDING_IMAGE_BUILT_OK \
+  ICON_LICENSE_INSTALLED_OK \
   INSTALLED_RECOVERY_OK \
   CLAWOSD_SERVICE_OK \
   CLAWOSD_CLIENT_UI_OK \
