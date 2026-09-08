@@ -227,8 +227,8 @@ arch-chroot "$mount_root" useradd --system --create-home --home-dir /var/lib/cla
   --comment 'ClawOS agent runtime' --groups clawos-control --shell /usr/bin/zsh claw
 if $passwordless; then
   # Explicitly requested: empty account passwords so local login and Polkit
-  # prompts succeed without a secret. sshd keeps PermitEmptyPasswords=no, so
-  # this does not open password SSH; keys remain the remote route.
+  # prompts succeed without a secret. The sshd drop-in installed below refuses
+  # password login in every mode; keys remain the only remote route.
   passwd --root "$mount_root" --delete root >/dev/null
   passwd --root "$mount_root" --delete clawos >/dev/null
   # Same per-machine opt-in file clawos-lock already honours.
@@ -265,6 +265,11 @@ cp -a /etc/plymouth/. "$mount_root/etc/plymouth/"
 install -d -m 0750 "$mount_root/etc/sudoers.d"
 install -m 0440 /etc/clawos/full-root.sudoers \
   "$mount_root/etc/sudoers.d/90-clawos-full-root"
+# Mode-independent on purpose: the account password is either the LUKS
+# passphrase or empty, and neither may be accepted over the network.
+install -d -m 0755 "$mount_root/etc/ssh/sshd_config.d"
+install -m 0644 /etc/ssh/sshd_config.d/10-clawos.conf \
+  "$mount_root/etc/ssh/sshd_config.d/10-clawos.conf"
 cp -a /usr/lib/clawos/. "$mount_root/usr/lib/clawos/"
 install -m 0644 /usr/lib/tmpfiles.d/clawos-control.conf \
   "$mount_root/usr/lib/tmpfiles.d/clawos-control.conf"

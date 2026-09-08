@@ -98,6 +98,14 @@ if [[ -f "$installer" ]]; then
   ! grep -Fq 'arch-chroot "$mount_root" bootctl' "$installer"
   grep -Fq -- '--passwordless) passwordless=true' "$installer"
   grep -Fq 'clawos-passwordless-entry' "$installer"
+  # Remote password login must be off in both install modes: the account
+  # password is the LUKS passphrase or empty.
+  sshd_dropin="$profile/airootfs/etc/ssh/sshd_config.d/10-clawos.conf"
+  grep -Fqx 'PasswordAuthentication no' "$sshd_dropin"
+  grep -Fqx 'KbdInteractiveAuthentication no' "$sshd_dropin"
+  grep -Fqx 'PermitRootLogin no' "$sshd_dropin"
+  grep -Fq 'install -m 0644 /etc/ssh/sshd_config.d/10-clawos.conf' "$installer"
+  grep -B12 -F 'install -m 0644 /etc/ssh/sshd_config.d/10-clawos.conf' "$installer" | grep -Fq 'install -m 0440 /etc/clawos/full-root.sudoers'
   grep -Fq "Disk identity changed {when}" "$profile/airootfs/usr/lib/clawos/clawos_install_targets.py"
   grep -Fq "when='since selection; inspect and select again'" "$profile/airootfs/usr/lib/clawos/clawos_install_targets.py"
   grep -Fq "'pttype'" "$profile/airootfs/usr/lib/clawos/clawos_install_targets.py"

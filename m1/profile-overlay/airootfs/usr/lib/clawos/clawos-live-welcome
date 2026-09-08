@@ -420,7 +420,7 @@ class Welcome(Gtk.ApplicationWindow):
         self.passphrase_title = self._label("Disk unlock and session-lock passphrase", "body-strong")
         right.pack_start(self.passphrase_title, False, False, 0)
         self.passphrase_help = self._label(
-            "One passphrase unlocks the encrypted disk and session. There is no second login.",
+            "One passphrase unlocks the encrypted disk and is also the root and clawos account password; approval prompts on this machine ask for it. There is no second login.",
             "body", 58)
         right.pack_start(self.passphrase_help, False, False, 0)
         install_plan = self._classes(Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10), "install-plan")
@@ -502,12 +502,12 @@ class Welcome(Gtk.ApplicationWindow):
             self.passphrase_title.set_text("No passphrase")
             self.passphrase_help.set_text(
                 "The disk is not encrypted, the screen never locks, and the root and clawos accounts "
-                "have empty passwords. Password SSH stays closed; use keys for remote access.")
+                "have empty passwords. SSH refuses password login in every mode; use keys for remote access.")
             self.install_plan_label.set_text("No encryption  ·  Full Root default  ·  Recovery ready")
         else:
             self.passphrase_title.set_text("Disk unlock and session-lock passphrase")
             self.passphrase_help.set_text(
-                "One passphrase unlocks the encrypted disk and session. There is no second login.")
+                "One passphrase unlocks the encrypted disk and is also the root and clawos account password; approval prompts on this machine ask for it. There is no second login.")
             self.install_plan_label.set_text("LUKS2 encryption  ·  Full Root default  ·  Recovery ready")
         self._validate_passphrase()
 

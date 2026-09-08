@@ -85,6 +85,8 @@ grep -Fq '127.0.0.1' "$onboard_server"
 grep -Fq -- '--non-interactive' "$onboard_server"
 grep -Fq -- '--accept-risk' "$onboard_server"
 grep -Fq 'full-approvals' "$onboard_server"
+# Choosing the level the broker already has must not raise a Polkit prompt.
+grep -Fq 'if (status?.securityLevel === level) return { skipped: true, level };' "$onboard_server"
 grep -Fq 'randomBytes(32)' "$onboard_server"
 grep -Fq 'readOpenClawEnv("OPENCLAW_GATEWAY_TOKEN")' "$onboard_server"
 grep -Fq 'if (!savedGatewayToken) await saveOpenClawEnv' "$onboard_server"
