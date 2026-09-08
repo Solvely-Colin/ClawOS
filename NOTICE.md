@@ -52,6 +52,8 @@ The license text ships at
 `m1/profile-overlay/airootfs/usr/share/licenses/clawos-radix-icons/LICENSE`
 and is installed at `/usr/share/licenses/clawos-radix-icons/LICENSE`. No
 separately drawn ClawOS logo exists; the "ClawOS" wordmark is rendered text.
+The installer explicitly copies this license alongside the custom icon tree;
+profile validation and the installed-system test check its presence.
 
 ## Artwork and images
 

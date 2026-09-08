@@ -13,6 +13,10 @@
   account has unrestricted passwordless sudo (`/etc/sudoers.d/90-clawos-full-root`).
   Full Root is a trusted-agent mode, not containment. The archiso base also
   autologs root on the live ISO's tty1.
+- **Broker upgrade:** mutations and approval-token access now require a trusted
+  OS account/runtime, and tokens bind to UID and boot. Re-prepare outstanding
+  approvals from the older unbound-token broker. Owner/root approval handoff is
+  retained; agent metadata is not isolation from another process in the same UID.
 - **Fresh installs:** repeat the full build/install/onboarding/agent-update loop
   on a clean disk. Existing VM state can hide provisioning defects. Offline
   installation and physical T2 hardware need further proof.

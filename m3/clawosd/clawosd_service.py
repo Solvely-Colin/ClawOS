@@ -73,9 +73,9 @@ class Service(dbus.service.Object):
     def GetAction(self, action_id):
         return self.encode(lambda: self.broker.get_action(str(action_id)))
 
-    @dbus.service.method(INTERFACE, out_signature="s")
-    def ListPending(self):
-        return self.encode(lambda: self.broker.list_pending(include_tokens=True))
+    @dbus.service.method(INTERFACE, out_signature="s", sender_keyword="sender")
+    def ListPending(self, sender=None):
+        return self.encode(lambda: self.broker.list_pending_for_peer(self.peer(sender)))
 
     @dbus.service.method(INTERFACE, in_signature="sss", out_signature="s", sender_keyword="sender")
     def PrepareAction(self, action, parameters_json, context_json, sender=None):
@@ -90,10 +90,10 @@ class Service(dbus.service.Object):
     @dbus.service.method(INTERFACE, in_signature="s", out_signature="s", sender_keyword="sender")
     def CommitAction(self, token, sender=None):
         def commit():
-            records = [record for record in self.broker.list_pending() if record.get("token") == str(token)]
-            if len(records) != 1:
-                raise BrokerError("Approval request is unavailable.")
-            return self.broker.commit(str(token), self.peer(sender), self.authorized(sender, records[0]))
+            peer = self.peer(sender)
+            # Reject an untrusted caller before even requesting a Polkit dialog.
+            record = self.broker.pending_for_peer(str(token), peer)
+            return self.broker.commit(str(token), peer, self.authorized(sender, record))
 
         return self.encode(commit)
 

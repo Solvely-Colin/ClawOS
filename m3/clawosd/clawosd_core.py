@@ -34,6 +34,18 @@ class BrokerError(RuntimeError):
     pass
 
 
+def account_uid(name):
+    # Resolve root-owned configuration through the OS account database, never
+    # through caller context or a caller-supplied numeric UID.
+    if not isinstance(name, str) or not USER_PATTERN.fullmatch(name):
+        raise BrokerError("Invalid configured broker account.")
+    try:
+        import pwd
+        return pwd.getpwnam(name).pw_uid
+    except (ImportError, KeyError) as error:
+        raise BrokerError("Configured broker account is unavailable.") from error
+
+
 class CommandRunner:
     def run(self, argv, timeout=900):
         result = subprocess.run(
@@ -203,16 +215,25 @@ class Broker:
             os.close(descriptor)
 
     def _requester(self, peer, context=None):
-        context = context if isinstance(context, dict) else {}
-        attribution = "unavailable"
-        if any(context.values()):
-            attribution = "self-reported"
-            try:
-                cgroup = (self.proc_root / str(int(peer.get("pid", -1))) / "cgroup").read_text(encoding="utf-8")
-                if "openclaw-gateway.service" in cgroup or "openclaw-node.service" in cgroup:
-                    attribution = "gateway-attested"
-            except (OSError, ValueError, TypeError):
-                pass
+        context = {} if context is None else context
+        if not isinstance(context, dict):
+            raise BrokerError("Agent context must be an object.")
+        for field, limit in (("agentId", 128), ("sessionKey", 256), ("runId", 128)):
+            value = context.get(field, "")
+            if not isinstance(value, str) or len(value) > limit:
+                raise BrokerError("Invalid agent context field.")
+        if context.get("agentId") and not AGENT_PATTERN.fullmatch(context["agentId"]):
+            raise BrokerError("Invalid agent identity.")
+        attribution = "self-reported" if any(context.values()) else "unavailable"
+        uid, pid = int(peer.get("uid", -1)), int(peer.get("pid", -1))
+        try:
+            cgroup = (self.proc_root / str(pid) / "cgroup").read_text(encoding="utf-8")
+            pattern = (rf"0::/user\.slice/user-{uid}\.slice/user@{uid}\.service/"
+                       r"(?:[^/\n]+\.slice/)*openclaw-(?:gateway|node)\.service(?:/[^\n]*)?")
+            if any(re.fullmatch(pattern, line) for line in cgroup.splitlines()):
+                attribution = "gateway-attested"
+        except (OSError, ValueError, TypeError):
+            pass
         return {
             "peerUid": int(peer.get("uid", -1)),
             "peerPid": int(peer.get("pid", -1)),
@@ -221,6 +242,19 @@ class Broker:
             "runId": str(context.get("runId", ""))[:128],
             "attribution": attribution,
         }
+
+    def _authorize_peer(self, peer):
+        requester = self._requester(peer)
+        uid = requester["peerUid"]
+        owner = account_uid(self.config.get("openclaw", {}).get("ownerUser"))
+        if uid in {0, owner}:
+            return requester, True
+        settings = self.config.get("openclaw", {})
+        if (self.config["securityLevel"] == "user-limited" and
+                uid == account_uid(settings.get("agentUser", "claw")) and
+                requester["attribution"] == "gateway-attested"):
+            return requester, False
+        raise BrokerError("Caller is not a trusted ClawOS account/runtime.")
 
     def _grant_is_current(self, path):
         try:
@@ -244,6 +278,9 @@ class Broker:
 
     def _enforce_agent_policy(self, requester, action):
         policy = self.config.get("agentPolicies")
+        if requester.get("attribution") == "gateway-attested" and (
+                not requester.get("agentId") or not isinstance(policy, dict)):
+            raise BrokerError("Gateway actions require an explicit agent identity and policy.")
         if not isinstance(policy, dict) or not requester.get("agentId"):
             return
         if policy.get("requireTrustedAttribution", True) and requester.get("attribution") != "gateway-attested":
@@ -573,6 +610,7 @@ class Broker:
         return {"snapshotId": snapshot_id}
 
     def prepare(self, action, parameters, peer, context=None):
+        self._authorize_peer(peer)
         normalized = self._normalize(action, parameters)
         requester = self._requester(peer, context)
         self._enforce_agent_policy(requester, action)
@@ -648,6 +686,7 @@ class Broker:
             "effects": effects,
             "recovery": recovery_text,
             "createdAt": now,
+            "bootId": self._boot_id(),
             "expiresAt": expires,
             "state": "pending",
             "requiresApproval": self.requires_approval(action),
@@ -665,7 +704,8 @@ class Broker:
                 record = json.loads(path.read_text(encoding="utf-8"))
                 if record.get("state") != "pending":
                     continue
-                if record.get("expiresAt", 0) <= int(self.clock()):
+                if (record.get("expiresAt", 0) <= int(self.clock()) or
+                        record.get("bootId") != self._boot_id()):
                     record["state"] = "expired"
                     self._write_json(path, record)
                     self._audit("expired", {key: value for key, value in record.items() if key != "token"})
@@ -677,11 +717,47 @@ class Broker:
                 continue
         return records
 
-    def cancel(self, token, peer):
+    def _check_record_access(self, record, requester, administrator):
+        issuer = record.get("requester")
+        uid = issuer.get("peerUid") if isinstance(issuer, dict) else None
+        settings = self.config.get("openclaw", {})
+        issuers = {0, account_uid(settings.get("ownerUser"))}
+        if self.config["securityLevel"] == "user-limited":
+            issuers.add(account_uid(settings.get("agentUser", "claw")))
+        if type(uid) is not int or uid not in issuers:
+            raise BrokerError("Approval request has no trusted requester binding.")
+        if not administrator and uid != requester["peerUid"]:
+            raise BrokerError("Approval request belongs to another account.")
+
+    def pending_for_peer(self, token, peer, *, enforce_policy=True):
+        requester, administrator = self._authorize_peer(peer)
         path = self._pending_path(token)
         if not path.exists():
-            raise BrokerError("Approval request is unavailable.")
+            raise BrokerError("Approval token is unavailable or already used.")
         record = json.loads(path.read_text(encoding="utf-8"))
+        self._check_record_access(record, requester, administrator)
+        if (self._boot_id() == "unavailable" or record.get("bootId") != self._boot_id() or
+                record.get("state") != "pending" or record.get("expiresAt", 0) <= int(self.clock())):
+            raise BrokerError("Approval token expired, was already used, or belongs to another boot.")
+        # A grant can expire or policy can change while approval is pending.
+        if enforce_policy:
+            self._enforce_agent_policy(record["requester"], record["action"])
+        return record
+
+    def list_pending_for_peer(self, peer):
+        requester, administrator = self._authorize_peer(peer)
+        visible = []
+        for record in self.list_pending():
+            try:
+                self._check_record_access(record, requester, administrator)
+            except BrokerError:
+                continue
+            visible.append(record)
+        return visible
+
+    def cancel(self, token, peer):
+        record = self.pending_for_peer(token, peer, enforce_policy=False)
+        path = self._pending_path(token)
         record["state"] = "cancelled"
         record["cancelledBy"] = self._requester(peer)
         self._write_json(path, record)
@@ -689,10 +765,8 @@ class Broker:
         return {"actionId": record["actionId"], "state": "cancelled"}
 
     def commit(self, token, peer, authorized=False):
+        record = self.pending_for_peer(token, peer)
         path = self._pending_path(token)
-        if not path.exists():
-            raise BrokerError("Approval token is unavailable or already used.")
-        record = json.loads(path.read_text(encoding="utf-8"))
         public = {key: value for key, value in record.items() if key != "token"}
         if record.get("state") != "pending" or record.get("expiresAt", 0) <= int(self.clock()):
             self._audit("commit-rejected", {**public, "reason": "expired-or-used"})

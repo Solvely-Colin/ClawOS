@@ -286,6 +286,8 @@ cp -a /usr/share/applications/clawos-agent.desktop \
   /usr/share/applications/clawos-outlook.desktop \
   "$mount_root/usr/share/applications/"
 cp -a /usr/share/clawos/. "$mount_root/usr/share/clawos/"
+install -D -m 0644 /usr/share/licenses/clawos-radix-icons/LICENSE \
+  "$mount_root/usr/share/licenses/clawos-radix-icons/LICENSE"
 cp -a /usr/share/plymouth/themes/clawos/. \
   "$mount_root/usr/share/plymouth/themes/clawos/"
 install -m 0644 /etc/systemd/system/clawos-session@.service \
