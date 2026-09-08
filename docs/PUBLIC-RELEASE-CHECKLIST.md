@@ -2,7 +2,9 @@
 
 - [ ] Owner selects an open-source license; add LICENSE without replacing third-party licenses.
 - [ ] Complete copied code, icons, fonts and artwork attribution/provenance review (NOTICE.md).
-- [ ] Add SECURITY.md and enable a private vulnerability-reporting route.
+- [x] Add SECURITY.md with the maintainer-designated email reporting route.
+- [ ] Verify mailbox delivery before publication; optionally enable and verify
+      GitHub private vulnerability reporting when available.
 - [ ] Repeat a redacted secret scan of source and all history at the publication SHA.
 - [ ] Confirm no VM images, firmware variables, auth stores or personal paths/evidence are tracked.
 - [ ] README, FEATURES, ROADMAP, NOTICE, m1/README, /etc/issue, os-release and loader titles say

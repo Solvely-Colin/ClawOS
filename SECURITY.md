@@ -15,9 +15,10 @@ supported versions.
 
 Do not open a public issue for a security problem.
 
-- Once the repository is public: use GitHub private vulnerability reporting
-  (Security tab, "Report a vulnerability").
-- Until then: email `[OWNER EMAIL - fill in before publishing]`.
+- Email [colin@solvely.net](mailto:colin@solvely.net), the maintainer's designated
+  private reporting contact. Do not include live credentials in an initial report.
+- GitHub private vulnerability reporting is an additional route only after it
+  has been enabled and verified. Do not assume the button exists at publication.
 
 Include the commit SHA, install mode (encrypted or passwordless), security level
 (Full Root, Full Approvals, User Limited), and how to reproduce. Redact tokens and
@@ -38,10 +39,16 @@ vulnerability in ClawOS. The boundaries the code does try to hold are:
    user confirmed, and rechecks identity before the first format.
 2. In approval modes, a privileged change requires the exact typed action plus a
    local Polkit decision; in Full Root, the four high-impact actions still do.
-3. A non-core agent can only take the actions its policy or an active task grant
-   names, and only with gateway attribution.
-4. Secrets stay out of logs, arguments and environment: audit records drop
-   tokens; the LUKS key reaches `passwd` over stdin.
+3. Mutating broker requests and approval tokens are limited to root, the
+   configured owner account, and the configured restricted runtime in its
+   Gateway/Node user unit. Requests carrying agent metadata also pass policy or
+   an active task grant. This does not isolate malicious processes sharing a
+   trusted account/unit or cryptographically authenticate their agent metadata.
+4. Credentials must not be written to public logs or world-readable files.
+   The LUKS key reaches `passwd` over stdin. OpenClaw gateway credentials are
+   deliberately passed in owner-process environments; the owning UID and root
+   can inspect them. Audit receipts omit approval tokens, but CLI commit/cancel
+   arguments contain those tokens and are not secret from the same trusted UID.
 5. No password or root login over SSH, in either install mode.
 
 Not defended: a Full Root agent using root; physical or console access to a
@@ -55,11 +62,13 @@ Welcome:
 
 - Bypasses of the installer's disk-identity or eligibility checks (writing to a
   non-blank, mounted, boot-media, or different disk than confirmed).
-- Broker authorization bypasses: committing an approval-mode action without
-  Polkit, committing a high-impact action in Full Root without Polkit, or using an
-  expired, used, wrong-boot, or wrong-run token or grant.
-- Secrets (LUKS key, account password, provider credentials) landing in the
-  audit log, journal, process arguments, environment, or world-readable files.
+- Broker authorization bypasses: unrelated UIDs performing mutations, taking
+  another account's token, committing an approval-mode/high-impact action without
+  Polkit, or using expired, used, unbound or wrong-boot tokens. The owner/root
+  approval handoff is intentional. Grants must match their recorded agent/run.
+- Credentials exposed to unrelated accounts, public logs or world-readable
+  files. Owner-process credential environments and same-UID access are not a
+  promised isolation boundary; see the explicit contract above.
 - Anything that lets a process outside the gateway/node units become
   `gateway-attested`, or lets a non-core agent take core actions without a grant.
 
@@ -86,18 +95,18 @@ tested.
 - In Full Root only `recovery.rollback`, `power.schedule`, `role.switch` and
   `security.level.configure` go through Polkit; every other action executes on
   commit without a prompt.
-- Any local D-Bus client may call every broker method. Agent policy is applied
-  only when the caller supplies an `agentId`; an empty context skips it. So in
-  Full Root any local UID can prepare and commit a non-high-impact action as
-  root; `commit` records who committed but does not check them.
-- `gateway-attested` is a substring check for `openclaw-gateway.service` or
-  `openclaw-node.service` in `/proc/<pid>/cgroup`. `agentId`, `sessionKey` and
-  `runId` are copied from caller-supplied context. Any process in those units can
-  claim any agent id, including `main`, which is allowed `*`.
-- `ListPending` returns approval tokens to whoever calls it; `GetAction` and
-  status counts strip them. Tokens also travel as `clawosctl` arguments. A token
-  still meets Polkit in approval modes; in Full Root a non-high-impact token
-  commits immediately. Tokens are not secrets from local users.
+- Public read-only broker methods remain available. Mutations and token-bearing
+  pending lists check the authenticated D-Bus UID against OS-resolved configured
+  accounts. Direct owner/root administration may omit agent context; Gateway/Node
+  preparation may not. An unrelated UID cannot opt out by omitting `agentId`.
+- `gateway-attested` checks the exact Gateway/Node unit component below the
+  caller UID's user slice. The separate runtime account is accepted only in
+  User Limited. Metadata is bound by the plugin's SDK factory/per-call hooks;
+  it is still not cryptographic isolation from malicious code in the same unit.
+- Tokens bind to requester UID and boot. The owner/root UI can review and act
+  on restricted-runtime requests, with Polkit still required by mode/action.
+  Runtime callers cannot take owner tokens. Commit rechecks current agent policy
+  and grants; old unbound approvals must be prepared again after this upgrade.
 - Onboarding writes the chosen level through `security.level.configure` and the
   Polkit gate, skipping the call when the level is unchanged. The default choice
   is `full-root`, which matches the shipped config, so the default path does not
@@ -133,6 +142,10 @@ tested.
   in Full Root for the core agent, and an `exec` without an agent id counts as
   core.
 
+- Caller-boundary regression tests include a real private D-Bus daemon with
+  different OS UIDs and a fake machine runner. They do not constitute a complete
+  system compromise test or prove isolation between agents sharing a runtime.
+
 ### Constructed by reasoning, not observed
 
 - Which identity satisfies the `auth_admin` prompt for commits. The repository
@@ -149,9 +162,6 @@ tested.
   tested.
 - An enabled but unconfigured `tailscaled` should expose nothing until someone
   runs `tailscale up`; not verified against the installed image.
-- Because the only interactive account in Full Root already has passwordless
-  sudo, the practical delta of "any local UID can commit" is a compromised
-  system service account gaining allowlisted root actions. Not measured.
 
 ## How fixes are communicated
 
