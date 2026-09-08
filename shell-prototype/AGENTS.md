@@ -1,3 +1,5 @@
+> **Prototype-only instructions.** The visual prototype is not the OS runtime; the installed shell lives under `m1/profile-overlay`.
+
 # Prototype Instructions
 
 Run the local server yourself and open the preview in the browser available to this environment. Do not give the user server-start instructions when you can run it.

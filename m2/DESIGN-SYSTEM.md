@@ -34,7 +34,7 @@ The canonical native GTK definitions live in `/etc/clawos/design-system.css`.
 - UI: Inter Variable, Noto Sans fallback.
 - Technical labels and state: GeistMono Nerd Font, Noto Sans Mono fallback.
 - Boot-only surfaces may use Noto because they render before the full userspace font stack.
-- System bar: 52 px. Controls: 38–44 px. Radius: 7 px controls, 9–10 px cards, 12–14 px overlays.
+- System bar: 48 px (installed Waybar); the live installer top bar is 51 px. Controls: 38–44 px. Radius: 7 px controls, 9–10 px cards, 12–14 px overlays.
 - System menu: 264 px, aligned 14 px from the left and 6 px below the bar.
 - Agent shelf: up to 880 px wide, with a 24 px minimum side gutter on narrower outputs.
 - System Center: up to 1040 × 740 px, responsively inset and centered over a full-screen scrim.

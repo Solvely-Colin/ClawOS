@@ -1,3 +1,5 @@
+> **Historical record.** Describes design or state at that time, not current release acceptance. `artifacts/...` paths cited below were local, git-ignored build outputs and are not in this repository.
+
 # Review of PLAN.md
 
 ## Round 4 — 2026-08-25 (Sway / setup-app / clawosd revision)
@@ -154,7 +156,7 @@ Verified on the reference machine: Limine 12.6, ESP at `/boot` (vfat, UUID `C425
 - Omarchy manages `limine.conf` through its own hooks (`limine-mkinitcpio-hook`, snapshot integration). A hand-added `@clawos` entry may be rewritten on the next kernel update; use whatever include mechanism the hook preserves, and test a kernel upgrade on the host after adding the entry.
 - Installing `linux-t2` inside `@clawos` will try to write `/boot/vmlinuz-linux-t2` — the same path as the host's. "Separately named kernel/initramfs files" requires a pacman hook in the coexist root that renames on install, or the coexist root must not mount the ESP at all and copy files out-of-band.
 - Omarchy's snapshot/rollback tooling knows about `@`, not `@clawos`. Document that host rollbacks don't touch ClawOS and vice-versa.
-- `/home/colin/Work` must be a subvolume or bind mount to be shared; confirm it is (I couldn't without root).
+- `~/Work` (the shared work directory) must be a subvolume or bind mount to be shared; confirm it is (I couldn't without root).
 - Hibernation: the plan's idle policy says suspend; the host has `resume=` configured. State explicitly that ClawOS does not hibernate in MVP, or the shared swapfile becomes a cross-install hazard.
 
 ### 6. Fast lane vs. manifest-only updates

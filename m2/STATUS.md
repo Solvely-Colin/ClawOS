@@ -1,3 +1,5 @@
+> **Historical record.** Describes design or state at that time, not current release acceptance. `artifacts/...` paths cited below were local, git-ignored build outputs and are not in this repository.
+
 # Milestone 2 delivery status
 
 Last updated: 2026-09-02

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# The password-bullet loop below is adapted from Plymouth's example theme
+# themes/script/script.script (GPL-2.0-or-later); the remainder is by ClawOS.
 # ClawOS boot and encrypted-root unlock surface.
 
 Window.SetBackgroundTopColor(0.031, 0.035, 0.035);

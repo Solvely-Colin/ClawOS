@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
+# Derived from archiso v89 configs/releng/profiledef.sh (Arch Linux archiso, GPL-3.0-or-later);
+# modified by ClawOS from 2026-08-26. This file stays GPL-3.0-or-later, not MIT.
+# SPDX-License-Identifier: GPL-3.0-or-later
 # shellcheck disable=SC2034
 
 iso_name="clawos"
-iso_label="CLAWOS_M2"
-iso_publisher="ClawOS"
-iso_application="ClawOS graphical live and installer"
+iso_label="CLAWOS_LIVE"
+iso_publisher="ClawOS <https://github.com/Solvely-Colin/ClawOS>"
+iso_application="ClawOS experimental live image and installer"
 iso_version="$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%Y.%m.%d)"
 install_dir="arch"
 buildmodes=('iso')

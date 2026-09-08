@@ -1,12 +1,13 @@
-# Milestone 1: clean ArchISO
+# Milestone 1: ArchISO, installer and native shell
 
-This milestone produces a clean, generic x86_64 ClawOS development ISO from
-Arch's official `releng` profile plus a small reviewed overlay. It is the first
-environment allowed to count toward ClawOS release gates.
+This milestone produces the x86_64 ClawOS live ISO from Arch's official
+`releng` profile plus a reviewed overlay, and the experimental blank-disk
+installer behind the live Try/Install surface. It is the first environment
+allowed to count toward ClawOS release gates.
 
-The initial ISO proves provenance, UEFI boot, networking, recovery TTY, and the
-absence of Omarchy. T2 packages, OpenClaw offline packaging, the graphical shell,
-and installation are added only after this base boots in QEMU.
+The image bundles the pinned OpenClaw runtime, the graphical live session, the
+installer and the recovery TTY. Everything below has been verified only in
+QEMU (Linux KVM and Windows WHPX); no physical machine has been installed.
 
 ## Host preparation
 
@@ -94,12 +95,13 @@ does not require terminal commands. The independent `Ctrl+Alt+F3` recovery
 console remains visible throughout the flow.
 
 The live surface follows the selected Carapace-aligned Agent Canvas rather
-than a card launcher: a 52-pixel native machine bar, open installation hero,
+than a card launcher: a native machine bar, open installation hero,
 real ClawOS halftone raster, measured Inter/Geist typography, coral action,
 equal readiness/event panes, and a quiet recovery footer. Dynamic disk and
-network copy reports the actual VM state. The compositor and GTK client are
-both constrained to the 1440 x 900 proof geometry so controls cannot exist
-off-screen.
+network copy reports the actual VM state. In the QEMU proof the compositor and
+GTK client are both pinned to the 1440 x 900 virtual output (`Virtual-1` in
+`live-sway.conf`/`sway.conf`); other outputs use their native mode and are
+untested.
 
 The UI delegates erasure to `clawos-install-dev`, a deliberately narrow,
 network-backed experimental installer. Target discovery and every guard live in
@@ -117,8 +119,11 @@ root autologin on the installed disk.
 The installed proof uses a 1 GB EFI partition plus a LUKS2-encrypted Btrfs
 system partition with `@`, `@home`, `@var_log`, `@pkg`, and `@snapshots`
 subvolumes. It installs systemd-boot and can boot from qcow2 with the ISO
-removed. Package installation currently uses the pinned network snapshot; a
-complete offline package repository remains an M1 release requirement.
+removed. Packages are downloaded and signature-verified into the live
+environment before the first disk write, then installed from those local
+files; the OpenClaw runtime is copied from the ISO. Internet access is still
+required, and a complete offline package repository remains an M1 release
+requirement.
 
 The LUKS passphrase is also the proof's single startup credential boundary.
 Plymouth presents a ClawOS-branded encrypted-root unlock screen, keeps routine
@@ -126,6 +131,12 @@ boot output out of the primary visual path, and then hands the same visual
 identity to the graphical session. There is no second desktop password prompt.
 Boot details remain available with `Esc`, and the independent recovery TTY
 remains available on `Ctrl+Alt+F3` after the root filesystem is unlocked.
+That passphrase is also the `root` and `clawos` account password (Polkit
+prompts and session unlock use it); `clawos` never types it for sudo because
+Full Root is passwordless sudo. Password, keyboard-interactive and root logins
+over SSH are refused (`/etc/ssh/sshd_config.d/00-clawos.conf`); `sshd` and
+`tailscaled` are enabled on the installed system, so add an authorized key
+locally before relying on remote access.
 
 The installer also lays down the first graphical ClawOS appliance proof. It
 installs the exact OpenClaw version in `m1/config/versions.env`, then a Sway
@@ -159,7 +170,7 @@ are temporary inspection surfaces in a hidden layer, never splits or app tabs. C
 and Build attach to named tmux sessions so work survives after their visible
 surface closes; Browse uses a persistent profile and a loopback-only debugging
 endpoint so the local agent can attach without a second Control UI login. The
-restrained 52-pixel panel shows the current activity and focused surface,
+restrained 48-pixel panel shows the current activity and focused surface,
 Gateway state, genuine attention state, time, and recovery context.
 
 The bundled `clawos-system` OpenClaw plugin gives the agent a narrow typed API
@@ -196,8 +207,8 @@ path never falls through to a terminal. `Alt+L` locks immediately and
 disk secret for explicit session unlock, while boot still authenticates only
 once before starting the dedicated ClawOS session.
 
-The proof installer currently resolves pinned packages over the network. It is
-not yet the complete offline release installer. ClawOS ships no parallel launch
+The installer still needs the network to prepare packages before it erases the
+disk; it is not yet an offline release installer. ClawOS ships no parallel launch
 page, sessions dashboard, or competing desktop UI. Its native activity control
 opens a transient searchable palette rather than a second desktop or permanent
 application navigation. `Ctrl+Alt+F3`

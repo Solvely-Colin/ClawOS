@@ -1,3 +1,5 @@
+> **Historical record.** Describes design or state at that time, not current release acceptance. `artifacts/...` paths cited below were local, git-ignored build outputs and are not in this repository.
+
 # Accessibility and in-context Agent proof
 
 Date: 2026-08-28

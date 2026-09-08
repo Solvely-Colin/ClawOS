@@ -575,3 +575,25 @@ if [[ "$profile" == "$repo_root/m1/profile-overlay" ]]; then
 fi
 
 echo "ClawOS image profile validation passed."
+
+# Image identity: one repository URL, no stale milestone/proof naming.
+repo_url='https://github.com/Solvely-Colin/ClawOS'
+grep -Fqx "HOME_URL=\"$repo_url\"" "$profile/airootfs/etc/os-release"
+grep -Fqx 'PRETTY_NAME="ClawOS Live (experimental)"' "$profile/airootfs/etc/os-release"
+grep -Fqx "iso_publisher=\"ClawOS <$repo_url>\"" "$profile/profiledef.sh"
+grep -Fq "<vendor_url>$repo_url</vendor_url>" "$m3_root/polkit/org.clawos.system.policy"
+if grep -R -n -E 'github\.com/(clawos|openclaw)\b' "$profile/airootfs/etc" "$m3_root/polkit"; then
+  echo "Stale project URL in image identity." >&2
+  exit 1
+fi
+if [[ -f "$installer" ]]; then
+  grep -Fqx 'PRETTY_NAME="ClawOS (experimental)"' "$installer"
+  grep -Fqx "HOME_URL=\"$repo_url\"" "$installer"
+  grep -Fqx 'title ClawOS (experimental)' "$installer"
+  if grep -n -E 'Milestone 1|Installed Proof|not included|no OpenClaw runtime' \
+    "$profile/airootfs/etc/issue" "$profile/airootfs/root/README.txt" \
+    "$profile/airootfs/etc/os-release" "$profile"/efiboot/loader/entries/*.conf "$installer"; then
+    echo "Stale image self-description." >&2
+    exit 1
+  fi
+fi

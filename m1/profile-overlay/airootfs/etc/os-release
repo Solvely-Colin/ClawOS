@@ -1,8 +1,11 @@
 NAME="ClawOS"
-PRETTY_NAME="ClawOS Milestone 1"
+PRETTY_NAME="ClawOS Live (experimental)"
+VARIANT="Live"
+VARIANT_ID=live
 ID=clawos
 ID_LIKE=arch
 BUILD_ID=development
 ANSI_COLOR="38;2;255;92;53"
-HOME_URL="https://github.com/clawos"
-DOCUMENTATION_URL="https://github.com/clawos/clawos"
+HOME_URL="https://github.com/Solvely-Colin/ClawOS"
+DOCUMENTATION_URL="https://github.com/Solvely-Colin/ClawOS#readme"
+BUG_REPORT_URL="https://github.com/Solvely-Colin/ClawOS/issues"

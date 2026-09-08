@@ -1,6 +1,7 @@
 {
   "name": "@clawos/openclaw-system",
   "version": "0.1.0",
+  "license": "MIT",
   "description": "ClawOS machine status, activity projection, and surface bridge for OpenClaw",
   "type": "module",
   "scripts": {

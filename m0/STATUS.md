@@ -1,3 +1,5 @@
+> **Historical record.** Describes design or state at that time, not current release acceptance. `artifacts/...` paths cited below were local, git-ignored build outputs and are not in this repository.
+
 # Milestone 0 status
 
 This VT2 implementation is a disposable hardware spike on the existing host,
@@ -35,7 +37,7 @@ disabled and stopped; product work now moves to a clean ClawOS Arch root.
 Run the package and session install from a visible terminal:
 
 ```bash
-cd /home/colin/Work/ClawOS
+cd /path/to/ClawOS
 ./m0/bin/complete-host-install
 ```
 

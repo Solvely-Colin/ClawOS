@@ -16,7 +16,7 @@ current contributor work queue; checkboxes are acceptance criteria, not promises
 
 ## 2. Invite contributors without overstating readiness
 
-- [x] Private GitHub repository with history, contributor guide and unit CI.
+- [x] GitHub repository with history, contributor guide and unit CI.
 - [ ] Validate an automated clean ISO build and retain its evidence.
 - [ ] Select a public license and complete asset/dependency attribution.
 - [ ] Approve a security/disclosure policy and enable an appropriate private
