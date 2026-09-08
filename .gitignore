@@ -23,3 +23,18 @@ auth-profiles.json
 checkpoints/
 .DS_Store
 Thumbs.db
+# Host-side VM material, bundles and build outputs never belong in the tree.
+transfer/
+*.bundle
+*.tgz
+*.tar.gz
+*secrets*.json
+out/
+out-fast/
+*.vars
+*.sfs
+audit.jsonl
+*.jsonl.gz
+# Agent worktrees and crash dumps from the host tooling.
+.claude/
+*.stackdump

@@ -34,13 +34,18 @@
   and `clawos` account password (Polkit prompts, session unlock). Passwordless
   installs leave both accounts with empty passwords, no encryption and no
   screen lock.
-- **Releases:** no tags exist and the release workflow has never completed;
-  there is no downloadable ISO. Build locally with `sudo ./m1/bin/build-iso`.
+- **Releases:** no tags exist and there is no downloadable release. `release.yml`
+  completed for the first time on 2026-09-08 (run 34270708295 on `main`); its
+  ISO artifact is kept for 14 days and was validated but not booted. Build
+  locally with `sudo ./m1/bin/build-iso`, or see [the evidence ledger](EVIDENCE.md).
 - **Compatibility:** the version-checked OpenClaw delivery adapter needs review
   when upgrading that dependency.
 - **Design/docs:** plans and prototype guidance include superseded layouts.
   Consolidate the current Carapace adapter and acceptance checklist.
 - **Omarchy:** targeted source/runtime checks found no active dependency, but
   do not certify every asset and package's provenance.
-- **Public release:** license choice, complete attribution, release artifacts
-  and a fresh publication-time credential review remain open.
+- **Public release:** the license (MIT) and NOTICE.md are in place. Still open
+  before the source goes public: the reporting-mailbox check, the secret scan at
+  the publication commit, and the owner's approval. See the
+  [public-release checklist](PUBLIC-RELEASE-CHECKLIST.md) and the `flip-gate`
+  issues.

@@ -69,8 +69,9 @@ Welcome:
 - Credentials exposed to unrelated accounts, public logs or world-readable
   files. Owner-process credential environments and same-UID access are not a
   promised isolation boundary; see the explicit contract above.
-- Anything that lets a process outside the gateway/node units become
-  `gateway-attested`, or lets a non-core agent take core actions without a grant.
+- Anything that lets a process running as a different UID than the gateway/node
+  unit become `gateway-attested`, or lets a non-core agent take core actions
+  without a grant.
 
 Out of scope:
 
@@ -160,6 +161,9 @@ tested.
 - A process outside the gateway/node units should not be able to appear inside
   them in `/proc/<pid>/cgroup`; cgroup or systemd-scope tricks have not been
   tested.
+- Attestation reads the caller's PID from the bus and then its cgroup from
+  `/proc/<pid>/cgroup`; a PID reused between those two reads would be
+  misattributed. The window is small and has not been measured or exploited.
 - An enabled but unconfigured `tailscaled` should expose nothing until someone
   runs `tailscale up`; not verified against the installed image.
 
