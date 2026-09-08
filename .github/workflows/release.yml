@@ -46,6 +46,10 @@ jobs:
             -e GITHUB_ACTIONS=true -e GITHUB_SHA \
             -v "$GITHUB_WORKSPACE:/src" -w /src \
             archlinux:base-devel bash tools/ci/build-release.sh
+          # The container wrote artifacts/m1/out as root and artifacts/m1 as
+          # its build user; hand the tree back to the runner account before
+          # the host touches it (cp here, upload-artifact next).
+          sudo chown -R "$(id -u):$(id -g)" artifacts
           cp build-container-digest.txt artifacts/m1/out/BUILD-CONTAINER.txt
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

@@ -528,9 +528,9 @@ for shell_file in \
 done
 test -x "$profile/airootfs/usr/lib/clawos/clawos-clock-status"
 test -x "$profile/airootfs/usr/lib/clawos/clawos-system-menu"
-python -c 'import pathlib,sys; compile(pathlib.Path(sys.argv[1]).read_text(), sys.argv[1], "exec")' \
+python3 -c 'import pathlib,sys; compile(pathlib.Path(sys.argv[1]).read_text(), sys.argv[1], "exec")' \
   "$profile/airootfs/usr/lib/clawos/clawos-system-menu"
-python -c 'import pathlib,sys; compile(pathlib.Path(sys.argv[1]).read_text(), sys.argv[1], "exec")' \
+python3 -c 'import pathlib,sys; compile(pathlib.Path(sys.argv[1]).read_text(), sys.argv[1], "exec")' \
   "$profile/airootfs/usr/lib/clawos/clawos-clock-status"
 grep -Fq '"custom/clock"' "$profile/airootfs/etc/clawos/waybar/config.jsonc"
 grep -Fq '/usr/lib/clawos/clawos-clock-status' "$profile/airootfs/etc/clawos/waybar/config.jsonc"

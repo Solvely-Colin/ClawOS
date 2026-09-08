@@ -5,6 +5,35 @@ repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
 
 cd "$repo_root"
 
+# Fail fast with one clear message instead of a mid-run "command not found".
+# Every name below is executed somewhere in this gate: git diff --check; node
+# --check/--test; python3 for unittest and AST checks; jq assertions;
+# flock/install in clawos-role; /usr/bin/hostname (inetutils) in
+# clawos-enroll-local-node; /usr/bin/curl in clawos-gateway-watchdog; and the
+# absolute /usr/bin paths hard-coded by the m4 and enrollment fixtures.
+missing=()
+for required in bash git node python3 jq flock install mktemp find xargs hostname curl; do
+  command -v "$required" >/dev/null 2>&1 || missing+=("$required")
+done
+for required_path in /usr/bin/bash /usr/bin/jq /usr/bin/hostname /usr/bin/curl /usr/bin/sleep /usr/bin/true; do
+  [[ -x "$required_path" ]] || missing+=("$required_path")
+done
+if (( ${#missing[@]} )); then
+  printf 'preflight-iso: required tool not found: %s\n' "${missing[@]}" >&2
+  echo 'On Arch run ./m1/bin/install-build-deps (git nodejs python jq inetutils).' >&2
+  echo 'On other hosts install the equivalents.' >&2
+  exit 1
+fi
+node_major="$(node -p 'process.versions.node.split(".")[0]')"
+if (( node_major < 24 )); then
+  echo "preflight-iso: Node.js 24 or newer is required; found $(node --version)." >&2
+  exit 1
+fi
+python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 12) else 1)' || {
+  echo "preflight-iso: Python 3.12 or newer is required; found $(python3 --version)." >&2
+  exit 1
+}
+
 python3 -m unittest discover -s m1/tests -p 'test_*.py'
 
 echo "[1/7] Clean Arch profile and static integration"
