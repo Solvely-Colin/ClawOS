@@ -3,7 +3,7 @@
   "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
 <policyconfig>
   <vendor>ClawOS</vendor>
-  <vendor_url>https://github.com/openclaw</vendor_url>
+  <vendor_url>https://github.com/Solvely-Colin/ClawOS</vendor_url>
   <action id="org.clawos.system.commit">
     <description>Approve an exact ClawOS system action</description>
     <message>Authentication is required to apply this ClawOS system action</message>

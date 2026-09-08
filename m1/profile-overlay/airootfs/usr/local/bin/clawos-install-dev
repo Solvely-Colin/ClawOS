@@ -214,6 +214,9 @@ ID=clawos
 ID_LIKE=arch
 BUILD_ID=development
 ANSI_COLOR="38;2;255;92;53"
+HOME_URL="https://github.com/Solvely-Colin/ClawOS"
+DOCUMENTATION_URL="https://github.com/Solvely-Colin/ClawOS#readme"
+BUG_REPORT_URL="https://github.com/Solvely-Colin/ClawOS/issues"
 IMAGE_ID=clawos
 IMAGE_VERSION=2026.08.26
 EOF

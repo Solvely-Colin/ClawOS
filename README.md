@@ -72,8 +72,9 @@ This is not a complete package/asset provenance certification.
 current code and executable tests as evidence, not every historical "proven"
 statement as current release acceptance.
 
-No public open-source license has been selected. Before public publication,
-the owner must select one and complete the third-party/asset attribution review.
-Existing third-party licenses remain applicable; see [NOTICE.md](NOTICE.md).
-Use the [public-release checklist](docs/PUBLIC-RELEASE-CHECKLIST.md) before
-changing repository visibility or announcing installable releases.
+ClawOS is released under the [MIT License](LICENSE). Third-party components,
+derived configuration files and artwork keep their own licenses and are listed
+in [NOTICE.md](NOTICE.md). Security expectations and how to report a problem
+are in [SECURITY.md](SECURITY.md). Use the
+[public-release checklist](docs/PUBLIC-RELEASE-CHECKLIST.md) before announcing
+installable releases.
