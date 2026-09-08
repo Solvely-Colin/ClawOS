@@ -1,8 +1,31 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  machineContext, parseNodeMachineRequest, requestMachine, requestRoutedMachine,
+  bindMachineToolContext, machineContext, parseNodeMachineRequest, requestMachine, requestRoutedMachine,
 } from "../lib/machine-client.js";
+
+test("machine identity uses SDK metadata, not AbortSignal or rewritten model params", async () => {
+  const tool = bindMachineToolContext({
+    execute(_id, _params, context) { return JSON.parse(machineContext(context)); },
+  }, { agentId: "worker", sessionKey: "agent:worker:task" });
+  const prepared = tool.prepareBeforeToolCallParams({ agentId: "main", runId: "forged" }, {
+    hookContext: { agentId: "worker", sessionKey: "agent:worker:task", runId: "actual-run" },
+  });
+  const final = tool.finalizeBeforeToolCallParams({ ...prepared, agentId: "main", runId: "other" }, prepared);
+  assert.deepEqual(await tool.execute("call", final, new AbortController().signal), {
+    agentId: "worker", sessionKey: "agent:worker:task", runId: "actual-run",
+  });
+  assert.throws(() => tool.prepareBeforeToolCallParams({}, { hookContext: { agentId: "main" } }), /identity changed/);
+});
+
+test("separate calls retain their own grant run and direct factory identity", async () => {
+  const tool = bindMachineToolContext({ execute(_id, _params, context) { return context; } }, { agentId: "main" });
+  const first = tool.prepareBeforeToolCallParams({}, { hookContext: { runId: "one" } });
+  const second = tool.prepareBeforeToolCallParams({}, { hookContext: { runId: "two" } });
+  assert.equal((await tool.execute("one", first)).runId, "one");
+  assert.equal((await tool.execute("two", second)).runId, "two");
+  assert.equal((await tool.execute("direct", {})).agentId, "main");
+});
 
 test("machine context forwards bounded metadata without claiming authority", () => {
   assert.deepEqual(JSON.parse(machineContext({ agentId: "main", sessionKey: "agent:main:main", runId: "run-1", secret: "no" })), {
