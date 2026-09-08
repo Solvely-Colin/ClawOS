@@ -58,7 +58,7 @@ things: the system partition is plain Btrfs with no LUKS layer, the `root` and
 `clawos` accounts get empty passwords, and `/etc/clawos-passwordless-entry`
 (the same per-machine opt-in `clawos-lock` already honours) disables screen
 locking. The exact `ERASE-/dev/...` confirmation is still required. In every
-install mode `sshd` refuses password and root login (`/etc/ssh/sshd_config.d/10-clawos.conf`);
+install mode `sshd` refuses password and root login (`/etc/ssh/sshd_config.d/00-clawos.conf`);
 use SSH keys. Polkit approval prompts accept the empty password.
 There is no in-place migration between the two modes; reinstall to switch.
 

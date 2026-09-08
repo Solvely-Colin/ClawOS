@@ -268,8 +268,8 @@ install -m 0440 /etc/clawos/full-root.sudoers \
 # Mode-independent on purpose: the account password is either the LUKS
 # passphrase or empty, and neither may be accepted over the network.
 install -d -m 0755 "$mount_root/etc/ssh/sshd_config.d"
-install -m 0644 /etc/ssh/sshd_config.d/10-clawos.conf \
-  "$mount_root/etc/ssh/sshd_config.d/10-clawos.conf"
+install -m 0644 /etc/ssh/sshd_config.d/00-clawos.conf \
+  "$mount_root/etc/ssh/sshd_config.d/00-clawos.conf"
 cp -a /usr/lib/clawos/. "$mount_root/usr/lib/clawos/"
 install -m 0644 /usr/lib/tmpfiles.d/clawos-control.conf \
   "$mount_root/usr/lib/tmpfiles.d/clawos-control.conf"
