@@ -29,7 +29,9 @@
   sshd refuses password, keyboard-interactive and root login
   (`/etc/ssh/sshd_config.d/00-clawos.conf`) and nothing installs an authorized
   key, so SSH is unusable until one is added locally; Tailscale is enabled but
-  not enrolled.
+  not enrolled. The live ISO also runs sshd on port 22 with the same key-only
+  policy and a passwordless root account (observed on a CI-built image,
+  2026-09-08).
 - **Credentials:** in encrypted installs the LUKS passphrase is also the `root`
   and `clawos` account password (Polkit prompts, session unlock). Passwordless
   installs leave both accounts with empty passwords, no encryption and no

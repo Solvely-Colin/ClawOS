@@ -110,3 +110,21 @@ hardware branch, not `--vm-test`.
   fix has not been rebuilt into an ISO yet.
 - Not exercised: the GTK installer path (driven from tty1), onboarding past the
   first screen, physical hardware.
+
+## 2026-09-08: live side of a CI-built ISO observed with key-only sshd
+
+The `release.yml` run 34270708295 artifact (`clawos-2026.09.08-x86_64.iso`,
+SHA-256 `9442e105d287c300e08b8ce9821859fa684067d761afd3b69491552a956816fd`,
+`BUILD-METADATA.txt` source commit `00f81c5`) was booted live on Windows QEMU
+(WHPX, OVMF) with no install. From the live `tty1` root shell:
+
+- `/etc/ssh/sshd_config.d/` lists `00-clawos.conf 10-archiso.conf
+  20-systemd-userdb.conf 99-archlinux.conf`, so the ClawOS drop-in is read first.
+- `sshd -T` reports `PermitRootLogin no`, `PasswordAuthentication no`,
+  `KbdInteractiveAuthentication no`, `PermitEmptyPasswords no`.
+- `sshd` is active and listening on port 22 (IPv4 and IPv6); the live `root`
+  account has no password, so the only possible SSH login is by key and none is
+  installed.
+
+This replaces the 2026-09-07 note that the live-side fix had not been rebuilt
+into an ISO. It is the first observation of a CI-built image. Ledger row added.

@@ -125,7 +125,9 @@ tested.
   happens only on KVM with the Q35 product string. The live graphical session
   runs as `clawos-live` on `tty2` and may `pkexec` the installer without
   authentication. Installed systems get serial root autologin only with
-  `--vm-test`.
+  `--vm-test`. The live image runs sshd on port 22 under the same key-only
+  drop-in (`00-clawos.conf` sorts ahead of archiso's `10-archiso.conf`); the
+  live root account has no password, so no SSH login is possible without a key.
 - Passwordless mode: no LUKS, `root` and `clawos` passwords deleted,
   `/etc/clawos-passwordless-entry` written, and `clawos-lock` exits without
   locking when that root-owned 0644 file says `enabled`. Without the file it
