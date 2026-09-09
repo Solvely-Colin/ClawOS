@@ -20,6 +20,8 @@ const SHELL_RESERVED_WORDS = new Set(["{", "}", "!", "if", "then", "else", "elif
 // Wrappers that run their trailing words as a command. Each value lists the
 // options that consume the following word (so `nice -n 10 sudo` still reaches
 // `sudo`); attached forms such as `-n10` or `--interval=5` are one word already.
+// `watch` joins its trailing words and hands them to `sh -c`, so a single
+// quoted argument is a whole command line; it is re-parsed like `eval`.
 const COMMAND_WRAPPERS = new Map([
   ["env", ["-u", "--unset", "-C", "--chdir"]],
   ["nice", ["-n", "--adjustment"]],
@@ -35,7 +37,7 @@ const COMMAND_WRAPPERS = new Map([
   ["ionice", ["-c", "--class", "-n", "--classdata", "-p", "--pid", "-P", "--pgid", "-u", "--uid"]],
   ["chrt", ["-p", "--pid"]],
   ["taskset", ["-p", "--pid"]],
-  ["watch", ["-n", "--interval"]],
+  ["watch", ["-n", "--interval", "-q", "--equexit", "-s", "--shotsdir"]],
 ]);
 const FIND_EXEC_OPTIONS = new Set(["-exec", "-execdir", "-ok", "-okdir"]);
 const ASSIGNMENT_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*(?:\[[^\]]*\])?\+?=/;
@@ -170,17 +172,52 @@ export function rawGuiLaunchBlock(event) {
   };
 }
 
+// One backslash escape inside `$'...'`, with `command[index]` the backslash.
+// Returns the decoded text and the number of characters consumed. Unknown
+// escapes keep the backslash, as bash does.
+const ANSI_C_SIMPLE_ESCAPES = new Map([
+  ["n", "\n"], ["t", "\t"], ["r", "\r"], ["a", "\x07"], ["b", "\b"], ["e", "\x1b"], ["E", "\x1b"],
+  ["f", "\f"], ["v", "\v"], ["\\", "\\"], ["'", "'"], ["\"", "\""], ["?", "?"],
+]);
+function ansiCEscape(command, index) {
+  const next = command[index + 1];
+  if (next === undefined) return ["\\", 1];
+  if (ANSI_C_SIMPLE_ESCAPES.has(next)) return [ANSI_C_SIMPLE_ESCAPES.get(next), 2];
+  const digits = (start, max, pattern) => {
+    let end = start;
+    while (end - start < max && end < command.length && pattern.test(command[end])) end += 1;
+    return command.slice(start, end);
+  };
+  if (next === "x" || next === "u" || next === "U") {
+    const hex = digits(index + 2, next === "x" ? 2 : (next === "u" ? 4 : 8), /[0-9A-Fa-f]/);
+    if (!hex) return ["\\" + next, 2];
+    const code = parseInt(hex, 16);
+    return [code <= 0x10ffff ? String.fromCodePoint(code) : "�", 2 + hex.length];
+  }
+  const octal = digits(index + 1, 3, /[0-7]/);
+  if (octal) return [String.fromCharCode(parseInt(octal, 8) & 0xff), 1 + octal.length];
+  if (next === "c" && command[index + 2] !== undefined) {
+    return [String.fromCharCode(command[index + 2].toUpperCase().charCodeAt(0) ^ 0x40), 3];
+  }
+  return ["\\" + next, 2];
+}
+
 // Splits a shell command line into simple commands, each a list of words with
-// quotes and backslashes removed. Separators are newlines, `;`, `&`, `|`, `(`,
-// `)`, backticks and `$(`, all recognised only outside single quotes (command
-// substitution is also recognised inside double quotes, as the shell does).
-// Redirections become their own words flagged `redirect`; `#` comments are
-// skipped because the shell never executes them. Heredoc bodies are skipped as
-// commands, but a body whose delimiter was unquoted still expands `$(...)` and
-// backticks, so those bodies are returned in `segments.heredocBodies` for a
-// substitution scan. Unterminated quotes fall back to a second pass that treats
-// quotes as ordinary characters, so a broken command line fails closed rather
-// than open.
+// quotes and backslashes removed (`$'...'` escapes are decoded). Separators are
+// newlines, `;`, `&`, `|`, `(`, `)`, backticks and `$(`, all recognised only
+// outside single quotes (command substitution is also recognised inside double
+// quotes, as the shell does). Redirections become their own words flagged
+// `redirect`; `#` comments are skipped because the shell never executes them.
+// Heredoc bodies are skipped as commands, but a body whose delimiter was
+// unquoted still expands `$(...)` and backticks, so those bodies are returned in
+// `segments.heredocBodies` for a substitution scan. Unterminated quotes fall
+// back to a second pass that treats quotes as ordinary characters, so a broken
+// command line fails closed rather than open.
+//
+// Two flags record expansions the rail cannot resolve: `brace` for an unquoted
+// `{` anywhere in the word (brace expansion rewrites the whole word), and
+// `expands` for an unquoted `*`, `?` or `[`, or a `$` outside single quotes,
+// after the last `/` (the only part that can change the basename).
 function splitSimpleCommands(command, respectQuotes = true) {
   const segments = [];
   segments.heredocBodies = [];
@@ -193,8 +230,17 @@ function splitSimpleCommands(command, respectQuotes = true) {
   let index = 0;
 
   const top = () => stack[stack.length - 1];
-  const startWord = () => { if (!word) word = { text: "", redirect: false, quoted: false }; };
-  const append = (text) => { startWord(); word.text += text; };
+  const startWord = () => { if (!word) word = { text: "", redirect: false, quoted: false, expands: false, brace: false, last: null }; };
+  // `last` is the previous unquoted character, kept apart from `text` so the
+  // check stays O(1) instead of flattening a long word on every character.
+  const append = (text) => { startWord(); word.text += text; word.last = null; if (text === "/") word.expands = false; };
+  const appendUnquoted = (ch) => {
+    const afterDollar = word !== null && word.last === "$";
+    append(ch);
+    word.last = ch;
+    if (ch === "$" || ch === "*" || ch === "?" || ch === "[") word.expands = true;
+    if (ch === "{" && !afterDollar) word.brace = true; // `${x}` is a parameter, not a brace expansion
+  };
   const endWord = () => {
     if (!word) return;
     if (pendingHeredoc) {
@@ -240,7 +286,7 @@ function splitSimpleCommands(command, respectQuotes = true) {
     if (operator.endsWith("<<") && command[index] === "-") { operator += "-"; index += 1; }
     else if ((command[index] === "&" || command[index] === "|") && !operator.startsWith("&")) { operator += command[index]; index += 1; }
     if (word && !word.redirect && /^\d+$/.test(word.text)) word.text += operator;
-    else { endWord(); word = { text: operator, redirect: false, quoted: false }; }
+    else { endWord(); word = { text: operator, redirect: false, quoted: false, expands: false, brace: false }; }
     word.redirect = true;
     word.targetStart = word.text.length;
     const bare = operator.replace(/^\d*/, "");
@@ -256,6 +302,18 @@ function splitSimpleCommands(command, respectQuotes = true) {
       index += 1;
       continue;
     }
+    if (context === "ansi") {
+      if (ch === "'") { stack.pop(); index += 1; continue; }
+      if (ch === "\\") {
+        const [decoded, consumed] = ansiCEscape(command, index);
+        for (const decodedChar of decoded) append(decodedChar);
+        index += consumed;
+        continue;
+      }
+      append(ch);
+      index += 1;
+      continue;
+    }
     if (context === "dq") {
       if (ch === "\"") { stack.pop(); index += 1; continue; }
       if (ch === "\\" && next !== undefined) {
@@ -268,6 +326,7 @@ function splitSimpleCommands(command, respectQuotes = true) {
       if (ch === "$" && next === "(") { stack.push("sub"); endSegment(); index += 2; continue; }
       if (ch === "`") { toggleBackquote(); index += 1; continue; }
       append(ch);
+      if (ch === "$") word.expands = true; // parameter expansion happens inside double quotes too
       index += 1;
       continue;
     }
@@ -286,7 +345,8 @@ function splitSimpleCommands(command, respectQuotes = true) {
       index += 1;
       continue;
     }
-    if (respectQuotes && ch === "$" && (next === "'" || next === "\"")) { index += 1; continue; }
+    if (respectQuotes && ch === "$" && next === "'") { startWord(); word.quoted = true; stack.push("ansi"); index += 2; continue; }
+    if (respectQuotes && ch === "$" && next === "\"") { index += 1; continue; }
     if (ch === "$" && next === "(") { stack.push("sub"); endSegment(); index += 2; continue; }
     if (ch === "`") { toggleBackquote(); index += 1; continue; }
     if (ch === "(") { stack.push("paren"); endSegment(); index += 1; continue; }
@@ -310,11 +370,11 @@ function splitSimpleCommands(command, respectQuotes = true) {
       index = lineEnd === -1 ? command.length : lineEnd;
       continue;
     }
-    append(ch);
+    appendUnquoted(ch);
     index += 1;
   }
   endSegment();
-  if (respectQuotes && (stack.includes("sq") || stack.includes("dq"))) {
+  if (respectQuotes && (stack.includes("sq") || stack.includes("dq") || stack.includes("ansi"))) {
     return splitSimpleCommands(command, false);
   }
   return segments;
@@ -357,6 +417,11 @@ function segmentRunsPrivileged(words, depth) {
     if (word.redirect) { index += redirectWidth(word); continue; }
     const text = word.text;
     if (ASSIGNMENT_PATTERN.test(text) || SHELL_RESERVED_WORDS.has(text)) { index += 1; continue; }
+    if (text === "function") { index += 2; continue; } // `function NAME { ...; }`: the body follows the name
+    if (text === "[" || text === "[[") return false; // `test` and `[[ ... ]]` run none of their operands
+    // A command word that still holds a brace, glob or variable expansion could
+    // become anything at run time; the rail cannot resolve it, so it fails closed.
+    if ((word.brace && text !== "{}") || word.expands) return true;
     const base = basename(text);
     if (PRIVILEGED_BINARIES.has(base)) return true;
     if (base === "clawosctl") {
@@ -392,6 +457,11 @@ function segmentRunsPrivileged(words, depth) {
       if (NUMERIC_POSITIONAL_PATTERN.test(optionText)) { index += 1; continue; }
       break;
     }
+    if (base === "watch") {
+      // watch joins its remaining words into one `sh -c` string (with `-x` it
+      // execs them as given); re-parsing the joined text covers both.
+      return isRawPrivilegedCommand(words.slice(index).map((candidate) => candidate.text).join(" "), depth + 1);
+    }
   }
   return false;
 }
@@ -400,18 +470,22 @@ function segmentRunsPrivileged(words, depth) {
 // privileged binaries as a command word. Catches separators (`;`, `&&`, `||`,
 // `|`, `&`, newlines, subshells, `$(...)` and backticks, including inside an
 // unquoted heredoc body), leading VAR=value assignments, redirections before
-// the command word, path prefixes, quoting and backslash tricks, the wrapper
-// allowlist above, `sh/bash/zsh/dash -c STRING`, `eval` and `find -exec`.
+// the command word, reserved words and `function NAME`, path prefixes,
+// quoting, backslash and `$'...'` escapes, the wrapper allowlist above,
+// `sh/bash/zsh/dash -c STRING`, `eval`, `watch` and `find -exec`. A command
+// word that still holds a brace, glob or variable expansion (`{sudo,-n}`,
+// `/usr/bin/s[u]do`, `$x`, `"$cmd"`) fails closed.
 //
 // This is a guidance rail, not a sandbox. It does not read script files
-// (`bash install.sh`, `./install.sh`, `source x`, `curl ... | bash`), does not
-// see inside other interpreters (`python -c`, `perl -e`, `node -e`), does not
-// resolve variables, aliases, functions defined earlier or command strings that
-// are themselves command output (`x=sudo; $x`, `sh -c "$(cat cmd)"`), does not
-// know wrappers missing from COMMAND_WRAPPERS (`chroot`, `nsenter`,
-// `ssh localhost`, `make`), and only ever sees the `exec` tool: a file written
-// with another tool and run later, or any non-exec route to root, passes it.
-// The `uncaught` table in test/embodiment.test.js states these limits.
+// (`bash install.sh`, `./install.sh`, `source x`, `curl ... | bash`,
+// `echo ... | sh`), does not see inside other interpreters (`python -c`,
+// `perl -e`, `node -e`), does not resolve aliases, functions defined outside
+// the command or command strings that are themselves command output
+// (`sh -c "$(cat cmd)"`), does not know wrappers missing from COMMAND_WRAPPERS
+// (`chroot`, `nsenter`, `ssh localhost`, `make`, `tmux`), and only ever sees
+// the `exec` tool: a file written with another tool and run later, or any
+// non-exec route to root, passes it. The `uncaught` table in
+// test/embodiment.test.js states these limits.
 export function isRawPrivilegedCommand(command, depth = 0) {
   if (typeof command !== "string" || command.trim() === "") return false;
   if (depth > MAX_SHELL_NESTING) return true;
