@@ -113,7 +113,11 @@ if [[ -f "$installer" ]]; then
   grep -Fqx 'Passwordless ClawOS install: no disk encryption, empty account passwords, no screen lock.' <<<"$notice"
   grep -Fqx 'Anyone with access to this machine can use it and read its data.' <<<"$notice"
   # agetty expands backslashes in issue files; the notice must stay literal.
-  ! grep -Fq '\' <<<"$notice"
+  # A negated command never trips set -e or the ERR trap, so test explicitly.
+  if grep -Fq '\' <<<"$notice"; then
+    echo "Passwordless notice must not contain backslashes; agetty expands them." >&2
+    exit 1
+  fi
   # Remote password login must be off in both install modes: the account
   # password is the LUKS passphrase or empty.
   sshd_dropin="$profile/airootfs/etc/ssh/sshd_config.d/00-clawos.conf"
