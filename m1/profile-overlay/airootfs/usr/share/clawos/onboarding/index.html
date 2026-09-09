@@ -83,7 +83,7 @@
             <button class="choice" data-access="full-approvals"><span class="choice-top"><b>Full user + approvals</b></span><p>Work freely as the ClawOS user; ask before guarded system changes.</p></button>
             <button class="choice" data-access="user-limited"><span class="choice-top"><b>User limited</b><em>Restricted</em></span><p>Keep the agent inside user-owned files and explicitly allowed tools.</p></button>
           </div>
-          <div class="guardrail"><span class="status-dot online"></span><div><b>Audited system actions</b><p>Typed system actions are audited and snapshotted before execution; whole-system rollback is not yet proven.</p></div></div>
+          <div class="guardrail"><span class="status-dot online"></span><div><b>Audited system actions</b><p>Typed system actions are audited; package installs and OpenClaw updates take a read-only root snapshot first; whole-system rollback is not yet proven.</p></div></div>
           <div class="actions"><button class="quiet" data-back="agent">Back</button><button class="primary" id="install-button">Install configuration</button></div>
         </article>
 

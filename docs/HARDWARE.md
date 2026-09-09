@@ -59,9 +59,10 @@ things: the system partition is plain Btrfs with no LUKS layer, the `root` and
 (the same per-machine opt-in `clawos-lock` already honours) disables screen
 locking. The exact `ERASE-/dev/...` confirmation is still required. In every
 install mode `sshd` refuses password and root login (`/etc/ssh/sshd_config.d/00-clawos.conf`);
-use SSH keys. Polkit approval prompts are expected to accept the empty password
-(`system-auth` with `nullok`); this has not yet been observed on an installed
-image, and it means approval levels protect nothing in this mode.
+use SSH keys. With empty account passwords an approval prompt has nothing to
+check, so approval levels protect nothing in this mode. Whether Polkit accepts
+the empty password (Arch's default `system-auth` allows it) has not yet been
+observed on an installed image.
 There is no in-place migration between the two modes; reinstall to switch.
 
 ## Installed system and remaining proof
