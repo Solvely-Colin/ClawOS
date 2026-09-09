@@ -46,18 +46,23 @@ to Google.
 ## "Sites" handoff files (owner decision pending)
 
 `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`
-and `tests/sites-worker.test.mjs` are not part of the prototype's UI. They
-package the Vite build for a static-site hosting target called "Sites" that
-the prototype was set up to be handed to: `prepare-sites-build.mjs` copies the
-worker and hosting manifest into `dist/`, `worker/index.js` serves
-`index.html` for unknown HTML routes, and `test:sites` checks that worker and
-the presence of the built files (so it fails until `npm run build` has run).
-The `build` and `test:sites` scripts in `package.json` reference them.
+and `tests/sites-worker.test.mjs` are not part of the prototype's UI. "Sites"
+is the app-hosting handoff of OpenAI's Codex agent environment, in which the
+prototype was written; that is why its manifest lives under `.openai/`. The
+worker uses the Cloudflare Workers static-assets binding (`env.ASSETS.fetch`),
+and the manifest's `d1` and `r2` entries, Cloudflare's database and
+object-storage bindings, are `null` because the prototype needs neither.
+
+`prepare-sites-build.mjs` copies the worker and manifest into `dist/` after
+`vite build`, `worker/index.js` serves `index.html` for unknown HTML routes,
+and `test:sites` unit-tests that worker and then checks that the built files
+exist, so it fails until `npm run build` has run. The `build` and `test:sites`
+scripts in `package.json` reference them.
 
 They are a deployment artifact, not ClawOS. Whether to keep them or delete
 them together with those two `package.json` script references is an owner
 decision that has not been made (issue #50). Until it is, they stay as they
-are.
+are and are not to be extended; `AGENTS.md` says the same.
 
 ## Agent instructions
 
