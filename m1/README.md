@@ -121,9 +121,12 @@ system partition with `@`, `@home`, `@var_log`, `@pkg`, and `@snapshots`
 subvolumes. It installs systemd-boot and can boot from qcow2 with the ISO
 removed. Packages are downloaded and signature-verified into the live
 environment before the first disk write, then installed from those local
-files; the OpenClaw runtime is copied from the ISO. Internet access is still
-required, and a complete offline package repository remains an M1 release
-requirement.
+files; the OpenClaw runtime is copied from the ISO. Before the download the
+installer checks that the pinned archive answers, sizes the resolved package
+set and refuses to continue when the RAM-backed `/tmp` or available memory
+cannot hold it, so a 2 GiB VM fails in seconds rather than mid-download.
+Internet access and at least 4 GiB of RAM are still required, and a complete
+offline package repository remains an M1 release requirement.
 
 The LUKS passphrase is also the proof's single startup credential boundary.
 Plymouth presents a ClawOS-branded encrypted-root unlock screen, keeps routine

@@ -113,7 +113,10 @@ mount_root=$(mktemp -d /mnt/clawos-install.XXXXXX)
 mounted=false
 opened=false
 # ArchISO's root copy-on-write area is only 256 MiB by default. /tmp is a
-# separate RAM-backed filesystem; storage exhaustion still fails before erase.
+# separate RAM-backed filesystem; prepare_install_packages sizes the resolved
+# package set against its free space and the available memory before it
+# fetches anything, so a machine that cannot hold the download fails in
+# seconds rather than mid-download. Either way it fails before erase.
 download_root=$(mktemp -d /tmp/clawos-download.XXXXXX)
 
 cleanup() {
@@ -141,8 +144,14 @@ else
 fi
 echo "This is not the offline production installer."
 
+# Every failure inside prepare_install_packages already ends with one line
+# naming the cause and stating that the disk is unchanged; keep this quiet
+# checksum recheck to the same standard instead of exiting silently.
 prepare_install_packages "$download_root"
-sha256sum --check --status "$download_root/packages.sha256"
+sha256sum --check --status "$download_root/packages.sha256" || {
+  echo 'Package preparation failed: the prepared packages changed after verification. The target disk has not been changed.' >&2
+  exit 1
+}
 echo 'Packages prepared. Beginning the confirmed disk installation.'
 
 # Recheck the same disk and live-media protections immediately before the first

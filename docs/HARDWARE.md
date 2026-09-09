@@ -17,15 +17,26 @@ Physical-hardware acceptance has not yet been completed.
   before partitioning. Removing/swapping devices invalidates the selection.
   The identity includes the kernel disk generation, not only model/serial text,
   and is checked again before formatting the newly created partitions.
-- The complete Arch package dependency set is downloaded and signature-verified
-  into the live environment before erasure. Downloads use one connection, tolerate
-  slow archive responses, and have three attempts of at most 15 minutes each.
-  Download, signature or live-storage failures stop before disk writes.
-  The target is installed from those local packages with required signatures;
-  the pinned OpenClaw runtime is copied from the ISO, not fetched again.
-  Internet access and sufficient temporary live storage are still needed for
-  preparation. Hardware, power or installation-hook failures after formatting
-  can still leave a partial installation; this is not an atomic OS installer.
+- Before any download the installer sends one HTTPS `HEAD` request (10-second
+  deadline) to the pinned Arch archive snapshot, refreshes the package
+  databases, and compares the summed download size of the complete dependency
+  set plus a 256 MiB margin with the free space of the RAM-backed live `/tmp`
+  and with available memory. A failure stops within seconds and prints one
+  line naming the cause (DNS, connection, TLS, HTTP status, timeout or
+  insufficient storage) and the fix. A machine with less than 4 GiB of RAM
+  stops here: `/tmp` is half of RAM on the live ISO.
+- The complete Arch package dependency set is then downloaded and
+  signature-verified into the live environment before erasure. Downloads use
+  one connection and tolerate slow archive responses. Only a timed-out or
+  reset transfer is retried (three attempts of at most 15 minutes each);
+  name-resolution, connection, TLS, HTTP, storage and signature failures stop
+  after the first attempt. Download, signature or live-storage failures stop
+  before disk writes. The target is installed from those local packages with
+  required signatures; the pinned OpenClaw runtime is copied from the ISO, not
+  fetched again. Internet access and at least 4 GiB of RAM are still needed
+  for preparation. Hardware, power or installation-hook failures after
+  formatting can still leave a partial installation; this is not an atomic OS
+  installer.
 - The installer does not repartition or migrate an existing OS. Use a blank spare
   disk and back up your machine; do not bypass guards to test on a daily driver.
 
