@@ -169,6 +169,16 @@ wait_poweroff() {
   qemu_pid=
 }
 
+# Effective sshd posture as `sshd -T` reports it (lowercased keywords), run on
+# the live medium and again on the installed system. sshd.service is enabled
+# on both; wait for it briefly because `sshd -T` needs the host keys that exist
+# once it started.
+sshd_keyonly_check='for attempt in {1..10}; do systemctl is-active --quiet sshd.service && break; sleep 1; done; '
+sshd_keyonly_check+='sshd -T >/tmp/sshd-effective.conf'
+sshd_keyonly_check+=' && grep -Fqx "passwordauthentication no" /tmp/sshd-effective.conf'
+sshd_keyonly_check+=' && grep -Fqx "kbdinteractiveauthentication no" /tmp/sshd-effective.conf'
+sshd_keyonly_check+=' && grep -Fqx "permitrootlogin no" /tmp/sshd-effective.conf'
+
 if [[ -z "$resume_runtime" ]]; then
 echo "Booting the fresh M2 live image."
 start_guest live -cdrom "$iso" -boot d
@@ -182,10 +192,11 @@ live_checks+=$'id clawos-live >/dev/null && echo "${PASS}LIVE_USER_OK"\n'
 live_checks+=$'test -e /dev/tty3 && echo "${PASS}RECOVERY_TTY_OK"\n'
 live_checks+=$'live_uid=$(id -u clawos-live)\n'
 live_checks+=$'for attempt in {1..60}; do live_sock=$(find "/run/user/$live_uid" -maxdepth 1 -type s -name "sway-ipc.*.sock" -print -quit 2>/dev/null); if test -n "$live_sock" && SWAYSOCK="$live_sock" swaymsg -t get_tree | grep -Fq "ClawOS Setup"; then echo "${PASS}LIVE_WINDOW_OK"; break; fi; sleep 1; done\n'
+live_checks+="$sshd_keyonly_check"$' && echo "${PASS}SSHD_KEYONLY_OK"\n'
 live_checks+=$'echo "${PASS}__M2_LIVE_END__"\n'
 send_serial "$live_checks"
 wait_log 'PASS:__M2_LIVE_END__' 100
-for marker in GRAPHICAL_LIVE_OK LIVE_USER_OK RECOVERY_TTY_OK LIVE_WINDOW_OK; do
+for marker in GRAPHICAL_LIVE_OK LIVE_USER_OK RECOVERY_TTY_OK LIVE_WINDOW_OK SSHD_KEYONLY_OK; do
   grep -Fq "PASS:$marker" "$serial_log"
 done
 capture_screen live-welcome
@@ -234,6 +245,7 @@ installed_commands+="test -f /etc/clawos/waybar/config.jsonc && grep -Eq '\"heig
 installed_commands+=$'test -f /usr/share/clawos/onboarding/index.html && echo "${PASS}ONBOARDING_IMAGE_BUILT_OK"\n'
 installed_commands+=$'test -s /usr/share/licenses/clawos-radix-icons/LICENSE && echo "${PASS}ICON_LICENSE_INSTALLED_OK"\n'
 installed_commands+=$'test -e /dev/tty3 && echo "${PASS}INSTALLED_RECOVERY_OK"\n'
+installed_commands+="$sshd_keyonly_check"$' && echo "${PASS}INSTALLED_SSHD_KEYONLY_OK"\n'
 installed_commands+=$'systemctl is-active --quiet clawosd.service && echo "${PASS}CLAWOSD_SERVICE_OK"\n'
 installed_commands+=$'test -x /usr/lib/clawos/clawosctl && test -x /usr/lib/clawos/clawos-approval && echo "${PASS}CLAWOSD_CLIENT_UI_OK"\n'
 installed_commands+="/usr/lib/clawos/clawosctl status | grep -Fq '\"securityLevel\":\"full-root\"' && echo \"\${PASS}CLAWOSD_STATUS_OK\""$'\n'
@@ -257,6 +269,7 @@ for marker in \
   ONBOARDING_IMAGE_BUILT_OK \
   ICON_LICENSE_INSTALLED_OK \
   INSTALLED_RECOVERY_OK \
+  INSTALLED_SSHD_KEYONLY_OK \
   CLAWOSD_SERVICE_OK \
   CLAWOSD_CLIENT_UI_OK \
   CLAWOSD_STATUS_OK \
@@ -362,6 +375,10 @@ done
 capture_screen m3-rollback-boot
 send_serial $'poweroff\n'
 wait_poweroff
+
+# The retained logs are upload candidates; refuse to call the run green while
+# any of them carries a secret-shaped string.
+"$repo_root/m1/tests/scan-log-secrets.sh" "$runtime"/*-serial.log "$runtime"/*-qemu.log
 
 echo "ClawOS M2 fresh live-to-installed QEMU validation passed."
 echo "Evidence: $runtime"
