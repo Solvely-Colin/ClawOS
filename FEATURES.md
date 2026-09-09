@@ -26,7 +26,7 @@ install and boot proof is from QEMU (Linux KVM or Windows WHPX).
 | Windows VM lifecycle | Scheduled Task, SSH/ACPI shutdown, absolute tablet and protected unlock |
 | Remote-node roles | Implementation and isolated tests; broader live acceptance remains |
 | Physical hardware installation | Eligible blank SATA/NVMe/eMMC disks accepted; verified only in QEMU/WHPX, no physical machine installed yet; not "any Arch hardware" |
-| CI-built ISO | `release.yml` completed once (run 34270708295 on `main`; validated, not booted); artifacts expire after 14 days and there is no downloadable release |
+| CI-built ISO | `release.yml` went green twice on 2026-09-08 (first on `main`: run 34270708295); the workflow validates but does not boot, and that image was booted live by hand, not installed from; artifacts expire after 14 days and there is no downloadable release |
 
 ## Not implemented or by design
 

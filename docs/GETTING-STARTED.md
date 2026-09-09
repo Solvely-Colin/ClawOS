@@ -83,7 +83,8 @@ named `clawos-iso-<commit sha>` that expires after 14 days.
 2. Verify the checksum in the unpacked directory, then read
    `BUILD-METADATA.txt`; it records the source commit and states that boot,
    install and hardware acceptance were not run by the workflow.
-   `NOT YET VERIFIED`.
+   `verified 2026-09-08 against the run 34270708295 artifact` (ledger row in
+   [EVIDENCE.md](EVIDENCE.md)).
 
    ```sh
    sha256sum -c SHA256SUMS
@@ -174,8 +175,8 @@ Boot the ISO. Systemd-boot shows the ClawOS entry and starts the live system.
 The live image autologs `root` on `tty1` (archiso behaviour), runs the
 `clawos-live` graphical session on `tty2`, and keeps `tty3` as an independent
 recovery console (`Ctrl+Alt+F3`).
-`verified 2026-09-07 at ee2f4f1 (fast ISO built in the builder VM), WHPX`
-(the installs were driven from that `tty1` shell).
+`verified 2026-09-07 at ee2f4f1 (fast ISO built in the builder VM), WHPX` for the `tty1` root shell (the installs were driven from it); the
+`tty2` session and `tty3` console are `NOT YET VERIFIED` by that record.
 
 ### Graphical installer
 
@@ -201,9 +202,9 @@ None of these screens were used on 2026-09-07; every step in this section is
    passphrase": at least 10 characters, typed twice. The screen says one
    passphrase unlocks the encrypted disk and is also the `root` and `clawos`
    account password, and that approval prompts on the machine ask for it.
-   Alternatively tick "Passwordless setup: no disk encryption, no screen lock,
-   empty account passwords. Anyone with access to this machine can use it and
-   read its data. I accept the risk." That maps to
+   Alternatively tick the passwordless checkbox (no disk encryption, no screen
+   lock, empty account passwords; it states that approval levels then protect
+   nothing and that you accept the risk). That maps to
    `clawos-install-dev --passwordless`: plain Btrfs with no LUKS layer, empty
    `root` and `clawos` passwords, and `/etc/clawos-passwordless-entry`, which
    disables the screen lock. There is no in-place switch between the two
@@ -236,7 +237,8 @@ Q35 KVM and `/dev/vda` only) and the 2026-09-07 runs omitted it.
    python3 /usr/lib/clawos/clawos_install_targets.py list
    ```
 
-   `verified 2026-09-07 at ee2f4f1 (fast ISO built in the builder VM), WHPX`.
+   `NOT YET VERIFIED` as the exact command; the record names the `diskId` it
+   used but not how it was obtained.
 2. Optionally validate the target without writing anything:
 
    ```sh
@@ -279,7 +281,7 @@ Q35 KVM and `/dev/vda` only) and the 2026-09-07 runs omitted it.
    `verified 2026-09-07 at ee2f4f1 (fast ISO built in the builder VM), WHPX`
    (first boot through `Boot0004`).
 2. **LUKS unlock.** Encrypted installs stop at the boot-time unlock prompt
-   (the image installs a ClawOS Plymouth theme for it); type the disk
+   (the image installs a ClawOS Plymouth theme for it, from code); type the disk
    passphrase. Passwordless installs boot straight through with no prompt.
    `verified 2026-09-07 at ee2f4f1 (fast ISO built in the builder VM), WHPX`
    (LUKS unlocked with the typed passphrase; the passwordless system reached
@@ -291,8 +293,8 @@ Q35 KVM and `/dev/vda` only) and the 2026-09-07 runs omitted it.
 4. **Console login.** On `tty3` (`Ctrl+Alt+F3`), `root` and `clawos` log in
    with the disk passphrase on an encrypted system and with no password on a
    passwordless one.
-   `verified 2026-09-07 at ee2f4f1 (fast ISO built in the builder VM), WHPX`
-   (root login checked in both modes).
+   `verified 2026-09-07 at ee2f4f1 (fast ISO built in the builder VM), WHPX` for `root` in both modes; the `clawos` login and the exact tty are
+   `NOT YET VERIFIED`.
 
 ### OpenClaw onboarding
 
@@ -305,9 +307,10 @@ terminal wizard `clawos-onboard` is the fallback. The progress rail reads
 
 1. **Start.** "FIRST BOOT / Make this machine an agent workspace." with a
    network indicator and the button **Set up ClawOS**.
-   `verified 2026-09-07 at ee2f4f1 (fast ISO built in the builder VM), WHPX`
-   (the record lists only "onboarding past the first screen" as not
-   exercised).
+   `verified 2026-09-07 on the 8826f15d fast ISO, WHPX` (the "Download-failure
+   regression checks" record confirms the onboarding entry screen); the
+   `ee2f4f1` record lists only "onboarding past the first screen" as not
+   exercised.
 2. **Gateway.** "Where should OpenClaw run?" Choose **This machine** (local,
    recommended) or **Existing Gateway** (connect this machine as a node to a
    Gateway over a private network; a `ws://` or `wss://` URL and an optional
@@ -376,8 +379,9 @@ terminal wizard `clawos-onboard` is the fallback. The progress rail reads
 ## Known gaps in this walkthrough
 
 - The live ISO in the `ee2f4f1` image still accepted `PasswordAuthentication
-  yes` on its own `sshd`; the drop-in rename that fixes the live side
-  (`7244a54`) has not been rebuilt into an ISO.
+  yes` on its own `sshd`. The drop-in rename that fixes the live side
+  (`7244a54`) is in the 2026-09-08 CI image, whose live side was observed
+  key-only ([EVIDENCE.md](EVIDENCE.md)); the `ee2f4f1` fast ISO predates it.
 - A passwordless WHPX guest once showed a blank frame and stalled SSH until it
   received keyboard input; the cause is unconfirmed.
 - Nothing here has been done on physical hardware, and provider enrollment
