@@ -123,8 +123,8 @@ SHA-256 `9442e105d287c300e08b8ce9821859fa684067d761afd3b69491552a956816fd`,
 - `sshd -T` reports `PermitRootLogin no`, `PasswordAuthentication no`,
   `KbdInteractiveAuthentication no`, `PermitEmptyPasswords no`.
 - `sshd` is active and listening on port 22 (IPv4 and IPv6); the live `root`
-  account has no password, so the only possible SSH login is by key and none is
-  installed.
+  account has no password and root login is refused, so no account can log in
+  over SSH until a key is installed for `clawos-live`.
 
 This replaces the 2026-09-07 note that the live-side fix had not been rebuilt
 into an ISO. It is the first observation of a CI-built image. Ledger row added.

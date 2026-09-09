@@ -41,7 +41,7 @@ sudo ./m1/bin/build-iso
 ```
 
 `boot-smoke-qemu`, `m2-e2e-qemu` and `run-installer-qemu` need Linux KVM with a
-Q35 machine; the builder VM used for these notes has none. `run-qemu --software`
+Q35 machine; a Linux guest without nested virtualization has none. `run-qemu --software`
 runs the ISO under TCG (slow, no install gate), and Windows hosts drive QEMU
 through `tools/windows/`. `build-iso --fast` writes a quicker-compressing image
 to `artifacts/m1/out-fast/` for iteration; the Linux gates read `artifacts/m1/out/`.

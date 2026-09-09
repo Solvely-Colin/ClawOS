@@ -71,7 +71,8 @@ Welcome:
   promised isolation boundary; see the explicit contract above.
 - Anything that lets a process running as a different UID than the gateway/node
   unit become `gateway-attested`, or lets a non-core agent take core actions
-  without a grant.
+  without a grant. Same-UID escapes inside that unit are the known, untested
+  gap: reports are welcome, but isolation there is not a promised boundary.
 
 Out of scope:
 
@@ -127,7 +128,8 @@ tested.
   authentication. Installed systems get serial root autologin only with
   `--vm-test`. The live image runs sshd on port 22 under the same key-only
   drop-in (`00-clawos.conf` sorts ahead of archiso's `10-archiso.conf`); the
-  live root account has no password, so no SSH login is possible without a key.
+  live root account has no password and root login is refused outright, so no
+  account can log in over SSH until a key is installed for `clawos-live`.
 - Passwordless mode: no LUKS, `root` and `clawos` passwords deleted,
   `/etc/clawos-passwordless-entry` written, and `clawos-lock` exits without
   locking when that root-owned 0644 file says `enabled`. Without the file it

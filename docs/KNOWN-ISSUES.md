@@ -37,9 +37,11 @@
   installs leave both accounts with empty passwords, no encryption and no
   screen lock.
 - **Releases:** no tags exist and there is no downloadable release. `release.yml`
-  completed for the first time on 2026-09-08 (run 34270708295 on `main`); its
-  ISO artifact is kept for 14 days and was validated but not booted. Build
-  locally with `sudo ./m1/bin/build-iso`, or see [the evidence ledger](EVIDENCE.md).
+  went green for the first time on `main` on 2026-09-08 (run 34270708295; an
+  earlier branch run is in the ledger). The workflow validates the ISO but does
+  not boot it; that artifact was booted live by hand on 2026-09-08, not installed
+  from, and is kept for 14 days. Build locally with `sudo ./m1/bin/build-iso`, or
+  see [the evidence ledger](EVIDENCE.md).
 - **Compatibility:** the version-checked OpenClaw delivery adapter needs review
   when upgrading that dependency.
 - **Design/docs:** plans and prototype guidance include superseded layouts.

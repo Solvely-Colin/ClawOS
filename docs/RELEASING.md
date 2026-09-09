@@ -38,6 +38,8 @@ hardware support; record the exact machine and disk types actually tested.
 Builds can fail if the pinned archive/tool versions are unavailable, hosted-runner
 disk space is insufficient, or ArchISO needs kernel capabilities the hosted
 container does not expose. Diagnose those failures rather than skipping gates.
-The first successful automated build was run 34270708295 on 2026-09-08 (source
-commit `00f81c5`, ISO SHA-256 beginning `9442e105`); it was validated, not
-booted. Do not create a release tag just to make the workflow look complete.
+The first green run on `main` was 34270708295 on 2026-09-08 (source commit
+`00f81c5`, ISO SHA-256 beginning `9442e105`); a branch run had succeeded earlier
+that day. The workflow validates but does not boot; that artifact was booted
+live by hand (EVIDENCE.md). Do not create a release tag just to make the
+workflow look complete.

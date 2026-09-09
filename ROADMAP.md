@@ -13,11 +13,11 @@ Milestones: Flip-ready (gates the flip), Flip day (same sitting).
 - [x] Public license (MIT) with asset and dependency attribution in NOTICE.md.
 - [ ] Every public document describes what `main` does: checklist, KNOWN-ISSUES,
   RELEASING, CONTRIBUTING, CODE_OF_CONDUCT reporting route, test counts.
-- [ ] docs/SCOPE.md, docs/GETTING-STARTED.md and docs/EVIDENCE.md exist; every
+- [x] docs/SCOPE.md, docs/GETTING-STARTED.md and docs/EVIDENCE.md exist; every
   ISO proof is a ledger row naming ISO SHA256, source commit and host.
 - [ ] Live side of a CI-built ISO observed with key-only sshd; the GTK installer
   and onboarding past the first screen observed once on a fresh VM.
-- [ ] Real-bus broker authorization proof runs in CI.
+- [x] Real-bus broker authorization proof runs in CI (`arch-preflight`).
 - [ ] Secret scan at the flip SHA including force-pushed commits; tree audit;
   owner approval ticked last; repository flipped at that SHA.
 - [ ] Flip day: private vulnerability reporting, scanning alerts triaged, rulesets,
@@ -46,8 +46,9 @@ Milestones: Green Pipeline, v0.1.0-alpha.1.
 Milestones: Post-flip hardening and contributor tooling; Runtime reliability.
 
 - [ ] Every SECURITY.md bullet under "Constructed by reasoning" moved to Observed
-  or reworded: deploy-runtime hint, D-Bus bus policy, attestation gaps, exec-hook
-  rail, tailscaled default, tty1 autologin, polkit admin identity.
+  or reworded: polkit admin identity, exec-hook rail, cgroup and scope tricks,
+  PID reuse in attestation, tailscaled exposure; plus the D-Bus bus policy,
+  deploy-runtime hint and tty1 autologin items tracked as hardening issues.
 - [ ] Contributor tooling: tree check, container preflight, shellcheck stage,
   m0 and shell-prototype READMEs; artwork decision recorded.
 - [ ] Fix setup/fullscreen offset and clipping; verify pointer alignment with

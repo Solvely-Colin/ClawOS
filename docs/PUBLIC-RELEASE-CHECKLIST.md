@@ -12,7 +12,8 @@
 - [ ] Confirm no VM images, firmware variables, auth stores or personal paths/evidence are tracked.
 - [x] README, FEATURES, ROADMAP, NOTICE, m1/README, /etc/issue, os-release and loader titles say
       "experimental, VM-verified only, no releases"; one repository URL everywhere
-      (pinned by the identity block at the end of `m1/tests/validate-profile.sh`; 2026-09-08).
+      (image files pinned by the identity block at the end of `m1/tests/validate-profile.sh`;
+      the Markdown files checked by hand on 2026-09-08).
 - [x] Historical files carry the frozen-record banner
       (`git grep -l '^> \*\*Historical record\.\*\*'` lists 14 files; 2026-09-08).
 - [x] A clean checkout passes CI (`ci.yml`) and the full Arch preflight
