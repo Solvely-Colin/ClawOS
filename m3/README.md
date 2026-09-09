@@ -55,3 +55,9 @@ sudo python3 m3/tests/verify_dbus_authorization.py "$PWD"
 
 This creates a private D-Bus daemon and temporary broker state, uses real caller
 UIDs, and substitutes a fake machine runner. It never changes real services.
+
+CI runs the same proof on every push and pull request: the `arch-preflight` job
+in `.github/workflows/ci.yml` installs `dbus`, `python-dbus` and `python-gobject`
+from the pinned Arch snapshot, creates the configured owner account, and runs
+the script as root after `preflight-iso`. The job fails if its `PASS` line is
+missing.
