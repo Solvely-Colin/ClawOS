@@ -2,6 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
+# shellcheck source=../config/versions.env
 source "$repo_root/m1/config/versions.env"
 mode="release"
 case "${1:-}" in

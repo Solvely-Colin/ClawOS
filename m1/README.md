@@ -43,7 +43,17 @@ sudo ./m1/bin/build-iso
 `preflight-iso` is the required non-root source gate. It covers clean-Arch
 provenance, first-boot resume behavior, Gateway/UI lifecycle, exact local-node
 enrollment policy, the privileged broker, OpenClaw plugin, transactional role
-switching, and patch hygiene before the slower image build begins.
+switching, patch hygiene, tracked-tree hygiene and shell static analysis before
+the slower image build begins. The last two are standalone scripts.
+`tools/check-tree.sh` inspects the Git index and fails on any tracked file over
+2 MiB, any path under `transfer/` or `artifacts/`, developer home paths
+(`/home/<name>` other than the image accounts, and Windows user-profile paths)
+and well-known credential prefixes; stage new work with `git add` before running
+it. `tools/check-shell.sh` runs `shellcheck -S warning` over the scripts under
+`m0/bin`, `m0/tests`, `m1/bin`, `m1/tests`, `m4/tests` and `tools`, with the
+agreed exclusions in `.shellcheckrc`; the scripts under `m1/profile-overlay`
+are only syntax-checked until their findings are triaged. `install-build-deps`
+installs `shellcheck`.
 
 The QEMU proof declares a 1440 x 900 virtual display at device creation time,
 so the boot splash and encrypted unlock screen always initialize on the same

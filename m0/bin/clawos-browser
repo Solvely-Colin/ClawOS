@@ -7,7 +7,7 @@ mkdir -p "$profile_dir"
 
 # Wait briefly for the Gateway. Chromium's managed policy still limits the
 # profile if the endpoint remains unavailable.
-for _attempt in $(seq 1 60); do
+for _ in $(seq 1 60); do
   if /usr/bin/curl --fail --silent --show-error --max-time 1 "$gateway_url" >/dev/null 2>&1; then
     break
   fi
