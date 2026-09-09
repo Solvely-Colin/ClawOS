@@ -4,6 +4,7 @@ import {
   CLAWOS_SYSTEM_CONTEXT,
   buildEmbodimentHookResult,
   clawosSystemContext,
+  deployRuntimeSessionHint,
   rawGuiLaunchBlock,
   rawPrivilegedBlock,
   resolvePresentationIntent,
@@ -76,4 +77,25 @@ test("raw graphical launch commands are blocked but diagnostics are not", () => 
   assert.ok(rawGuiLaunchBlock({ toolName: "exec", params: { command: "echo ready; xdg-open https://example.com" } }));
   assert.equal(rawGuiLaunchBlock({ toolName: "exec", params: { command: "which chromium" } }), null);
   assert.equal(rawGuiLaunchBlock({ toolName: "clawos_app", params: { action: "open" } }), null);
+});
+
+test("the deploy-runtime session hint reaches only the core agent in Full Root", () => {
+  const core = buildEmbodimentHookResult("continue", [], { fullRoot: true, agentId: "main", sessionKey: "agent:main:main" });
+  assert.match(core.appendSystemContext, /deploy-runtime apply --session-key agent:main:main\./);
+  assert.ok(core.appendSystemContext.startsWith(clawosSystemContext({ fullRoot: true, agentId: "main" })));
+
+  const worker = buildEmbodimentHookResult("continue", [], { fullRoot: true, agentId: "reviewer", sessionKey: "agent:reviewer:task" });
+  assert.doesNotMatch(worker.appendSystemContext, /--session-key/);
+
+  const approvals = buildEmbodimentHookResult("continue", [], { fullRoot: false, agentId: "main", sessionKey: "agent:main:main" });
+  assert.doesNotMatch(approvals.appendSystemContext, /--session-key/);
+  assert.equal(approvals.appendSystemContext, CLAWOS_SYSTEM_CONTEXT);
+});
+
+test("the session hint requires a well-formed agent session key", () => {
+  const authority = { fullRoot: true, agentId: "main" };
+  assert.equal(deployRuntimeSessionHint(authority), "");
+  assert.equal(deployRuntimeSessionHint({ ...authority, sessionKey: "cron:main:job" }), "");
+  assert.equal(deployRuntimeSessionHint({ ...authority, sessionKey: "agent:main:main; id" }), "");
+  assert.match(deployRuntimeSessionHint({ ...authority, sessionKey: "agent:main:main" }), /--session-key agent:main:main\./);
 });

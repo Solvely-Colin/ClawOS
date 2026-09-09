@@ -60,11 +60,10 @@ export default definePluginEntry({
       } catch {
         // Static embodiment remains useful while the graphical broker recovers.
       }
-      const result = buildEmbodimentHookResult(event.prompt, applications, { agentId: context?.agentId });
-      if (typeof context?.sessionKey === 'string' && /^agent:[A-Za-z0-9_-]+:[A-Za-z0-9_.:-]+$/.test(context.sessionKey)) {
-        result.appendSystemContext += `\nFor runtime apply, bind automatic completion delivery with ./m1/bin/deploy-runtime apply --session-key ${context.sessionKey}. Dispatch once, then end with the job ID and pending state. ClawOS delivers the verified terminal receipt here automatically; do not hold the old turn open polling.`;
-      }
-      return result;
+      return buildEmbodimentHookResult(event.prompt, applications, {
+        agentId: context?.agentId,
+        sessionKey: context?.sessionKey,
+      });
     }, { timeoutMs: 1200 });
     api.on("before_tool_call", (event, context) => rawGuiLaunchBlock(event) || rawPrivilegedBlock(event, {
       agentId: context?.agentId,

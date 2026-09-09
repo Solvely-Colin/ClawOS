@@ -108,12 +108,27 @@ export function resolvePresentationIntent(prompt, applications = []) {
   return new Set(best.map((application) => application.id)).size === 1 ? best[0].id : null;
 }
 
+const AGENT_SESSION_KEY_PATTERN = /^agent:[A-Za-z0-9_-]+:[A-Za-z0-9_.:-]+$/;
+
+// deploy-runtime apply is sudo all the way down, so the per-session hint is
+// offered only where privileged exec is already permitted: the core agent on a
+// Full Root machine. The level and core agent id come from the same clawosd
+// policy file that rawPrivilegedBlock reads.
+export function deployRuntimeSessionHint(options = {}) {
+  const sessionKey = options.sessionKey;
+  if (typeof sessionKey !== "string" || !AGENT_SESSION_KEY_PATTERN.test(sessionKey)) return "";
+  const authorityConfig = machineAuthority();
+  const fullRoot = options.fullRoot ?? authorityConfig.fullRoot;
+  if (!fullRoot || options.agentId !== authorityConfig.coreAgentId) return "";
+  return `\nFor runtime apply, bind automatic completion delivery with ./m1/bin/deploy-runtime apply --session-key ${sessionKey}. Dispatch once, then end with the job ID and pending state. ClawOS delivers the verified terminal receipt here automatically; do not hold the old turn open polling.`;
+}
+
 export function buildEmbodimentHookResult(prompt, applications = [], options = {}) {
   const appId = resolvePresentationIntent(prompt, applications);
   const application = applications.find((candidate) => candidate?.id === appId);
   const browserProfile = application?.browserProfile;
   return {
-    appendSystemContext: clawosSystemContext(options),
+    appendSystemContext: `${clawosSystemContext(options)}${deployRuntimeSessionHint(options)}`,
     ...(appId ? {
       prependContext: `ClawOS resolved this explicit presentation request to the validated application id ${appId}. Use clawos_app with action=open and appId=${appId} now.${browserProfile ? ` The visible web surface is controllable with the OpenClaw browser tool using profile=${browserProfile}; use that exact profile for follow-up inspection and interaction.` : ""} Do not probe for or launch a browser through exec.`,
     } : {}),
