@@ -61,8 +61,8 @@ deployment. ISO builds run inside Linux. Windows manages QEMU through the
 | `m2/openclaw-plugin/` | Machine tools, activity integration and deployment notices |
 | `m3/` | Privileged broker, approval UI, recovery and tests |
 | `m4/` | Standalone/remote-node role switching and tests |
-| `shell-prototype/` | Separate visual prototype, not the installed OS runtime |
-| `m0/` | Historical compositor experiment and retained regression checks |
+| [`shell-prototype/`](shell-prototype/README.md) | Frozen 2026-08 visual prototype, not the installed OS runtime; not built or tested in CI |
+| [`m0/`](m0/README.md) | Historical 2026-08 host-side kiosk experiment; only its static check still runs, as `preflight-iso` stage 2 |
 | `tools/windows/` | Host lifecycle source, without VM images or credentials |
 
 ## Evidence and limits
