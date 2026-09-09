@@ -20,8 +20,10 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$repo_root"
 
-# This file holds the patterns below, so the text scans skip it.
-self=tools/check-tree.sh
+# Files that hold the patterns below, or fixtures that exercise them, are
+# skipped by the text scans: this script, the QEMU-gate log scanner and its
+# test. Every other tracked file is scanned.
+pattern_holders=(tools/check-tree.sh m1/tests/scan-log-secrets.sh m1/tests/test_iso_posture.py)
 max_bytes=$((2 * 1024 * 1024))
 forbidden_path_re='(^|/)(transfer|artifacts)/'
 # The left boundary keeps prose such as "root/home/boot" out of the results.
@@ -40,7 +42,9 @@ tab=$'\t'
 # must not read as "clean", so callers capture the output with "$(...)" under
 # set -e instead of piping it.
 grep_index() {
-  git grep --cached -I -n --no-color "$@" -- . ":!$self" || test $? -eq 1
+  local holder excludes=()
+  for holder in "${pattern_holders[@]}"; do excludes+=(":!$holder"); done
+  git grep --cached -I -n --no-color "$@" -- . "${excludes[@]}" || test $? -eq 1
 }
 
 # 1. Size cap on the index blobs. Reading the objects rather than the working
