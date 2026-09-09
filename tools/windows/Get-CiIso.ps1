@@ -153,6 +153,10 @@ function Test-ArtifactChecksums {
     $entries
 }
 
+if (-not $Latest -and -not $RunId) {
+    throw '-Latest:$false selects no run. Pass -RunId <id> or -Latest.'
+}
+
 if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
     throw "GitHub CLI (gh) is not on PATH. Install it and run 'gh auth login' with read access to $Repo."
 }

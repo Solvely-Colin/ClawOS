@@ -66,6 +66,15 @@ branch other than `main`. The script:
 Point `-Destination` at the directory your WHPX harness boots ISOs from. The
 harness itself is not part of this repository and is not configured here.
 
+`tests\Get-CiIso.Tests.ps1` checks the script against small fixtures with `gh`
+replaced by an in-process mock: it downloads nothing, needs neither `gh` nor a
+network connection, and exits non-zero when a check fails. Run it from this
+directory in Windows PowerShell 5.1 after changing the script:
+
+```powershell
+.\tests\Get-CiIso.Tests.ps1
+```
+
 The manifest is plain `key: value` lines:
 
 ```
