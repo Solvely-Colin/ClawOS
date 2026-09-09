@@ -38,13 +38,16 @@ Arch install; a green run is source evidence only:
 - `unit-tests` (ubuntu-latest): the m1 and m3 Python unit tests, the OpenClaw
   plugin Node tests and `git diff --check`.
 - `arch-preflight` (`archlinux:base-devel` container): `./m1/bin/preflight-iso`,
-  the same Arch source gate `tools/ci/build-release.sh` runs before an ISO build.
+  the same Arch source gate `tools/ci/build-release.sh` runs before an ISO build,
+  followed by the D-Bus caller-boundary proof from `m3/README.md`, which runs as
+  root against a private bus with real UIDs.
 
 Local equivalents:
 
 - Unit tests run anywhere with Python 3.12+ and Node 24+ (commands in the README).
 - The source gate runs on any Docker host with the ci.yml recipe (CI also pins
-  the Arch snapshot from `m1/config/versions.env`):
+  the Arch snapshot from `m1/config/versions.env`; the recipe covers the source
+  gate only, not the D-Bus proof):
 
   ```sh
   docker run --rm -v "$PWD:/src" -w /src archlinux:base-devel bash -c \
@@ -54,7 +57,8 @@ Local equivalents:
 
 - `./m1/bin/run-qemu --software` boots a built ISO under QEMU's TCG emulator
   without KVM; slow, but it works where hardware virtualization is unavailable.
-- `m1/tests/boot-smoke-qemu` and `m1/tests/m2-e2e-qemu` currently require KVM.
+- `m1/tests/boot-smoke-qemu`, `m1/tests/m2-e2e-qemu` and `m1/bin/run-installer-qemu`
+  currently require KVM.
 - Windows hosts drive an already-provisioned QEMU (WHPX) VM with the scripts in
   [tools/windows/README.md](tools/windows/README.md); they are not an installer.
 
@@ -74,7 +78,8 @@ Contributions are accepted under the [MIT License](LICENSE): inbound terms equal
 terms, and there is no CLA. Do not submit code you cannot license that way. Third-party
 material (copied files, snippets, artwork, fonts) must be listed in [NOTICE.md](NOTICE.md)
 with its origin and license. Pull requests are merged with merge commits, as #1-#3 were;
-that is an owner decision tracked as a `decision` issue; there is no squash or rebase rule.
+that is an owner decision tracked as a `decision` issue (#13); there is no squash or
+rebase rule.
 
 ## Safety and boundaries
 
