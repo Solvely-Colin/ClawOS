@@ -238,6 +238,17 @@ if $passwordless; then
   # Same per-machine opt-in file clawos-lock already honours.
   printf 'enabled\n' >"$mount_root/etc/clawos-passwordless-entry"
   chmod 0644 "$mount_root/etc/clawos-passwordless-entry"
+  # The installed machine says so itself. agetty appends /etc/issue.d/*.issue
+  # to every console login prompt (the filesystem package ships the /etc/issue
+  # that enables the directory) and pam_motd prints /etc/motd.d/* after a
+  # console or SSH login. No backslashes: agetty treats them as escapes.
+  install -d -m 0755 "$mount_root/etc/issue.d" "$mount_root/etc/motd.d"
+  cat >"$mount_root/etc/issue.d/clawos-passwordless.issue" <<'EOF'
+Passwordless ClawOS install: no disk encryption, empty account passwords, no screen lock.
+Anyone with access to this machine can use it and read its data.
+EOF
+  install -m 0644 "$mount_root/etc/issue.d/clawos-passwordless.issue" \
+    "$mount_root/etc/motd.d/clawos-passwordless"
 else
   # One secret owns the physical device for this proof: it unlocks the encrypted
   # disk at boot and authenticates an explicit GTK session lock later. Passing it
