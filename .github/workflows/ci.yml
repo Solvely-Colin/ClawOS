@@ -23,6 +23,7 @@ jobs:
       - run: python3 -m unittest discover -s m3/tests -p 'test_*.py'
       - run: node --test m2/openclaw-plugin/test/*.test.js
       - run: git diff --check
+      - run: ./tools/check-tree.sh
   arch-preflight:
     # The full source gate that README.md tells Arch contributors to run and
     # that tools/ci/build-release.sh runs before every ISO build: same image,
@@ -49,12 +50,12 @@ jobs:
           [[ "$ARCH_SNAPSHOT" =~ ^[0-9]{4}/[0-9]{2}/[0-9]{2}$ ]] || { echo 'ARCH_SNAPSHOT must be YYYY/MM/DD'; exit 1; }
           printf 'Server = https://archive.archlinux.org/repos/%s/$repo/os/$arch\n' "$ARCH_SNAPSHOT" >/etc/pacman.d/mirrorlist
           pacman -Syyuu --noconfirm --needed --disable-download-timeout \
-            git inetutils nodejs python jq
+            git inetutils nodejs python jq shellcheck
       - name: Verify the toolchain the README promises
         shell: bash
         run: |
           set -euo pipefail
-          node --version; python3 --version; jq --version; git --version
+          node --version; python3 --version; jq --version; git --version; shellcheck --version
           node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)'
           python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 12) else 1)'
       - name: Trust the checkout owned by the runner account
