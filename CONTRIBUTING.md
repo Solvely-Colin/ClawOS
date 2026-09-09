@@ -22,9 +22,28 @@ unrelated work and distinguish unit tests from fresh-install proof.
 - Windows scripts manage an already-provisioned development VM, not a complete
   Windows installation wizard.
 
+## Running the source gate without Arch
+
+`./m1/bin/preflight-iso` needs an Arch userland. On any host with Docker or
+Podman (Debian, Fedora, macOS, Windows with Git Bash), run it in the same
+`archlinux:base-devel` container CI uses:
+
+```sh
+tools/dev/preflight-in-container.sh
+```
+
+The script pins the Arch package archive to `ARCH_SNAPSHOT` from
+`m1/config/versions.env`, installs the same packages, mounts the checkout
+read-only at `/src`, runs `./m1/bin/preflight-iso` and exits with its status.
+`--dbus` also runs the D-Bus caller-boundary proof from `m3/README.md`;
+`--help` lists the rest. Run it from a normal clone, not a linked worktree.
+The recipe is the `arch-preflight` job in `.github/workflows/ci.yml`; change
+both together. Boot and install tests still need a disposable Arch VM.
+
 ## Before submitting
 
-1. Run focused tests and `./m1/bin/preflight-iso` in Arch for OS integration.
+1. Run focused tests and `./m1/bin/preflight-iso` for OS integration, in Arch
+   or through `tools/dev/preflight-in-container.sh`.
 2. Include the source revision and execution environment. Deployment evidence
    should include job ID, terminal receipt, checkpoint and file drift.
 3. Verify UI changes visually and with keyboard navigation; follow Carapace
