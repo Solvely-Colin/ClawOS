@@ -76,8 +76,10 @@ named `clawos-iso-<commit sha>` that expires after 14 days.
 1. Open the repository's Actions tab, select **Experimental ISO build** and a
    green run, and download its `clawos-iso-<sha>` artifact. It holds
    `clawos-*.iso`, `SHA256SUMS`, `clawos-*.iso.sha256`, `BUILD-METADATA.txt`,
-   `BUILD-PACKAGES.txt` and `BUILD-CONTAINER.txt`. `NOT YET VERIFIED`: the
-   workflow has never completed ([KNOWN-ISSUES.md](KNOWN-ISSUES.md)).
+   `BUILD-PACKAGES.txt` and `BUILD-CONTAINER.txt`. `NOT YET VERIFIED` as a
+   walkthrough step; the workflow has completed once (run 34270708295 on
+   `00f81c5`) and that artifact was booted live, not installed from, on
+   2026-09-08 ([KNOWN-ISSUES.md](KNOWN-ISSUES.md)).
 2. Verify the checksum in the unpacked directory, then read
    `BUILD-METADATA.txt`; it records the source commit and states that boot,
    install and hardware acceptance were not run by the workflow.
@@ -129,8 +131,8 @@ named `clawos-iso-<commit sha>` that expires after 14 days.
    sudo ./m1/bin/build-iso
    ```
 
-   `NOT YET VERIFIED` (release mode has only run in the CI helper, which has
-   never completed).
+   `NOT YET VERIFIED` (release mode has only run in the CI helper, run
+   34270708295).
 5. Create the disposable installer disk. The runner only accepts qcow2 images
    under `artifacts/m1/disks/` and refuses to overwrite an existing one:
 
