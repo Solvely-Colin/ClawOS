@@ -17,9 +17,8 @@ Conventions:
   directory outside the repository. Its path is never written into the repo.
 - Times are UTC and relative to the visibility change (T+0:00). Record the
   real times in `$EVIDENCE/flip-day-times.txt` as you go.
-- `tools/release/flip-day.sh` is the script #16 calls
-  `tools/github/enable-protections.sh`. It only needs `gh` authenticated as the
-  repository admin.
+- `tools/github/enable-protections.sh` is the protections script from #16. It
+  only needs `gh` authenticated as the repository admin.
 
 ## Before the sitting (T-1 day)
 
@@ -28,7 +27,7 @@ Conventions:
    changed.
 
    ```sh
-   tools/release/flip-day.sh --dry-run 2>&1 | tee "$EVIDENCE/flip-day-dry-run-$(date -u +%Y%m%d).txt"
+   tools/github/enable-protections.sh --dry-run 2>&1 | tee "$EVIDENCE/flip-day-dry-run-$(date -u +%Y%m%d).txt"
    ```
 
    Expected on the private repository (observed 2026-09-09):
@@ -86,7 +85,7 @@ and `allowed_actions=selected` with GitHub-owned and verified-creator actions;
 and an assertion that workflow tokens stay read-only.
 
 ```sh
-tools/release/flip-day.sh --apply 2>&1 | tee "$EVIDENCE/flip-day-apply-$(date -u +%Y%m%d).txt"
+tools/github/enable-protections.sh --apply 2>&1 | tee "$EVIDENCE/flip-day-apply-$(date -u +%Y%m%d).txt"
 ```
 
 Exit 0 means every write returned the expected status and every re-read
@@ -94,7 +93,7 @@ matched. Exit 1 lists `FAIL:` lines; every step is idempotent, so fix the cause
 and re-run, or re-run a subset:
 
 ```sh
-tools/release/flip-day.sh --apply --only rulesets,codeql
+tools/github/enable-protections.sh --apply --only rulesets,codeql
 ```
 
 Known timing: rulesets and code scanning become available a short while after
@@ -114,11 +113,12 @@ What the rulesets do from this moment:
 - `release-tags`: only the owner can create, move or delete `v*` tags.
   `docs/RELEASING.md` no longer relies on discipline alone for tag creation.
 
-What the Actions restriction does: a workflow that references a third-party
-action without a full-length commit SHA, or an action that is neither
-GitHub-owned nor from a verified creator, does not run. Both workflows already
-pin `actions/*` by SHA, so nothing currently in `.github/workflows` is
-affected.
+What the Actions restriction does: every action reference, GitHub-owned
+`actions/*` included, must be pinned to a full-length commit SHA (reusable
+workflows may still be referenced by tag), and an action that is neither
+GitHub-owned nor from a verified creator is blocked regardless of pinning. A
+workflow that breaks either rule does not run. Both workflows already pin
+`actions/*` by SHA, so nothing currently in `.github/workflows` is affected.
 
 ## T+0:15 Secret-scanning triage (within the hour)
 
@@ -264,10 +264,12 @@ Add to the CI section #13 introduces, or to "Environment" if #13 has not
 landed:
 
 ```markdown
-- Repository settings allow only GitHub-owned and verified-creator actions and
-  require every `uses:` reference to be pinned to a full-length commit SHA, as
-  `.github/workflows/ci.yml` does. A workflow that references an unpinned or
-  unlisted third-party action does not run.
+- Repository settings require every `uses:` action reference, GitHub-owned
+  `actions/*` included, to be pinned to a full-length commit SHA, as
+  `.github/workflows/ci.yml` does; reusable workflows may still be referenced
+  by tag. Actions that are neither GitHub-owned nor from a verified creator are
+  blocked regardless of pinning. A workflow that breaks either rule does not
+  run, so write `actions/checkout@<full sha> # v4`, not `actions/checkout@v4`.
 ```
 
 ## T+1:30 Start-here issue
@@ -347,5 +349,5 @@ its job; leave it on the closed issues.
 - A ruleset blocks the owner from something urgent: the owner is a bypass
   actor. Say in the commit or PR why bypass was used.
 - The wrong merge method was configured: re-run
-  `tools/release/flip-day.sh --apply --only rulesets --merge-method <method>`;
+  `tools/github/enable-protections.sh --apply --only rulesets --merge-method <method>`;
   the ruleset is updated in place.

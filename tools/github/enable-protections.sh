@@ -30,7 +30,7 @@ FAILURES=0
 
 usage() {
   cat <<EOF
-Usage: tools/release/flip-day.sh [--dry-run | --apply] [options]
+Usage: tools/github/enable-protections.sh [--dry-run | --apply] [options]
 
   --dry-run                 Print each API call and the current setting (default).
   --apply                   Perform the calls and verify each resulting setting.
@@ -405,7 +405,8 @@ step_actions() {
   check "actions/permissions.allowed_actions" actions/permissions '.allowed_actions' selected
   check "actions/permissions.sha_pinning_required" actions/permissions '.sha_pinning_required | tostring' true
   check "selected-actions github_owned_allowed verified_allowed" actions/permissions/selected-actions '[.github_owned_allowed, .verified_allowed] | map(tostring) | join(" ")' "true true"
-  note "consequence: a workflow that references an unpinned or unlisted third-party action will not run; note this in CONTRIBUTING.md"
+  note "consequence: every action reference, GitHub-owned included, must be pinned to a full-length commit SHA (reusable workflows may use a tag);"
+  note "actions neither GitHub-owned nor from a verified creator are blocked regardless of pinning. Note this in CONTRIBUTING.md"
 }
 
 step_workflow_permissions() {
@@ -442,7 +443,7 @@ run_step() {
 
 command -v gh >/dev/null || { echo 'gh is required (https://cli.github.com)' >&2; exit 2; }
 
-printf 'flip-day.sh  %s  mode=%s  repo=%s  merge-method=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$MODE" "$REPO" "$MERGE_METHOD"
+printf 'enable-protections.sh  %s  mode=%s  repo=%s  merge-method=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$MODE" "$REPO" "$MERGE_METHOD"
 printf '%s  as %s\n' "$(gh --version | head -n 1)" "$(gh api user --jq .login 2>/dev/null || echo '<not authenticated>')"
 [[ $MODE == apply ]] || printf 'Dry run: nothing below changes the repository.\n'
 
