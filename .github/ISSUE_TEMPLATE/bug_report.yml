@@ -3,7 +3,7 @@ description: Report a reproducible ClawOS failure
 body:
   - type: markdown
     attributes:
-      value: Do not include credentials, private transcripts, disk images or identifying logs.
+      value: Do not include credentials, private transcripts, disk images or identifying logs. For the outcome of booting an ISO or running the installer, use the install or boot report form instead.
   - type: input
     id: revision
     attributes:
