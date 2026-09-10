@@ -54,9 +54,9 @@ Arch install; a green run is source evidence only:
 
 - `unit-tests` (ubuntu-latest): the m1 and m3 Python unit tests, the OpenClaw
   plugin Node tests and `git diff --check`.
-- `arch-preflight` (`archlinux:base-devel` container): `./m1/bin/preflight-iso`,
+- `arch-preflight` (`archlinux:base-devel` container): `./image/bin/preflight-iso`,
   the same Arch source gate `tools/ci/build-release.sh` runs before an ISO build,
-  followed by the D-Bus caller-boundary proof from `m3/README.md`, which runs as
+  followed by the D-Bus caller-boundary proof from `services/clawosd/README.md`, which runs as
   root against a private bus with real UIDs.
 
 - `container-wrapper` exercises the contributor container entry point and D-Bus proof.
@@ -70,25 +70,25 @@ Local equivalents:
   (commands in the README). Some tests require `fcntl`, POSIX file operations
   and Linux paths; on Windows or macOS use the Linux container instead.
 - The source gate runs on any Docker host with the ci.yml recipe (CI also pins
-  the Arch snapshot from `m1/config/versions.env`; the recipe covers the source
+  the Arch snapshot from `image/config/versions.env`; the recipe covers the source
   gate only, not the D-Bus proof):
 
   ```sh
   docker run --rm -v "$PWD:/src" -w /src archlinux:base-devel bash -c \
     'pacman -Syu --noconfirm git inetutils nodejs python jq shellcheck &&
-     git config --global --add safe.directory /src && ./m1/bin/preflight-iso'
+     git config --global --add safe.directory /src && ./image/bin/preflight-iso'
   ```
 
-- `./m1/bin/run-qemu --software` boots a built ISO under QEMU's TCG emulator
+- `./image/bin/run-qemu --software` boots a built ISO under QEMU's TCG emulator
   without KVM; slow, but it works where hardware virtualization is unavailable.
-- `m1/tests/boot-smoke-qemu`, `m1/tests/m2-e2e-qemu` and `m1/bin/run-installer-qemu`
+- `image/tests/boot-smoke-qemu`, `image/tests/m2-e2e-qemu` and `image/bin/run-installer-qemu`
   currently require KVM.
 - Windows hosts drive an already-provisioned QEMU (WHPX) VM with the scripts in
   [tools/windows/README.md](tools/windows/README.md); they are not an installer.
 
 ## Running the source gate without Arch
 
-`./m1/bin/preflight-iso` needs an Arch userland. On any host with Docker or
+`./image/bin/preflight-iso` needs an Arch userland. On any host with Docker or
 Podman (Debian, Fedora, macOS, Windows with Git Bash), run it in the same
 `archlinux:base-devel` container CI uses:
 
@@ -97,9 +97,9 @@ tools/dev/preflight-in-container.sh
 ```
 
 The script pins the Arch package archive to `ARCH_SNAPSHOT` from
-`m1/config/versions.env`, installs the same packages, mounts the checkout
-read-only at `/src`, runs `./m1/bin/preflight-iso` and exits with its status.
-`--dbus` also runs the D-Bus caller-boundary proof from `m3/README.md`;
+`image/config/versions.env`, installs the same packages, mounts the checkout
+read-only at `/src`, runs `./image/bin/preflight-iso` and exits with its status.
+`--dbus` also runs the D-Bus caller-boundary proof from `services/clawosd/README.md`;
 `--help` lists the rest. Run it from a normal clone, not a linked worktree.
 The recipe is the `arch-preflight` job in `.github/workflows/ci.yml`; change
 both together. Boot and install tests still need a disposable Arch VM.
@@ -113,13 +113,13 @@ not erase Git history.
 
 The shared `.gitignore` excludes local agent worktrees, private transfer data,
 VM state, credentials and generated caches. Keep those rules in the repository,
-not only in `.git/info/exclude`. `m1/tests/test_gitignore.py` checks them in an
+not only in `.git/info/exclude`. `image/tests/test_gitignore.py` checks them in an
 isolated Git repository and rejects tracked files hidden by the shared rules.
 Ignore rules do not untrack existing files or remove past commits. Source,
 fixtures, artwork and frozen prototypes need deliberate migration/removal,
 not an ignore rule that conceals edits.
 
-1. Run focused tests and `./m1/bin/preflight-iso` for OS integration, in Arch
+1. Run focused tests and `./image/bin/preflight-iso` for OS integration, in Arch
    or through `tools/dev/preflight-in-container.sh`.
 2. Include the source revision and execution environment. Deployment evidence
    should include job ID, terminal receipt, checkpoint and file drift.

@@ -1,8 +1,8 @@
-> **Prototype-only instructions.** The visual prototype is not the OS runtime; the installed shell lives under `m1/profile-overlay`.
+> **Prototype-only instructions.** The visual prototype is not the OS runtime; the installed shell lives under `image/profile-overlay`.
 
 # Prototype Instructions
 
-The prototype is frozen; [README.md](README.md) records its status, how to run it and which `m1/` paths implement its ideas. To check a change, start the dev server with `npm run dev` and open the URL Vite prints in a browser.
+The prototype is frozen; [README.md](README.md) records its status, how to run it and which `image/` paths implement its ideas. To check a change, start the dev server with `npm run dev` and open the URL Vite prints in a browser.
 
 When the user gives durable prototype-specific design feedback, preferences, or decisions, record them in `AGENTS.md`.
 

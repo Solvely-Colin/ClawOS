@@ -44,8 +44,8 @@ build and install walkthrough, with a verification marker on every step, is in
 On Arch Linux, review and install build dependencies, then run the source gate:
 
 ```sh
-./m1/bin/install-build-deps
-./m1/bin/preflight-iso
+./image/bin/install-build-deps
+./image/bin/preflight-iso
 ```
 
 Without Arch, run the same gate in the `archlinux:base-devel` container CI
@@ -55,13 +55,13 @@ uses, with Docker or Podman: `tools/dev/preflight-in-container.sh` (see
 For non-privileged unit checks on Linux with Python 3.12+ and Node 24+:
 
 ```sh
-python3 -m unittest discover -s m1/tests -p 'test_*.py'
-python3 -m unittest discover -s m3/tests -p 'test_*.py'
-node --test m2/openclaw-plugin/test/*.test.js
+python3 -m unittest discover -s image/tests -p 'test_*.py'
+python3 -m unittest discover -s services/clawosd/tests -p 'test_*.py'
+node --test integrations/openclaw/test/*.test.js
 ```
 
-See [M1 build instructions](m1/README.md) for ISO construction and disposable-disk
-testing, and [live development](m2/SELF-DEVELOPMENT.md) for checkpointed runtime
+See [M1 build instructions](image/README.md) for ISO construction and disposable-disk
+testing, and [live development](docs/SELF-DEVELOPMENT.md) for checkpointed runtime
 deployment. ISO builds run inside Linux. Windows manages QEMU through the
 [host launcher scripts](tools/windows/README.md).
 
@@ -69,12 +69,12 @@ deployment. ISO builds run inside Linux. Windows manages QEMU through the
 
 | Path | Purpose |
 | --- | --- |
-| `m1/` | ArchISO, installer, shell, onboarding, runtime deployment and checks |
-| `m2/openclaw-plugin/` | Machine tools, activity integration and deployment notices |
-| `m3/` | Privileged broker, approval UI, recovery and tests |
-| `m4/` | Standalone/remote-node role switching and tests |
+| `image/` | ArchISO, installer, shell, onboarding, runtime deployment and checks |
+| `integrations/openclaw/` | Machine tools, activity integration and deployment notices |
+| `services/clawosd/` | Privileged broker, approval UI, recovery and tests |
+| `tests/integration/roles/` | Standalone/remote-node role-switching tests |
 | [`shell-prototype/`](shell-prototype/README.md) | Frozen 2026-08 visual prototype, not the installed OS runtime; dependency/build/browser smoke checks run in CI |
-| [`m0/`](m0/README.md) | Historical 2026-08 host-side kiosk experiment; only its static check still runs, as `preflight-iso` stage 2 |
+| [`experiments/host-session/`](experiments/host-session/README.md) | Historical 2026-08 host-side kiosk experiment; only its static check still runs, as `preflight-iso` stage 2 |
 | `tools/windows/` | Host lifecycle source, without VM images or credentials |
 
 ## Evidence and limits

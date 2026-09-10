@@ -5,7 +5,7 @@ set -euo pipefail
   echo 'This helper requires the disposable GitHub Actions build container at /src.' >&2
   exit 1
 }
-source m1/config/versions.env
+source image/config/versions.env
 [[ "$ARCH_SNAPSHOT" =~ ^[0-9]{4}/[0-9]{2}/[0-9]{2}$ ]] || exit 1
 printf 'Server = https://archive.archlinux.org/repos/%s/$repo/os/$arch\n' "$ARCH_SNAPSHOT" >/etc/pacman.d/mirrorlist
 pacman -Syyuu --noconfirm --needed --disable-download-timeout \
@@ -18,8 +18,8 @@ pacman -Syyuu --noconfirm --needed --disable-download-timeout \
 useradd --create-home clawos-ci
 chown -R clawos-ci:clawos-ci /src
 git config --global --add safe.directory /src
-runuser -u clawos-ci -- bash -c 'cd /src && ./m1/bin/preflight-iso'
-SUDO_USER=clawos-ci SUDO_UID="$(id -u clawos-ci)" ./m1/bin/build-iso --release
+runuser -u clawos-ci -- bash -c 'cd /src && ./image/bin/preflight-iso'
+SUDO_USER=clawos-ci SUDO_UID="$(id -u clawos-ci)" ./image/bin/build-iso --release
 out=/src/artifacts/m1/out
 (
   cd "$out"
@@ -35,6 +35,6 @@ out=/src/artifacts/m1/out
   printf 'Validation: source preflight and ISO boot-chain structure\n'
   printf 'Boot/install/hardware acceptance: NOT RUN by this workflow\n'
   printf 'Installer: experimental x86_64 UEFI blank disks; physical hardware NOT verified\n'
-  cat m1/config/versions.env
+  cat image/config/versions.env
 } >"$out/BUILD-METADATA.txt"
 pacman -Q >"$out/BUILD-PACKAGES.txt"

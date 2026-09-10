@@ -12,7 +12,7 @@ conversation controls and React Fast Refresh in Chromium. This is dependency
 regression coverage, not renewed product development or installed-OS proof.
 
 The installed shell that grew out of these ideas lives under
-`m1/profile-overlay/airootfs/`:
+`image/profile-overlay/airootfs/`:
 
 | Prototype idea | Installed implementation |
 | --- | --- |
@@ -20,7 +20,7 @@ The installed shell that grew out of these ideas lives under
 | Bottom command shelf and status strip | `usr/lib/clawos/clawos-agent-shelf`, `etc/clawos/agent-shelf.css` |
 | On-demand OpenClaw conversation | `usr/lib/clawos/clawos-agent-window` |
 | Full-canvas application surfaces (the Gmail mock) | `usr/share/applications/clawos-gmail.desktop` and the other launchers there; `usr/lib/clawos/clawos-browse`, `clawos-command`, `clawos-build`; see [architecture](../docs/ARCHITECTURE.md) |
-| Graphite and coral tokens | `etc/clawos/design-system.css`; rationale in [`m2/DESIGN-SYSTEM.md`](../m2/DESIGN-SYSTEM.md) |
+| Graphite and coral tokens | `etc/clawos/design-system.css`; rationale in [`docs/DESIGN-SYSTEM.md`](../docs/DESIGN-SYSTEM.md) |
 | Workspaces and window management | `etc/clawos/sway.conf` |
 
 ## Running it

@@ -11,19 +11,19 @@ systems redistribute, and where provenance is unknown.
 
 ### Derived from archiso (GPL-3.0-or-later)
 
-`m1/bin/materialize-profile` copies the `releng` profile from the installed
-`archiso` package (pinned in `m1/config/versions.env`) at build time and
-overlays `m1/profile-overlay/`. The following overlay files were copied from
+`image/bin/materialize-profile` copies the `releng` profile from the installed
+`archiso` package (pinned in `image/config/versions.env`) at build time and
+overlays `image/profile-overlay/`. The following overlay files were copied from
 archiso's `configs/releng` and modified by ClawOS, first on 2026-08-26. They
 remain under GPL-3.0-or-later and each carries a header saying so:
 
-- `m1/profile-overlay/profiledef.sh`
-- `m1/profile-overlay/pacman.conf` (archiso's copy of pacman's stock
+- `image/profile-overlay/profiledef.sh`
+- `image/profile-overlay/pacman.conf` (archiso's copy of pacman's stock
   `pacman.conf`; pacman is GPL-2.0-or-later)
-- `m1/profile-overlay/packages.x86_64` (ClawOS's own package selection in
+- `image/profile-overlay/packages.x86_64` (ClawOS's own package selection in
   archiso's file format, scaffolded from the releng list)
-- `m1/profile-overlay/efiboot/loader/entries/01-archiso-linux.conf`
-- `m1/profile-overlay/efiboot/loader/entries/02-archiso-speech-linux.conf`
+- `image/profile-overlay/efiboot/loader/entries/01-archiso-linux.conf`
+- `image/profile-overlay/efiboot/loader/entries/02-archiso-speech-linux.conf`
 
 archiso: https://gitlab.archlinux.org/archlinux/archiso, copyright the Arch
 Linux archiso contributors. The license text is in
@@ -31,7 +31,7 @@ Linux archiso contributors. The license text is in
 
 ### Plymouth theme script (GPL-2.0-or-later)
 
-`m1/profile-overlay/airootfs/usr/share/plymouth/themes/clawos/clawos.script`
+`image/profile-overlay/airootfs/usr/share/plymouth/themes/clawos/clawos.script`
 contains a password-bullet loop adapted from Plymouth's example theme
 `themes/script/script.script` (Plymouth, GPL-2.0-or-later,
 https://www.freedesktop.org/wiki/Software/Plymouth/). The file carries an
@@ -43,13 +43,13 @@ SPDX header and stays under GPL-2.0-or-later; the license text is in
 The following files are Radix Icons (https://github.com/radix-ui/icons, from
 `@radix-ui/react-icons` 1.3.x) with the fill color changed:
 
-- `m1/profile-overlay/airootfs/usr/share/clawos/icons/arrow-left.svg` (Radix `arrow-left`)
-- `m1/profile-overlay/airootfs/usr/share/clawos/icons/reload.svg` (Radix `reload`)
-- `m1/profile-overlay/airootfs/usr/share/clawos/theme/clawos-pin.svg` (Radix `sewing-pin-filled`)
-- `m1/profile-overlay/airootfs/usr/share/clawos/theme/clawos-pin.png` (raster of the file above)
+- `image/profile-overlay/airootfs/usr/share/clawos/icons/arrow-left.svg` (Radix `arrow-left`)
+- `image/profile-overlay/airootfs/usr/share/clawos/icons/reload.svg` (Radix `reload`)
+- `image/profile-overlay/airootfs/usr/share/clawos/theme/clawos-pin.svg` (Radix `sewing-pin-filled`)
+- `image/profile-overlay/airootfs/usr/share/clawos/theme/clawos-pin.png` (raster of the file above)
 
 The license text ships at
-`m1/profile-overlay/airootfs/usr/share/licenses/clawos-radix-icons/LICENSE`
+`image/profile-overlay/airootfs/usr/share/licenses/clawos-radix-icons/LICENSE`
 and is installed at `/usr/share/licenses/clawos-radix-icons/LICENSE`. No
 separately drawn ClawOS logo exists; the "ClawOS" wordmark is rendered text.
 The installer explicitly copies this license alongside the custom icon tree;
@@ -62,8 +62,8 @@ and design records, and Git history. Working prompts and screenshot QA diaries
 are kept locally; the public provenance conclusions remain here. Where no
 record exists, this file says so.
 
-- `m1/profile-overlay/airootfs/usr/share/clawos/theme/background.png`,
-  `m1/profile-overlay/airootfs/usr/share/plymouth/themes/clawos/background.png`
+- `image/profile-overlay/airootfs/usr/share/clawos/theme/background.png`,
+  `image/profile-overlay/airootfs/usr/share/plymouth/themes/clawos/background.png`
   and `shell-prototype/public/assets/clawos-background.png` are one identical
   1487x1058 image (halftone "claw" texture on graphite). Its embedded C2PA
   manifest records generation on 2026-08-26 by OpenAI's image model
@@ -97,9 +97,9 @@ are not endorsed by OpenAI.
 
 Carapace (https://carapace.design, https://github.com/openclaw/carapace; MIT,
 Copyright (c) 2026 openclaw) is the OpenClaw project's design system, not a
-ClawOS project. `m1/profile-overlay/airootfs/etc/clawos/design-system.css`
+ClawOS project. `image/profile-overlay/airootfs/etc/clawos/design-system.css`
 adapts its color roles for GTK; no Carapace source files are copied. Other
-ClawOS token values (`m2/DESIGN-SYSTEM.md`, `shell-prototype/src/styles.css`)
+ClawOS token values (`docs/DESIGN-SYSTEM.md`, `shell-prototype/src/styles.css`)
 are ClawOS's own.
 
 ## Fonts
@@ -115,8 +115,8 @@ time and does not redistribute them.
 ## OpenClaw
 
 OpenClaw (https://github.com/openclaw/openclaw; MIT, Copyright (c) 2026
-OpenClaw Foundation) is not vendored in this repository. `m1/bin/build-iso`
-installs the version pinned in `m1/config/versions.env` into the ISO with
+OpenClaw Foundation) is not vendored in this repository. `image/bin/build-iso`
+installs the version pinned in `image/config/versions.env` into the ISO with
 `npm install --global`, and the installer copies that tree from the live ISO
 to the target. Every ClawOS ISO and installed system therefore contains
 OpenClaw and its complete npm dependency closure under
@@ -126,7 +126,7 @@ OpenClaw and its complete npm dependency closure under
 kept inside its own directory in that tree; a generated license manifest for
 that tree is not yet produced at build time.
 
-`m2/openclaw-plugin` (`@clawos/openclaw-system`) is ClawOS code under MIT; it
+`integrations/openclaw` (`@clawos/openclaw-system`) is ClawOS code under MIT; it
 declares an optional peer dependency on OpenClaw and installs no third-party
 packages.
 
@@ -134,10 +134,10 @@ packages.
 
 Every other component of the live ISO and the installed system is an
 unmodified Arch Linux package fetched at build or install time from the Arch
-Linux Archive snapshot pinned in `m1/config/versions.env` and
-`m1/config/mirrorlist`, as listed in `m1/profile-overlay/packages.x86_64`
+Linux Archive snapshot pinned in `image/config/versions.env` and
+`image/config/mirrorlist`, as listed in `image/profile-overlay/packages.x86_64`
 (live image) and
-`m1/profile-overlay/airootfs/usr/lib/clawos/clawos-install-packages.sh`
+`image/profile-overlay/airootfs/usr/lib/clawos/clawos-install-packages.sh`
 (installed target). The ISO contains its package list at
 `arch/pkglist.x86_64.txt`; release builds also record the build container's
 package list in `BUILD-PACKAGES.txt`. License texts are installed under
@@ -176,7 +176,7 @@ records the snapshot in every build's `BUILD-METADATA.txt`.
 QEMU, edk2-ovmf (OVMF), Docker's `archlinux:base-devel` image, GitHub Actions,
 ShellCheck, and the Windows QEMU helper scripts in `tools/windows/` are used
 on build or host machines only. Nothing from them is copied into this
-repository or the image. `m0/` is a retained historical experiment that ran
+repository or the image. `experiments/host-session/` is a retained historical experiment that ran
 on a host machine; it ships nothing.
 
 ## shell-prototype
@@ -220,5 +220,5 @@ Microsoft, Tailscale, and other names used here are trademarks of their
 respective owners. ClawOS is an independent project and is not affiliated
 with or endorsed by any of them, including the OpenClaw project whose runtime
 it builds on. The Gmail and Outlook web-app launchers in
-`m1/profile-overlay/airootfs/usr/share/applications/` use those names to
+`image/profile-overlay/airootfs/usr/share/applications/` use those names to
 identify the sites they open and use generic system icons.

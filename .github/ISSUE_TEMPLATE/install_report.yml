@@ -40,7 +40,7 @@ body:
       options:
         - GitHub Actions artifact from the Experimental ISO build workflow
         - Release asset (draft or published tag)
-        - Local build with sudo ./m1/bin/build-iso
+        - Local build with sudo ./image/bin/build-iso
     validations:
       required: true
   - type: input

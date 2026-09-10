@@ -72,7 +72,7 @@
   with verified private backups. Future builds retain artifacts for 14 days;
   they are not supported releases. Release gates remain
   [#37](https://github.com/Solvely-Colin/ClawOS/issues/37).
-  Build locally with `sudo ./m1/bin/build-iso`, or
+  Build locally with `sudo ./image/bin/build-iso`, or
   see [the evidence ledger](EVIDENCE.md).
 - **Compatibility:** the version-checked OpenClaw delivery adapter needs review
   when upgrading that dependency. Supply-chain follow-ups:

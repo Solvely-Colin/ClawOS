@@ -167,7 +167,7 @@ tested.
   command, wrappers not in the allowlist (`chroot`, `nsenter`, `ssh localhost`,
   `make`, `tmux`), and any tool other than `exec`, including a file written with
   another tool and run later. See the `uncaught` table in
-  `m2/openclaw-plugin/test/embodiment.test.js`.
+  `integrations/openclaw/test/embodiment.test.js`.
 
 - Caller-boundary regression tests include a real private D-Bus daemon with
   different OS UIDs and a fake machine runner. They do not constitute a complete
