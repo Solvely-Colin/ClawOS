@@ -21,6 +21,8 @@ instead of prose.
 | 2026-09-10 | `0b2f80b9899067a20f0e17fba5e6efb310978b7d` | `ebf236162e3bb0362918a7ca62d9579dbd8da3a7ce33fc4547519935a231b3d6` | `release.yml` run 34505506520 | clean build and live KVM smoke: identity, systemd, DHCP, overlay root, SSH policy and serial-shell poweroff | GitHub-hosted Ubuntu runner, Arch container, QEMU/KVM | passed; preliminary shutdown path superseded by the ACPI run below | scanned boot evidence retained; ISO retention disabled; no release |
 | 2026-09-10 | `82afc7051c055305dc983b61fc0f4ee45a1271b0` | `8d30dfc6b95a0c290e1f09c298c96fd1c6a04bf994b21b1abe66f7669094cb40` | `release.yml` run 34507795187 | clean build, all seven live smoke markers, acknowledged ACPI request, kernel Power down and normal QEMU exit | GitHub-hosted Ubuntu runner, Arch container, QEMU/KVM | passed; no installation, onboarding or inference tested | scanned boot evidence retained; ISO retention disabled; no release |
 
+| 2026-09-10 | `dd8cd8d4179eafc82faec771e7dc1193be909086` | `4ce4a4c62344fb8e5534c2f9b00758e9a1ac7bf83ed9e5fa4a4409bf84b20122` | `release.yml` run 34511620906 | clean build, live smoke, passwordless install to new 32 GiB virtio disk, disk-only boot, installed services/SSH/OpenClaw checks, screendump and ACPI shutdowns | GitHub-hosted Ubuntu runner, Arch container, QEMU/KVM, Q35/OVMF, 8 GiB install guest | passed; test-only serial root autologin; screenshot shows desktop/top bar, not completed onboarding | scanned evidence downloaded and re-scanned; no ISO, disk or firmware uploaded; no release |
+
 Full hashes are in the private copies and in the run artifacts; the ledger
 shows the first and last characters so a row can be matched to a file.
 
@@ -49,6 +51,35 @@ the serial log ended with `reboot: Power down`, and QEMU exited normally.
 Only the six-file scanned evidence artifact was uploaded; result and metadata
 checksums agreed. Later probe-error diagnostics and documentation changes do
 not change the tested boot harness or image content.
+
+## Automated passwordless install gate
+
+[Run 34511620906](https://github.com/Solvely-Colin/ClawOS/actions/runs/34511620906)
+passed at the exact source and ISO hash listed above. A fresh 32 GiB QCOW2 was
+the only writable block disk. The live guest verified its dedicated serial and
+the installer's disk ID before passing the exact erase confirmation. After
+installation and ACPI powerdown, the harness restarted with the same disk and
+firmware variables but no ISO attached.
+
+Executed markers confirmed Btrfs root on `/dev/vda2[/@]`, zero failed units,
+active desktop/broker/SSH/NetworkManager services, effective key-only SSH policy,
+OpenClaw 2026.8.2 and passwordless-entry configuration. The live and installed
+serial logs end with kernel `reboot: Power down`; the offline QCOW2 check found
+no errors. The retained screendump shows the installed desktop and top bar,
+not an onboarding completion or model inference result.
+
+Only artifact `10166886222` (`clawos-boot-evidence-dd8cd8d4179eafc82faec771e7dc1193be909086-1`)
+was uploaded. Its explicit whitelist contains logs, checksum/metadata and a
+fresh-guest screendump, not ISO, QCOW2, writable firmware or credentials. Logs
+and image bytes were re-scanned after download; the image was visually reviewed.
+Binary pattern scanning is not OCR. No release was created.
+
+The installer ran with `--vm-test --passwordless`: serial root autologin is
+test-only, not proof of the shipped console policy. Encrypted installation,
+onboarding, inference, update/recovery and physical hardware remain separate.
+Follow-up changes add regression tests and reject a guest that exits before
+the required ACPI request; they do not change image contents. That stricter
+failure guard passed Linux source CI, not a second full ISO installation run.
 
 ## Component-layout runtime verification
 

@@ -66,7 +66,8 @@
 - **Releases:** no tags exist and there is no downloadable release. `release.yml`
   went green for the first time on `main` on 2026-09-08 (run 34270708295; an
   earlier branch run is in the ledger). The workflow now requires live KVM
-  boot smoke, but installation/onboarding are still not automated. Run 34432248984 was manually verified through an
+  boot smoke and passwordless install/disk-only boot smoke (run 34511620906).
+  Encrypted installation and full onboarding are not automated. Run 34432248984 was manually verified through an
   encrypted graphical install and default onboarding on 2026-09-10. All four
   retained ISO artifacts were removed from GitHub before the public launch,
   with verified private backups. Manual ISO uploads are opt-in; scanned boot

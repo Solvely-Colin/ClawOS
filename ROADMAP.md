@@ -34,7 +34,9 @@ Milestones: Green Pipeline, v0.1.0-alpha.1.
 
 - [x] release.yml boots the just-built ISO under runner KVM and asserts key-only
   sshd plus ACPI shutdown (#20; run 34507795187, 2026-09-10).
-- [ ] A passwordless install and installed boot follow under their own timeout (#21).
+- [x] A passwordless install and disk-only installed boot follow under their own
+  timeout (#21); hosted KVM run 34511620906 passed. Test-only serial root
+  autologin is not shipped-console posture proof; see docs/EVIDENCE.md.
 - [ ] m2-e2e-qemu passes once on a CI-built ISO, or its failures are triaged.
 - [ ] Gates run under TCG for contributors without KVM; WHPX evidence names a
   CI run via Get-CiIso.ps1.

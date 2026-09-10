@@ -26,6 +26,9 @@ releases, not a diary of the maintainer's launch session. See
   publication; retained private proof is not a public download.
 - [ ] Build an ISO from the tagged source, pass validate-iso.sh, and run fresh
   disposable-disk installation and first boot in encrypted and passwordless modes.
+  - [x] Passwordless automation established on a branch in hosted KVM run
+    34511620906: fresh disk, install, disk-only boot and ACPI shutdown.
+    This does not tick the tagged-source or encrypted-mode requirement above.
 - [ ] Verify a real agent request, live update, rollback and completion delivery.
 - [ ] Document known failures and recovery instructions in release notes.
 - [ ] Review the draft prerelease and its hashes; a green build is not a supported release.
