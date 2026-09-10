@@ -36,6 +36,10 @@ directories to keep two layouts alive. Installed `/usr/lib/clawos` paths do
 not change. Existing ignored `artifacts/m1/` output locations are retained so
 the migration does not move or discard local VM disks and build evidence.
 
+An older checkout may still contain ignored notes or caches in retired folders
+after pulling. Preserve those locally before removing the empty old layout;
+do not use a blanket clean command that could delete VM evidence or credentials.
+
 The filesystem overlay remains together under `image/profile-overlay/` so its
 layout matches the installed filesystem. Separate image and runtime-deployment
 mappings must continue to agree. Migration acceptance is tracked in

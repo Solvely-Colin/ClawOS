@@ -70,8 +70,9 @@ so the boot splash and encrypted unlock screen always initialize on the same
 
 Build products live under `artifacts/m1/` and are ignored by Git.
 Every build rematerializes the ArchISO profile and recreates mkarchiso's work
-tree so overlay changes cannot be hidden by stale build state. The previous
-`out/` directory is moved under `artifacts/m1/archive/` before the new build.
+tree so overlay changes cannot be hidden by stale build state. Release builds
+move the previous `out/` directory under `artifacts/m1/archive/`; fast builds
+replace their previous disposable `out-fast/` output.
 
 `build-iso` ends by running `image/tests/validate-iso.sh` against the new image.
 Besides the boot chain and the pinned OpenClaw runtime, it extracts

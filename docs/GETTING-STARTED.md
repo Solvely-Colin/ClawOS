@@ -117,7 +117,7 @@ verify its `SHA256SUMS` and source metadata before using it.
    [ci.yml](../.github/workflows/ci.yml) runs it on every push).
 3. Build the fast ISO. `--fast` compresses with zstd, writes
    `clawos-fast-<date>-x86_64.iso` and its `.sha256` to
-   `artifacts/m1/out-fast/`, and archives the previous fast output. It
+   `artifacts/m1/out-fast/`, and replaces the previous disposable fast output. It
    rematerializes the profile from source, installs the pinned OpenClaw from
    npm into the image and runs `image/tests/validate-iso.sh` on the result.
 
