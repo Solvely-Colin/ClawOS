@@ -27,6 +27,8 @@ window { background: #090b0b; color: #f3f1ee; font-family: 'Inter Variable', Int
 .target-selector button { background: #202222; background-image: none; color: #f3f1ee; border: 1px solid #343a38; border-radius: 8px; padding: 12px; box-shadow: none; }
 .target-selector button:hover { border-color: #ff684f; }
 .target-selector button:focus { outline: 2px solid #ff684f; outline-offset: 2px; }
+menu, menuitem { background: #202222; color: #f3f1ee; }
+menuitem:hover { background: #343a38; color: #f3f1ee; }
 .shell { background-color: transparent; }
 .topbar { min-height: 51px; padding: 0 24px; background: rgba(11,13,13,.96); border-bottom: 1px solid #292d2b; }
 .brand { color: #f3f1ee; font-size: 17px; font-weight: 700; }
@@ -65,6 +67,7 @@ window { background: #090b0b; color: #f3f1ee; font-family: 'Inter Variable', Int
 .content { padding: 22px 72px 12px 72px; }
 .content-pane-left { padding: 28px 42px 28px 0; }
 .content-pane-right { padding: 28px 0 28px 42px; border-left: 1px solid #292d2b; }
+.install-actions { padding-top: 12px; border-top: 1px solid #292d2b; }
 .danger { color: #ff5c5c; font-size: 13px; }
 .risk-toggle { padding: 12px 14px; color: #d8d5d1; background: rgba(255,92,92,.08); border: 1px solid rgba(255,92,92,.34); border-radius: 8px; font-size: 13px; }
 .risk-toggle check { min-width: 18px; min-height: 18px; background: #202121; border: 1px solid #747876; border-radius: 4px; }
@@ -416,7 +419,6 @@ class Welcome(Gtk.ApplicationWindow):
             left.pack_start(self._label('No eligible blank disk of at least 32 GiB found.', 'danger'), False, False, 0)
         left.pack_start(self._label(
             "Boot media, mounted/in-use disks, and disks with partitions or filesystem signatures are protected. Network access is required. Keep the selected disk connected and the machine powered on.", "body", 58), False, False, 0)
-        left.pack_end(self._button("Back", "quiet", self.show_welcome, "clawos-arrow-left"), False, False, 0)
         self.passphrase_title = self._label("Disk unlock and session-lock passphrase", "body-strong")
         right.pack_start(self.passphrase_title, False, False, 0)
         self.passphrase_help = self._label(
@@ -466,10 +468,24 @@ class Welcome(Gtk.ApplicationWindow):
         right.pack_start(self.erase_confirmation, False, False, 0)
         self.install_button = self._button("Erase disk and install", "primary", self.start_install, "go-next-symbolic")
         self.install_button.set_sensitive(False)
-        right.pack_end(self.install_button, False, False, 0)
         panes.pack_start(left, True, True, 0)
         panes.pack_start(right, True, True, 0)
-        content.pack_start(panes, True, True, 0)
+        # The expanded warnings can exceed the viewport. Let the form scroll
+        # while keeping Back/Erase reachable, including at 1440x900 and 1280x768.
+        options = Gtk.ScrolledWindow()
+        options.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        options.set_min_content_height(0)
+        options.set_propagate_natural_height(False)
+        options.get_accessible().set_name("Installation options")
+        options.add(panes)
+        content.pack_start(options, True, True, 0)
+        actions = self._classes(Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL), "install-actions")
+        actions.set_homogeneous(True)
+        back_slot = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        back_slot.pack_start(self._button("Back", "quiet", self.show_welcome, "clawos-arrow-left"), False, False, 0)
+        actions.pack_start(back_slot, True, True, 0)
+        actions.pack_start(self.install_button, True, True, 0)
+        content.pack_end(actions, False, False, 0)
         self.stage.pack_start(content, True, True, 0)
         self.show_all()
         selector.grab_focus()

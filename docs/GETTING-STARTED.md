@@ -203,8 +203,9 @@ None of these screens were used on 2026-09-07; every step in this section is
    passphrase unlocks the encrypted disk and is also the `root` and `clawos`
    account password, and that approval prompts on the machine ask for it.
    Alternatively tick the passwordless checkbox (no disk encryption, no screen
-   lock, empty account passwords; it states that approval levels then protect
-   nothing and that you accept the risk). That maps to
+   lock, empty account passwords; there is no password to establish approver
+   identity, while local decisions, UID/token checks and typed controls remain).
+   Empty-password Polkit behavior is not yet verified. That maps to
    `clawos-install-dev --passwordless`: plain Btrfs with no LUKS layer, empty
    `root` and `clawos` passwords, and `/etc/clawos-passwordless-entry`, which
    disables the screen lock. There is no in-place switch between the two
@@ -215,7 +216,10 @@ None of these screens were used on 2026-09-07; every step in this section is
    passphrases are valid (or passwordless is ticked). `NOT YET VERIFIED`.
 6. **Progress.** "Building the encrypted agent system…" (or "…passwordless…")
    with a scrolling installer log. The installer first downloads and verifies
-   every package (three attempts of at most 15 minutes each), then prints
+   every package after archive-reachability and temporary-storage checks.
+   Only timeouts or reset transfers are retried (up to three attempts of at
+   most 15 minutes each); other classified preparation failures stop immediately.
+   It then prints
    `CLAWOS_INSTALL_DISK_WRITE_STARTED` and partitions the disk. A failure
    before that line ends with "The target disk was not changed."; a failure
    after it with "The target may be partially installed." `NOT YET VERIFIED`.

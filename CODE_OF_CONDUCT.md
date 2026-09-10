@@ -8,7 +8,7 @@ Respect contributors' time. Provide reproducible evidence, identify assumptions,
 and distinguish experiments from verified behavior. Do not pressure someone to
 run destructive commands, share credentials or test on their daily-driver disk.
 
-Raise sensitive conduct concerns privately with the repository owner through an
-existing private contact channel. Maintainers may moderate discussions and
-contributions to keep the project safe and productive. A public reporting route
-will be documented before the repository opens to wider participation.
+Report sensitive conduct concerns privately to [colin@solvely.net](mailto:colin@solvely.net).
+One maintainer reads reports best-effort, with no promised response time. Do not
+include live credentials or unnecessary personal information. Maintainers may
+moderate discussions and contributions to keep the project safe and productive.

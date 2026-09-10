@@ -4,7 +4,10 @@
       and third-party license exceptions remain documented in NOTICE.md.
 - [x] Owner approved retaining the disclosed AI-generated artwork for the
       experimental launch on 2026-09-08; original branding remains a follow-up.
-- [ ] Complete copied code, icons, fonts and artwork attribution/provenance review (NOTICE.md).
+- [x] Complete the tracked-source attribution/provenance inventory review
+      (NOTICE.md, 2026-09-10 UTC). Copied-source exceptions, generated artwork,
+      the unknown screenshot capture tool and non-MIT prototype dependencies
+      are disclosed. This is not ISO redistribution clearance or legal certification.
 - [x] Add SECURITY.md with the maintainer-designated email reporting route.
 - [ ] Verify mailbox delivery before publication; optionally enable and verify
       GitHub private vulnerability reporting when available.
@@ -17,7 +20,8 @@
 - [x] Historical files carry the frozen-record banner
       (`git grep -l '^> \*\*Historical record\.\*\*'` lists 14 files; 2026-09-08).
 - [x] A clean checkout passes CI (`ci.yml`) and the full Arch preflight
-      (both jobs green on `main` at `00f81c5`; preflight passed in the builder VM on the same commit).
+      (all four jobs green on `main` at `30541ba`, run 34428511092; includes
+      the full Arch preflight, D-Bus proof and prototype smoke tests).
 - [ ] Owner explicitly approves public visibility.
 
 # Before the first prerelease
@@ -32,3 +36,6 @@
 - [ ] Owner explicitly approves publication of the draft.
 
 This checklist does not change repository visibility or publish a release.
+If a secret or private artifact surfaces, revoke/rotate affected credentials
+first, then remove and re-scan. Re-privatising a repository is not a remedy.
+See [current preparation evidence and pending gates](PUBLIC-SOURCE-READINESS.md).

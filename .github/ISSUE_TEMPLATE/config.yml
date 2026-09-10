@@ -6,3 +6,9 @@ contact_links:
   - name: Contributing and testing without a VM
     url: https://github.com/Solvely-Colin/ClawOS/blob/main/CONTRIBUTING.md
     about: How CI runs, which labels to look at, and how to test without Arch or KVM.
+  - name: Getting started
+    url: https://github.com/Solvely-Colin/ClawOS/blob/main/docs/GETTING-STARTED.md
+    about: Follow the VM setup walkthrough and its verification markers.
+  - name: Experimental scope and limitations
+    url: https://github.com/Solvely-Colin/ClawOS/blob/main/docs/SCOPE.md
+    about: Understand the supported evidence and what remains unverified.
