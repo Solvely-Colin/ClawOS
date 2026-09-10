@@ -168,18 +168,18 @@ if [[ -f "$installer" ]]; then
   grep -Fq 'clawosd.service clawos-session@clawos.service' "$installer"
 fi
 
-m3_root="$repo_root/m3"
-for m3_file in \
-  clawosd/clawosd_core.py clawosd/clawosd_service.py clawosd/clawosctl.py \
-  clawosd/clawos_approval.py config/clawosd.json systemd/clawosd.service \
+broker_root="$repo_root/services/clawosd"
+for broker_file in \
+  src/clawosd_core.py src/clawosd_service.py src/clawosctl.py \
+  src/clawos_approval.py config/clawosd.json systemd/clawosd.service \
   dbus/org.clawos.System.conf dbus/org.clawos.System.service \
   dbus/org.clawos.System.xml polkit/org.clawos.system.policy; do
-  test -f "$m3_root/$m3_file"
+  test -f "$broker_root/$broker_file"
 done
 python3 -c 'import ast, pathlib, sys; [ast.parse(pathlib.Path(path).read_text()) for path in sys.argv[1:]]' \
-  "$m3_root/clawosd/clawosd_core.py" "$m3_root/clawosd/clawosd_service.py" \
-  "$m3_root/clawosd/clawosctl.py" "$m3_root/clawosd/clawos_approval.py"
-python3 - "$m3_root/clawosd/clawos_approval.py" <<'PY'
+  "$broker_root/src/clawosd_core.py" "$broker_root/src/clawosd_service.py" \
+  "$broker_root/src/clawosctl.py" "$broker_root/src/clawos_approval.py"
+python3 - "$broker_root/src/clawos_approval.py" <<'PY'
 import ast
 import pathlib
 import sys
@@ -195,26 +195,26 @@ assert b"#center-panel" in center_css
 assert b"@claw_coral" in center_css
 PY
 python3 -c 'import sys, xml.etree.ElementTree as ET; [ET.parse(path) for path in sys.argv[1:]]' \
-  "$m3_root/dbus/org.clawos.System.xml" "$m3_root/polkit/org.clawos.system.policy"
+  "$broker_root/dbus/org.clawos.System.xml" "$broker_root/polkit/org.clawos.system.policy"
 jq -e '.version == 1 and .securityLevel == "full-root" and (.packages.allow | index("tree")) and (.services.allow | index("sshd.service")) and .openclaw.promotedVersion and .openclaw.agentUser == "claw" and .agentPolicies.coreAgentId == "main" and .agentPolicies.requireTrustedAttribution == true and (.agentPolicies.agents.main | index("*")) and (.taskGrants.grantableActions | index("service.manage"))' \
-  "$m3_root/config/clawosd.json" >/dev/null
+  "$broker_root/config/clawosd.json" >/dev/null
 grep -Fq 'clawos ALL=(ALL:ALL) NOPASSWD: ALL' \
   "$repo_root/image/profile-overlay/airootfs/etc/clawos/full-root.sudoers"
 grep -Fq '90-clawos-full-root' \
   "$repo_root/image/profile-overlay/airootfs/usr/local/bin/clawos-install-dev"
-grep -Fq 'ProtectSystem=strict' "$m3_root/systemd/clawosd.service"
-grep -Fq 'RuntimeDirectory=clawosd' "$m3_root/systemd/clawosd.service"
-if grep -Eq '^(NoNewPrivileges|CapabilityBoundingSet)=' "$m3_root/systemd/clawosd.service"; then
+grep -Fq 'ProtectSystem=strict' "$broker_root/systemd/clawosd.service"
+grep -Fq 'RuntimeDirectory=clawosd' "$broker_root/systemd/clawosd.service"
+if grep -Eq '^(NoNewPrivileges|CapabilityBoundingSet)=' "$broker_root/systemd/clawosd.service"; then
   echo "clawosd may not strip privileges required by an approved package transaction" >&2
   exit 1
 fi
-grep -Fq 'auth_admin' "$m3_root/polkit/org.clawos.system.policy"
+grep -Fq 'auth_admin' "$broker_root/polkit/org.clawos.system.policy"
 grep -Fq 'services/clawosd/src/clawosd_core.py' "$repo_root/image/bin/materialize-profile"
-grep -Fq 'title="ClawOS Center"' "$m3_root/clawosd/clawos_approval.py"
-grep -Fq 'header.set_size_request(-1, 86)' "$m3_root/clawosd/clawos_approval.py"
-grep -Fq 'from clawos_attention import collect, acknowledge, actionable_failure' "$m3_root/clawosd/clawos_approval.py"
-grep -Fq 'openclaw("approvals", "resolve"' "$m3_root/clawosd/clawos_approval.py"
-! grep -Fq '[APPCTL, "clear-attention"]' "$m3_root/clawosd/clawos_approval.py"
+grep -Fq 'title="ClawOS Center"' "$broker_root/src/clawos_approval.py"
+grep -Fq 'header.set_size_request(-1, 86)' "$broker_root/src/clawos_approval.py"
+grep -Fq 'from clawos_attention import collect, acknowledge, actionable_failure' "$broker_root/src/clawos_approval.py"
+grep -Fq 'openclaw("approvals", "resolve"' "$broker_root/src/clawos_approval.py"
+! grep -Fq '[APPCTL, "clear-attention"]' "$broker_root/src/clawos_approval.py"
 
 for launch_file in \
   usr/lib/clawos/clawos-session \
@@ -409,8 +409,8 @@ grep -Fq 'clawos-activity-action' "$profile/airootfs/etc/clawos/waybar/config.js
 grep -Fq 'clawos-attention-status' "$profile/airootfs/etc/clawos/waybar/config.jsonc"
 grep -Fq 'title="^ClawOS Center$"' "$profile/airootfs/etc/clawos/sway.conf"
 grep -Fq 'GtkLayerShell.set_namespace(self, "clawos-center")' \
-  "$m3_root/clawosd/clawos_approval.py"
-grep -Fq 'screen.get_width() - 64' "$m3_root/clawosd/clawos_approval.py"
+  "$broker_root/src/clawos_approval.py"
+grep -Fq 'screen.get_width() - 64' "$broker_root/src/clawos_approval.py"
 grep -Fq 'screen_width - 48' "$profile/airootfs/usr/lib/clawos/clawos-agent-shelf"
 ! grep -Fq 'min-width: 860px' "$profile/airootfs/etc/clawos/agent-shelf.css"
 ! grep -Fq 'floating enable, resize set 1040 740' "$profile/airootfs/etc/clawos/sway.conf"
@@ -437,9 +437,9 @@ python3 -c 'import sys, xml.etree.ElementTree as ET; ET.parse(sys.argv[1])' \
   "$profile/airootfs/usr/share/clawos/icons/arrow-left.svg"
 python3 -c 'import sys, xml.etree.ElementTree as ET; ET.parse(sys.argv[1])' \
   "$profile/airootfs/usr/share/clawos/icons/reload.svg"
-grep -Fq 'set_name("header-icon")' "$m3_root/clawosd/clawos_approval.py"
-grep -Fq 'Gtk.Label(label="Back")' "$m3_root/clawosd/clawos_approval.py"
-! grep -Fq 'Gtk.Button(label="Refresh")' "$m3_root/clawosd/clawos_approval.py"
+grep -Fq 'set_name("header-icon")' "$broker_root/src/clawos_approval.py"
+grep -Fq 'Gtk.Label(label="Back")' "$broker_root/src/clawos_approval.py"
+! grep -Fq 'Gtk.Button(label="Refresh")' "$broker_root/src/clawos_approval.py"
 if grep -Eq 'custom/(agent|actions)' "$profile/airootfs/etc/clawos/waybar/config.jsonc"; then
   echo "Agent and Actions must live in the command shelf, not duplicate the top bar." >&2
   exit 1
@@ -600,8 +600,8 @@ repo_url='https://github.com/Solvely-Colin/ClawOS'
 grep -Fqx "HOME_URL=\"$repo_url\"" "$profile/airootfs/etc/os-release"
 grep -Fqx 'PRETTY_NAME="ClawOS Live (experimental)"' "$profile/airootfs/etc/os-release"
 grep -Fqx "iso_publisher=\"ClawOS <$repo_url>\"" "$profile/profiledef.sh"
-grep -Fq "<vendor_url>$repo_url</vendor_url>" "$m3_root/polkit/org.clawos.system.policy"
-if grep -R -n -E 'github\.com/(clawos|openclaw)\b' "$profile/airootfs/etc" "$m3_root/polkit"; then
+grep -Fq "<vendor_url>$repo_url</vendor_url>" "$broker_root/polkit/org.clawos.system.policy"
+if grep -R -n -E 'github\.com/(clawos|openclaw)\b' "$profile/airootfs/etc" "$broker_root/polkit"; then
   echo "Stale project URL in image identity." >&2
   exit 1
 fi
