@@ -70,6 +70,16 @@ class InstallCI(unittest.TestCase):
         self.assertEqual(pause.call_count, len(serial.sent))
 
     @unittest.skipUnless(sys.platform == 'linux', 'Shell contract runs on Linux CI')
+    def test_guest_already_exited_is_not_an_acpi_success(self):
+        source = (ROOT / 'image/tests/install-smoke-qemu').read_text()
+        function = source[source.index('shutdown_guest() {'):source.index('\nfinish() {')]
+        fixture = 'kill() { return 1; }; wait() { return 0; }; qemu_pid=123\n'
+        result = subprocess.run(['bash', '-c', fixture + function + '\nshutdown_guest'],
+                                capture_output=True, text=True, timeout=5)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('before the required ACPI', result.stderr)
+
+    @unittest.skipUnless(sys.platform == 'linux', 'Shell contract runs on Linux CI')
     def test_wrong_guest_disk_stops_before_installer_and_still_completes(self):
         source = (ROOT / 'image/tests/install-smoke-qemu').read_text()
         payload = next(line for line in source.splitlines() if line.startswith("bash -c '"))
