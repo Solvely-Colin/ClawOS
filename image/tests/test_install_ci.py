@@ -70,6 +70,21 @@ class InstallCI(unittest.TestCase):
         self.assertEqual(pause.call_count, len(serial.sent))
 
     @unittest.skipUnless(sys.platform == 'linux', 'Shell contract runs on Linux CI')
+    def test_wrong_guest_disk_stops_before_installer_and_still_completes(self):
+        source = (ROOT / 'image/tests/install-smoke-qemu').read_text()
+        payload = next(line for line in source.splitlines() if line.startswith("bash -c '"))
+        # Only the read-only preconditions run. A wrong serial must prevent
+        # both inventory and installer execution, without hiding completion.
+        fixture = ('findmnt() { echo overlay; }; cat() { echo WRONG-DISK; }; '
+                   'python3() { echo UNEXPECTED-INVENTORY; }; '
+                   'clawos-install-dev() { echo UNEXPECTED-INSTALLER; }; '
+                   'export -f findmnt cat python3 clawos-install-dev\n')
+        result = subprocess.run(['bash', '-c', fixture + payload + '\nD=DONE:; echo "${D}INSTALL"\n'],
+                                capture_output=True, text=True, timeout=5)
+        self.assertEqual(result.stdout, 'DONE:INSTALL\n', result.stderr)
+        self.assertNotIn('PASS:INSTALL_OK', result.stdout)
+
+    @unittest.skipUnless(sys.platform == 'linux', 'Shell contract runs on Linux CI')
     def test_install_metadata_cannot_mask_failure(self):
         helper = (ROOT / 'tools/ci/build-release.sh').read_text()
         fragment = helper[helper.index('# Fresh disposable disk'):]
