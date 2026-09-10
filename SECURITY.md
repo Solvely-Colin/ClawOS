@@ -121,6 +121,11 @@ tested.
   signature or lockfile.
 - `tailscaled` is installed and enabled on every install. Nothing in this
   repository runs `tailscale up` or supplies an auth key.
+  In an encrypted WHPX test on 2026-09-10, `tailscale status` reported NeedsLogin
+  with no tailnet or assigned Tailscale IPs, while `ss -lntup` showed UDP 41641
+  on IPv4 and IPv6 before any `tailscale up`. This is socket-level evidence,
+  not proof of tailnet connectivity or security of the listener. The
+  default-service decision remains tracked in #42.
 - Live ISO: the profile is archiso `releng` plus an overlay, and the overlay does
   not override releng's root autologin on `tty1`. Root autologin on `ttyS0`
   happens only on KVM with the Q35 product string. The live graphical session
@@ -188,8 +193,6 @@ tested.
 - Attestation reads the caller's PID from the bus and then its cgroup from
   `/proc/<pid>/cgroup`; a PID reused between those two reads would be
   misattributed. The window is small and has not been measured or exploited.
-- An enabled but unconfigured `tailscaled` should expose nothing until someone
-  runs `tailscale up`; not verified against the installed image.
 
 ## How fixes are communicated
 
