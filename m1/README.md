@@ -17,6 +17,9 @@ QEMU (Linux KVM and Windows WHPX); no physical machine has been installed.
 
 ## Validate and build
 
+[docs/GETTING-STARTED.md](../docs/GETTING-STARTED.md) walks a first-time
+contributor through this section and marks which steps have been verified.
+
 For edits to the running ClawOS shell, broker, plugin, or UI assets, use the
 in-guest runtime deployment loop before building another ISO:
 

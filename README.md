@@ -9,7 +9,8 @@ ClawOS is an independent project, not affiliated with or endorsed by OpenClaw
 or Arch Linux; see [NOTICE.md](NOTICE.md).
 This is **experimental, unreleased source**, not a production-ready
 distribution. There are no releases or tags yet, and every install so far has
-been inside a virtual machine.
+been inside a virtual machine. What is and is not in scope is summarized in
+[docs/SCOPE.md](docs/SCOPE.md).
 
 [Features](FEATURES.md) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md) ·
 [Hardware support](docs/HARDWARE.md) · [Release builds](docs/RELEASING.md)
@@ -35,7 +36,9 @@ conversations and agent execution. Carapace is the intended design language.
 ## Start contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) and [known issues](docs/KNOWN-ISSUES.md).
-Use a disposable Linux VM, not your daily-driver installation.
+Use a disposable Linux VM, not your daily-driver installation. A step-by-step
+build and install walkthrough, with a verification marker on every step, is in
+[docs/GETTING-STARTED.md](docs/GETTING-STARTED.md).
 
 On Arch Linux, review and install build dependencies, then run the source gate:
 
