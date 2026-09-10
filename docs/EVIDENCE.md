@@ -15,5 +15,7 @@ instead of prose.
 | 2026-09-08 | `00f81c5` (`main`) | `9442e105…6816fd` | `release.yml` run 34270708295 | preflight, `mkarchiso`, `validate-iso.sh`, `sha256sum -c SHA256SUMS` after download | GitHub-hosted runner | built and validated, not booted; first green run on `main` | artifact expires 2026-09-22; ISO, `SHA256SUMS`, `BUILD-METADATA.txt`, `BUILD-PACKAGES.txt`, `BUILD-CONTAINER.txt` retained privately |
 | 2026-09-08 | `00f81c5` (`main`) | `9442e105…6816fd` | `release.yml` run 34270708295 artifact | live boot only, no install: `sshd -T` key-only, `00-clawos.conf` first in `sshd_config.d`, sshd listening on 22, live root has no password | Windows QEMU (WHPX, OVMF) | pass | serial transcript retained |
 
+| 2026-09-09 | `00f81c5` (`main`) | `9442e105d287c300e08b8ce9821859fa684067d761afd3b69491552a956816fd` | `release.yml` run 34270708295 artifact | `Get-CiIso.ps1 -RunId`: workflow identity, source commit and ISO checksum verified; a real non-release run was refused before download | Windows PowerShell host | download/verification pass; no new boot or installation attempted | ISO, checksums, build metadata and CI-ISO-MANIFEST.txt retained privately |
+
 Full hashes are in the private copies and in the run artifacts; the ledger
 shows the first and last characters so a row can be matched to a file.
