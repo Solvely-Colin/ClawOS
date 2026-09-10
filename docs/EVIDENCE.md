@@ -17,19 +17,12 @@ instead of prose.
 | 2026-09-09 | `00f81c5` (`main`) | `9442e105d287c300e08b8ce9821859fa684067d761afd3b69491552a956816fd` | `release.yml` run 34270708295 artifact | `Get-CiIso.ps1 -RunId`: workflow identity, source commit and ISO checksum verified; a real non-release run was refused before download | Windows PowerShell host | download/verification pass; no new boot or installation attempted | ISO, checksums, build metadata and CI-ISO-MANIFEST.txt retained privately |
 | 2026-09-10 | `30541badb58dc09eb11e7faef3f13437703f1b7f` | `9c36f76a02c3054ae775d700323eac818d9b4adbe1a673cc1840c3e924b3b22e` | `release.yml` run 34429154651; Get-CiIso verification | live boot, key-only sshd and listener inspection, graphical Welcome/Inspect/disk selection | Windows QEMU 11.1/WHPX, OVMF, 8 GiB RAM, blank 40 GiB NVMe, 1440x900 | live SSH policy passed; GTK Back/Erase controls were clipped, so no install was attempted. A temporary layout patch was then visually checked at 1440x900 and 1280x768, including confirmation gating; that is not fresh-ISO acceptance | ISO, manifest, build log, live posture output and before/after screenshots retained privately |
 | 2026-09-10 | `de19c1bccc839a47696afd4c7009f6717c43d934` | `119768a247fd5e76f15a0df1914f554cc9bd2f5f4a53db3c810d68693a5ede32` | `release.yml` run 34432248984; Get-CiIso verification | unmodified ISO: graphical encrypted install, disk-only boot/LUKS unlock, local Gateway/model-later/Full Root onboarding, API completion, Control UI, SSH and listener checks | Windows QEMU 11.1/WHPX, OVMF, fresh 40 GiB NVMe, 8 GiB RAM, 1440x900 | pass for this path; archive resets recovered on attempt 3; intermittent host-forwarded SSH timeouts recorded; no inference or non-default policy proof | full observations, screenshots, metadata and offline checkpoints retained privately; see HARDWARE-INSTALLER-VALIDATION.md |
+| 2026-09-10 | `01655a6012d74610d37fbb829740c7d7f49cfb5f` | `1b6a0f43a405eae95c0b4c4551a4e53a88dc025c0169490ffbf81e49a4f45767` | local fast build, `clawos-fast-2026.09.10-x86_64.iso` | clean build after component-directory migration; ISO boot-chain, runtime-version and SSH-policy validation | Windows-managed QEMU/WHPX Linux builder with isolated virtio scratch storage | build and validation passed; this ISO was not newly booted or installed | ISO, checksum and logs retained privately; no release or public binary artifact published |
 
 Full hashes are in the private copies and in the run artifacts; the ledger
 shows the first and last characters so a row can be matched to a file.
 
-## Component-layout migration verification
-
-On 2026-09-10, source `01655a6012d74610d37fbb829740c7d7f49cfb5f` produced
-`clawos-fast-2026.09.10-x86_64.iso`, SHA-256
-`1b6a0f43a405eae95c0b4c4551a4e53a88dc025c0169490ffbf81e49a4f45767`,
-in a Windows-managed QEMU/WHPX Linux builder using isolated virtio scratch storage.
-The clean fast build and ISO boot-chain, runtime-version and SSH-policy validator
-passed. This locally built image was not newly booted or installed; no release
-or public binary artifact was published.
+## Component-layout runtime verification
 
 Compared with pre-migration source `7233f4d`, assembled profile and runtime
 payload comparisons found no removed destinations or mode changes. Reviewed
