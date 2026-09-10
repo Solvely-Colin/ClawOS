@@ -258,3 +258,75 @@ it was downloaded and re-scanned, and its desktop screendump was inspected.
 This KVM gate uses `--vm-test`; it does not rerun provider enrollment or the
 full agent loop on this corrected binary. Later commits change documentation
 only. No release or publicly retained ISO was created.
+
+## 2026-09-10: full agent loop on the corrected CI image
+
+Source `7a2c464d2708c833fba6411774177610e1770f4d`,
+[CI run 34522981039](https://github.com/Solvely-Colin/ClawOS/actions/runs/34522981039),
+ISO SHA-256 `9e0f75342931a10ee73f052e1b085ea2873d382ac37e33232fffa7c80ed96b9b`.
+The hosted live/install gates passed. ISO retention was explicitly authorized
+for this acceptance run; Get-CiIso verified workflow, source and checksum, and
+a second independent hash matched. Public ISO artifact 10171296669 was removed
+after securing the private copy; API readback retained only scanned boot evidence
+10171286463. No release was created.
+
+A new 40 GiB virtio disk and new OVMF variables were used under Windows
+QEMU/WHPX, Q35 and 8 GiB RAM. The **unmodified ISO** completed a normal
+passwordless CLI install, without `--vm-test`, then booted disk-only. Test
+instrumentation supplied only a temporary live operator account and the
+existing public SSH key. No updater permissions, delivery units or other
+installed runtime files were manually repaired. Read-only checks verified the
+updater's root-owned 0755 mode and CLI startup, an enabled/active delivery timer,
+healthy services, key-only SSH and absence of installed serial root autologin.
+Installed updater/unit bytes matched the source checkout exactly.
+
+An offline checkpoint preceded machine setup and standard development-tool
+installation from the same pinned Arch snapshot. Machine setup used the local
+API in local/Full Root mode; provider setup used native OpenClaw credential and
+model commands. The first request immediately after credential/model setup
+returned `missing-provider-auth` (run `0a42fce0-f005-4bbd-b682-04da49801e3f`).
+After setup finished, retrying with the same credential and model succeeded;
+no credential re-import, configuration repair or forced Gateway restart was
+needed. This startup symptom is retained for #53, not assigned a proven cause.
+
+Verified results:
+
+- Real `ollama-cloud/minimax-m2.7` inference passed in run
+  `e8e08b4a-049d-4aab-ad44-21a17ec8f89f`. Full source preflight passed at the
+  candidate revision before the agent changed anything.
+- The guest agent added exactly one harmless comment to
+  `integrations/openclaw/lib/embodiment.js` and dispatched the checkpointed update
+  itself. Agent run `edf59790-7215-4bbb-b508-51f1486e947c`, deployment
+  `cc4812e0-21ee-49ac-8b1d-d1cdf0621149`, version
+  `4030b96d5f8ee790f3553611aace3a4c80676adc54ef173dcf7a9e7ee1d04d52`.
+  Apply completed in 29 seconds, with verified runtime health, an empty drift
+  list and a read-only root snapshot plus file backup.
+- A temporary runtime-only condition held the delivery service. The real
+  Gateway append succeeded but its acknowledgement was deliberately discarded,
+  leaving delivery pending. Complete native history showed one notice **before**
+  retry. Normal delivery after releasing the condition acknowledged the job,
+  and history still showed exactly one notice. Neither the auth database nor
+  conversation storage was copied or edited by the test.
+- The same agent dispatched the authorized file-level rollback (run
+  `82913337-f66b-432d-9b06-c2a47d95e0a7`). It completed in 28 seconds, with
+  `rolled-back`, `healthVerified: true` and delivered receipt. Independent
+  comparison of all 101 runtime targets found no differences in hashes, modes,
+  UID/GID or existence. The original null installed manifest was restored;
+  the source comment intentionally remained separate from runtime rollback.
+- Complete native history retained the same session ID and exactly one notice
+  for each outcome. A final real agent request used the read tool on the public
+  rollback receipt and returned the expected verification response (run
+  `a291109e-af82-405a-b800-faf1c0b5d525`).
+- The test condition was removed, the normal delivery timer remained active,
+  no system units were failed, and final runtime/SSH checks passed. SSH shutdown
+  completed normally; offline disk check and a verified-state checkpoint passed.
+
+The ISO, firmware/checkpoints and raw agent history remain private. Response and
+history evidence passed secret-pattern scanning. A private package-install log
+matched the scanner on a non-secret `libsecret` optional-dependency description;
+the original was preserved and a narrowly redacted evidence copy passed scanning.
+
+This completes the core inference/update/delivery/file-rollback gate for this
+candidate without the earlier manual repair. It is **not** both-mode GTK,
+non-default policy-dialog, physical-hardware, untrusted-agent containment or
+whole-system rollback proof. Those broader #33/release requirements remain.

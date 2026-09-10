@@ -47,10 +47,10 @@ Milestones: Green Pipeline, v0.1.0-alpha.1.
 - [ ] Both install modes via the GTK installer, real inference, live update and
   rollback recorded against a CI ISO; GETTING-STARTED executed from the docs
   alone on a fresh host.
-  - Repaired-guest progress (2026-09-10): real inference, agent-originated update,
-    lost-ack completion retry and exact 101-target rollback passed. The original
-    CI ISO's updater-provisioning defect is fixed in PR #99; the combined
-    unmodified-candidate/both-mode GTK gate remains open (#33).
+  - Core loop passed on unmodified CI ISO run 34522981039 (`7a2c464`): real
+    inference, agent-originated update, lost-ack retry and exact 101-target
+    rollback, without the earlier updater repair. Both-mode GTK and non-default
+    policy acceptance remain open (#33); see docs/HARDWARE-INSTALLER-VALIDATION.md.
 - [ ] Tag v0.1.0-alpha.1 as an explicitly experimental, VM-only draft prerelease.
 
 ## 3. Harden the boundaries and make everyday development reliable

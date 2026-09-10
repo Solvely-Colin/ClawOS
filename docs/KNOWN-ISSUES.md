@@ -1,13 +1,12 @@
 # Current development boundaries
 
-- **Fresh-install updater:** a passwordless installation from CI run 34432248984
-  had a non-executable `clawos-deploy` and omitted delivery units. PR #99 explicitly
-  provisions their modes/units and adds an installed-boot assertion. After a
-  fresh rebuild, hosted KVM run 34519540819 passed updater readiness without
-  manual repair. Separately, after a
-  checkpointed repair, real inference, agent-driven update/rollback and lost-ack
-  delivery deduplication passed; this is not an unmodified-image acceptance pass.
-  See [the bounded evidence](HARDWARE-INSTALLER-VALIDATION.md#2026-09-10-fresh-passwordless-agent-loop-and-installer-defect).
+- **Fresh-install updater:** older CI run 34432248984 installed a non-executable
+  updater and omitted delivery units; PR #99 fixed provisioning and added an
+  installed-boot assertion. Unmodified CI ISO run 34522981039 now passed the
+  complete core agent loop in a fresh passwordless WHPX guest without runtime
+  repair: inference, update, lost-ack delivery retry and exact 101-target rollback.
+  This is not both-mode GTK or whole-system rollback proof. See
+  [the bounded evidence](HARDWARE-INSTALLER-VALIDATION.md#2026-09-10-full-agent-loop-on-the-corrected-ci-image).
 
 - **Source-test robustness:** the ISO posture test's marker parser no longer
   uses overlapping regex alternatives for continuation lines. A subprocess
@@ -27,6 +26,9 @@
   desktop readiness and repair state need a coherent model. Gateway reachability
   is not proof of successful model inference
   ([#53](https://github.com/Solvely-Colin/ClawOS/issues/53)).
+  In the corrected-CI-image test, the first request after credential/model setup
+  returned `missing-provider-auth` despite a listed auth profile; a later retry
+  after setup finished succeeded with the same credential/model. Cause unproven.
 - **Recovery:** runtime file rollback works; coordinated root/home/credential/
   database/boot rollback is not proven
   ([#56](https://github.com/Solvely-Colin/ClawOS/issues/56)).
@@ -48,8 +50,9 @@
   and encrypted installs passed on 2026-09-06/07; physical-machine acceptance is
   still missing. Existing partitions are intentionally refused.
   The encrypted graphical CI-ISO path through default onboarding was verified
-  on 2026-09-10; provider inference and the complete update/recovery loop remain
-  separate gates ([#33](https://github.com/Solvely-Colin/ClawOS/issues/33)).
+  on 2026-09-10. A separate corrected-CI passwordless CLI install completed the
+  core inference/update/file-rollback loop; both-mode GTK and non-default policy
+  remain separate gates ([#33](https://github.com/Solvely-Colin/ClawOS/issues/33)).
   Bare-metal guard work remains [#26](https://github.com/Solvely-Colin/ClawOS/issues/26).
   See [the exact proof](HARDWARE-INSTALLER-VALIDATION.md).
 - **Verification scope:** every install and boot proof is from QEMU (Linux KVM
