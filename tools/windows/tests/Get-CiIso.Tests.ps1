@@ -102,6 +102,9 @@ $global:GetCiIsoMock = @{
     Fail     = $false      # every call exits 1
     Calls    = @()         # argument strings, for assertions
     Artifact = "clawos-iso-$Sha"
+    Workflow = @{ id = 123; path = '.github/workflows/release.yml' }
+    WorkflowId = 123
+    RunHeadOverride = $null
     RunView  = @{ databaseId = [int64]$RunId; headSha = $Sha; url = $RunUrl; status = 'completed'; conclusion = 'success' }
     RunList  = @(@{ databaseId = [int64]$RunId; headSha = $Sha; url = $RunUrl })
 }
@@ -114,7 +117,7 @@ function global:gh {
         $global:LASTEXITCODE = 1
         return
     }
-    switch ("$($args[0]) $($args[1])") {
+    switch -Wildcard ("$($args[0]) $($args[1])") {
         'run view' {
             $global:LASTEXITCODE = 0
             return ($mock.RunView | ConvertTo-Json -Compress)
@@ -144,6 +147,18 @@ function global:gh {
             $global:LASTEXITCODE = 0
             return
         }
+        'api repos/*/actions/workflows/release.yml' {
+            $global:LASTEXITCODE = 0
+            return ($mock.Workflow | ConvertTo-Json -Compress)
+        }
+        'api repos/*/actions/runs/*' {
+            $global:LASTEXITCODE = 0
+            $apiHead = $mock.RunView.headSha
+            if ($mock.RunHeadOverride) { $apiHead = $mock.RunHeadOverride }
+            return (@{ id = $mock.RunView.databaseId; head_sha = $apiHead;
+                status = $mock.RunView.status; conclusion = $mock.RunView.conclusion;
+                workflow_id = $mock.WorkflowId } | ConvertTo-Json -Compress)
+        }
         default {
             [Console]::Error.WriteLine("mock gh: unexpected call '$($args -join ' ')'")
             $global:LASTEXITCODE = 2
@@ -164,6 +179,20 @@ try {
     foreach ($e in $errors) { Write-Host "      $($e.Extent.StartLineNumber): $($e.Message)" }
 
     # --- 1. happy path by run id ---------------------------------------------
+    $global:GetCiIsoMock.WorkflowId = 999
+    Expect-Throw { & $Script -RunId $RunId -Destination (Join-Path $Root 'wrong-workflow') } 'expected release.yml workflow' 'wrong workflow refused'
+    Assert ((Get-DownloadCalls).Count -eq 0) 'wrong workflow never downloads'
+    $global:GetCiIsoMock.WorkflowId = 123
+    $global:GetCiIsoMock.Workflow.path = '.github/workflows/other.yml'
+    Expect-Throw { & $Script -Latest -Destination (Join-Path $Root 'wrong-path') } 'expected release.yml workflow' 'wrong workflow path refused'
+    Assert ((Get-DownloadCalls).Count -eq 0) 'wrong workflow path never downloads'
+    $global:GetCiIsoMock.Workflow.path = '.github/workflows/release.yml'
+    $global:GetCiIsoMock.RunHeadOverride = $OtherSha
+    Expect-Throw { & $Script -RunId $RunId -Destination (Join-Path $Root 'changed-run') } 'identity or successful completion changed' 'changed run identity refused'
+    Assert ((Get-DownloadCalls).Count -eq 0) 'changed run never downloads'
+    $global:GetCiIsoMock.RunHeadOverride = $null
+    $global:GetCiIsoMock.Calls = @()
+
     $fxGood = Join-Path $Root 'fixture-good'
     $goodHash = New-Fixture -Dir $fxGood
     $global:GetCiIsoMock.Fixture = $fxGood

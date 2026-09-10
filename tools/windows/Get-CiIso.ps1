@@ -105,6 +105,20 @@ function Resolve-CiRun {
     if (-not $run.databaseId -or -not $run.headSha) {
         throw 'gh returned a run without an id or head commit.'
     }
+    # Bind both selection paths to the repository's actual release workflow.
+    # An artifact name or a successful unrelated workflow is not provenance.
+    $workflow = ConvertFrom-GhJson (Invoke-Gh @('api', "repos/$Repo/actions/workflows/$WorkflowFile"))
+    $runDetails = ConvertFrom-GhJson (Invoke-Gh @('api', "repos/$Repo/actions/runs/$($run.databaseId)"))
+    if (-not $workflow.id -or -not $runDetails.workflow_id -or
+        [string]$runDetails.workflow_id -ne [string]$workflow.id -or
+        $workflow.path -ne '.github/workflows/release.yml') {
+        throw "Run $($run.databaseId) does not belong to the expected $WorkflowFile workflow."
+    }
+    if ([string]$runDetails.id -ne [string]$run.databaseId -or
+        $runDetails.head_sha -ne $run.headSha -or
+        $runDetails.status -ne 'completed' -or $runDetails.conclusion -ne 'success') {
+        throw 'Run identity or successful completion changed during verification.'
+    }
     $run
 }
 
