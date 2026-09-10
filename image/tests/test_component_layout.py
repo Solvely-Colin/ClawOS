@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 class ComponentLayout(unittest.TestCase):
     def test_no_tracked_milestone_directories(self):
         paths = subprocess.check_output(['git', '-C', str(ROOT), 'ls-files'], text=True).splitlines()
-        self.assertFalse([p for p in paths if p.split('/')[0] in {'m0', 'm1', 'm2', 'm3', 'm4'}])
+        self.assertFalse([p for p in paths if p.split('/')[0] in {'m0', 'm1', 'm2', 'm3', 'm4', 'shell-prototype'}])
 
     def test_component_entry_points_exist(self):
         for path in (

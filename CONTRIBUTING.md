@@ -62,7 +62,7 @@ Arch install; a green run is source evidence only:
 - `container-wrapper` exercises the contributor container entry point and D-Bus proof.
 - `prototype` installs/builds the frozen visual prototype, runs its retained Sites
   tests, and checks dev/production rendering and Fast Refresh in Chromium. See
-  [its README](shell-prototype/README.md) for local commands and limitations.
+  [its README](experiments/shell-prototype/README.md) for local commands and limitations.
 
 Local equivalents:
 

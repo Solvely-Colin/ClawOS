@@ -44,7 +44,7 @@ class SharedIgnoreRules(unittest.TestCase):
             'guest.qcow', 'guest.vhdx', 'guest.vmdk', 'guest.vdi', 'guest.sav',
             'guest.vars', 'guest.fd', 'guest.dpapi', 'bundle.zip', 'build.tar.zst',
             'image/tests/__pycache__/test.pyc', 'integrations/openclaw/node_modules/x.js',
-            'shell-prototype/dist/index.html', 'shell-prototype/test-results/a.json',
+            'experiments/shell-prototype/dist/index.html', 'experiments/shell-prototype/test-results/a.json',
             '.venv/bin/python', '.pytest_cache/state', '.ruff_cache/state',
             '.mypy_cache/state', 'pkg.egg-info/PKG-INFO', '.coverage',
             'htmlcov/index.html', 'app.tsbuildinfo', '.idea/workspace.xml',
@@ -68,7 +68,7 @@ class SharedIgnoreRules(unittest.TestCase):
             '.env.example', 'integrations/openclaw/.env.example', 'AGENTS.md',
             '.github/workflows/ci.yml', 'image/config/versions.env',
             'services/clawosd/config/clawosd.json', 'tests/integration/roles/fixtures/fake-openclaw',
-            'shell-prototype/.openai/hosting.json', 'shell-prototype/package-lock.json',
+            'experiments/shell-prototype/.openai/hosting.json', 'experiments/shell-prototype/package-lock.json',
             'docs/assets/clawos-header.png', 'docs/ARCHITECTURE.md',
             'image/profile-overlay/airootfs/usr/lib/clawos/clawos-entry',
         ]

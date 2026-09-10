@@ -7,7 +7,8 @@
 /docs/history/
 # Retired layout: preserved notes/cache are under .local/legacy-milestones/.
 /m[0-4]/
-/shell-prototype/design-qa.md
+/shell-prototype/
+/experiments/shell-prototype/design-qa.md
 /docs/FLIP-DAY.md
 /docs/PUBLIC-SOURCE-READINESS.md
 /docs/SHARING.md

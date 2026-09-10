@@ -28,7 +28,7 @@ See [the contributor map](CONTRIBUTOR-MAP.md) and
 [live development](SELF-DEVELOPMENT.md).
 
 `experiments/host-session` is a historical executable fixture still checked by preflight.
-`shell-prototype` is a frozen browser prototype with regression CI, not the
+`experiments/shell-prototype` is a frozen browser prototype with regression CI, not the
 installed UI. Neither should be deleted while its checks still depend on it.
 Private operator notes and old milestone diaries are deliberately not public
 project documentation. [Document ownership](DOCUMENTATION.md) explains what belongs here.

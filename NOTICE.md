@@ -64,7 +64,7 @@ record exists, this file says so.
 
 - `image/profile-overlay/airootfs/usr/share/clawos/theme/background.png`,
   `image/profile-overlay/airootfs/usr/share/plymouth/themes/clawos/background.png`
-  and `shell-prototype/public/assets/clawos-background.png` are one identical
+  and `experiments/shell-prototype/public/assets/clawos-background.png` are one identical
   1487x1058 image (halftone "claw" texture on graphite). Its embedded C2PA
   manifest records generation on 2026-08-26 by OpenAI's image model
   (softwareAgent "gpt-image" 2.0, "trainedAlgorithmicMedia", watermarked),
@@ -99,7 +99,7 @@ Carapace (https://carapace.design, https://github.com/openclaw/carapace; MIT,
 Copyright (c) 2026 openclaw) is the OpenClaw project's design system, not a
 ClawOS project. `image/profile-overlay/airootfs/etc/clawos/design-system.css`
 adapts its color roles for GTK; no Carapace source files are copied. Other
-ClawOS token values (`docs/DESIGN-SYSTEM.md`, `shell-prototype/src/styles.css`)
+ClawOS token values (`docs/DESIGN-SYSTEM.md`, `experiments/shell-prototype/src/styles.css`)
 are ClawOS's own.
 
 ## Fonts
@@ -181,7 +181,7 @@ on a host machine; it ships nothing.
 
 ## shell-prototype
 
-`shell-prototype/` is a separate visual prototype. Its dependencies (React,
+`experiments/shell-prototype/` is a separate visual prototype. Its dependencies (React,
 react-dom, Vite, @vitejs/plugin-react, @radix-ui/react-icons, all MIT) are
 installed with npm and not vendored. `src/App.jsx` and `src/styles.css`
 hotlink Google's Gmail logo and favicon from ssl.gstatic.com for a mock Gmail

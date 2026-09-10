@@ -73,7 +73,7 @@ deployment. ISO builds run inside Linux. Windows manages QEMU through the
 | `integrations/openclaw/` | Machine tools, activity integration and deployment notices |
 | `services/clawosd/` | Privileged broker, approval UI, recovery and tests |
 | `tests/integration/roles/` | Standalone/remote-node role-switching tests |
-| [`shell-prototype/`](shell-prototype/README.md) | Frozen 2026-08 visual prototype, not the installed OS runtime; dependency/build/browser smoke checks run in CI |
+| [`experiments/shell-prototype/`](experiments/shell-prototype/README.md) | Frozen 2026-08 visual prototype, not the installed OS runtime; dependency/build/browser smoke checks run in CI |
 | [`experiments/host-session/`](experiments/host-session/README.md) | Historical 2026-08 host-side kiosk experiment; only its static check still runs, as `preflight-iso` stage 2 |
 | `tools/windows/` | Host lifecycle source, without VM images or credentials |
 

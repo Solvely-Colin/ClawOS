@@ -1,6 +1,6 @@
 # Shell prototype
 
-`shell-prototype/` is a frozen Vite/React visual prototype of the ClawOS
+`experiments/shell-prototype/` is a frozen Vite/React visual prototype of the ClawOS
 desktop: a top system bar with a system menu, a full-canvas mock Gmail
 surface, the centered bottom command shelf with an agent status strip, and an
 on-demand OpenClaw conversation panel. Its last design QA was
@@ -19,8 +19,8 @@ The installed shell that grew out of these ideas lives under
 | Top system bar and system menu | `etc/clawos/waybar/config.jsonc`, `etc/clawos/waybar/style.css`, `usr/lib/clawos/clawos-system-menu`, `etc/clawos/system-menu.css` |
 | Bottom command shelf and status strip | `usr/lib/clawos/clawos-agent-shelf`, `etc/clawos/agent-shelf.css` |
 | On-demand OpenClaw conversation | `usr/lib/clawos/clawos-agent-window` |
-| Full-canvas application surfaces (the Gmail mock) | `usr/share/applications/clawos-gmail.desktop` and the other launchers there; `usr/lib/clawos/clawos-browse`, `clawos-command`, `clawos-build`; see [architecture](../docs/ARCHITECTURE.md) |
-| Graphite and coral tokens | `etc/clawos/design-system.css`; rationale in [`docs/DESIGN-SYSTEM.md`](../docs/DESIGN-SYSTEM.md) |
+| Full-canvas application surfaces (the Gmail mock) | `usr/share/applications/clawos-gmail.desktop` and the other launchers there; `usr/lib/clawos/clawos-browse`, `clawos-command`, `clawos-build`; see [architecture](../../docs/ARCHITECTURE.md) |
+| Graphite and coral tokens | `etc/clawos/design-system.css`; rationale in [`docs/DESIGN-SYSTEM.md`](../../docs/DESIGN-SYSTEM.md) |
 | Workspaces and window management | `etc/clawos/sway.conf` |
 
 ## Running it
@@ -28,7 +28,7 @@ The installed shell that grew out of these ideas lives under
 Needs Node 24 or newer. Dependencies are installed with npm, not vendored:
 
 ```sh
-cd shell-prototype
+cd experiments/shell-prototype
 npm ci
 npm run dev
 ```
@@ -57,7 +57,7 @@ compatible pair can be reviewed and landed atomically.
 The mock Gmail surface hotlinks Google's Gmail logo and favicon from
 `ssl.gstatic.com`, and `src/styles.css` loads Inter and Geist Mono from Google
 Fonts at run time. Those assets are Google's and are not redistributed here;
-see [NOTICE.md](../NOTICE.md). Running the prototype therefore makes requests
+see [NOTICE.md](../../NOTICE.md). Running the prototype therefore makes requests
 to Google.
 
 ## "Sites" handoff files (owner decision pending)

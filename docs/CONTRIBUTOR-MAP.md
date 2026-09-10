@@ -20,7 +20,7 @@ source check is not proof of installation, inference or full-system recovery.
 ## What is historical?
 
 `experiments/host-session` is a guarded host-side experiment, not image content. Its static checks
-still run in preflight. `shell-prototype` is a frozen browser mockup with its
+still run in preflight. `experiments/shell-prototype` is a frozen browser mockup with its
 own CI regression check, not the shipped desktop. Design rationale in `docs/`
 can include earlier approaches; current code and dated evidence take priority.
 Retired plans, milestone diaries and private demo notes stay local. The public
