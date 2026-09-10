@@ -27,6 +27,7 @@ Conventions:
    changed.
 
    ```sh
+   set -o pipefail
    tools/github/enable-protections.sh --dry-run 2>&1 | tee "$EVIDENCE/flip-day-dry-run-$(date -u +%Y%m%d).txt"
    ```
 
@@ -85,10 +86,13 @@ and `allowed_actions=selected` with GitHub-owned and verified-creator actions;
 and an assertion that workflow tokens stay read-only.
 
 ```sh
+set -o pipefail
 tools/github/enable-protections.sh --apply 2>&1 | tee "$EVIDENCE/flip-day-apply-$(date -u +%Y%m%d).txt"
 ```
 
-Exit 0 means every write returned the expected status and every re-read
+Run these pipelines in Bash. `pipefail` preserves a failed script status instead
+of reporting only whether `tee` saved the log. Exit 0 means every write returned
+the expected status and every re-read
 matched. Exit 1 lists `FAIL:` lines; every step is idempotent, so fix the cause
 and re-run, or re-run a subset:
 
