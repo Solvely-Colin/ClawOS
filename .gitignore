@@ -4,10 +4,7 @@
 /docs/local/
 *.local.md
 # Retired operator/session records; public guidance lives in docs/.
-/docs/history/PLAN.md
-/docs/history/REVIEW.md
-/docs/history/design-qa.md
-/docs/history/README.md
+/docs/history/
 /m0/STATUS.md
 /m1/STATUS.md
 /m2/STATUS.md

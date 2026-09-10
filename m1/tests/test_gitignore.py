@@ -51,6 +51,7 @@ class SharedIgnoreRules(unittest.TestCase):
             '.vscode/settings.json', 'file.swp', '.env', '.env.local',
             '.local/audit.json', 'local-notes/handoff.md', 'docs/local/demo.md',
             'docs/session.local.md', 'docs/history/PLAN.md',
+            'docs/history/new-working-note.md',
             'docs/FLIP-DAY.md', 'docs/PUBLIC-SOURCE-READINESS.md',
             'docs/SHARING.md', 'docs/assets/HEADER.md', 'm1/VPS-DEMO.md',
             'm0/STATUS.md', 'm1/STATUS.md', 'm2/STATUS.md', 'm3/STATUS.md',
