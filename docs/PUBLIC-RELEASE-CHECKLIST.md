@@ -20,7 +20,11 @@
       personal paths/evidence. Private VM evidence remains outside Git.
 - [x] Resolve historical developer paths/session identifiers: owner accepted
       retaining the disclosed history on 2026-09-10; no rewrite requested.
-- [ ] Resolve retained Actions ISO artifact disposition before changing visibility (#15).
+- [x] Resolve retained Actions ISO artifacts: owner authorized removal on
+      2026-09-10. All four GitHub copies were deleted after local checksum and
+      metadata verification; remote artifact count was verified zero (#15).
+      Private bundles, VM disks/checkpoints and build logs remain retained.
+      Recheck for newly created artifacts immediately before the visibility change.
 - [x] README, FEATURES, ROADMAP, NOTICE, m1/README, /etc/issue, os-release and loader titles say
       "experimental, VM-verified only, no releases"; one repository URL everywhere
       (image files pinned by the identity block at the end of `m1/tests/validate-profile.sh`;

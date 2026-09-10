@@ -293,7 +293,9 @@ ruleset_main_body() {
       "do_not_enforce_on_create": false,
       "required_status_checks": [
         {"context": "unit-tests"},
-        {"context": "arch-preflight"}
+        {"context": "arch-preflight"},
+        {"context": "container-wrapper"},
+        {"context": "prototype"}
       ]
     }}$linear
   ]
@@ -351,7 +353,7 @@ step_rulesets() {
   if [[ $MODE == apply ]]; then
     local id
     id=$(read_jq rulesets '[.[] | select(.name == "main") | .id] | first // empty')
-    [[ -z $id ]] || check "ruleset 'main' required checks" "rulesets/$id" '[.rules[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context] | sort | join(",")' "arch-preflight,unit-tests"
+    [[ -z $id ]] || check "ruleset 'main' required checks" "rulesets/$id" '[.rules[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context] | sort | join(",")' "arch-preflight,container-wrapper,prototype,unit-tests"
     [[ -z $id ]] || check "ruleset 'main' merge methods" "rulesets/$id" '[.rules[] | select(.type == "pull_request") | .parameters.allowed_merge_methods[]] | join(",")' "$MERGE_METHOD"
   fi
   upsert_ruleset release-tags "$(ruleset_tags_body)" "creation,deletion,update"

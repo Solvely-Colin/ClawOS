@@ -29,12 +29,17 @@ gates in [PUBLIC-RELEASE-CHECKLIST.md](PUBLIC-RELEASE-CHECKLIST.md).
 
 ## Actions artifacts are part of the visibility review
 
-On 2026-09-10, GitHub retained four ISO artifacts (sources `6a2a456`, `00f81c5`,
-`30541ba`, and `de19c1b`), with scheduled expiry on September 22 or 24.
+On 2026-09-10, the owner authorized a source-first launch. All four retained
+GitHub ISO artifacts (sources `6a2a456`, `00f81c5`, `30541ba`, and `de19c1b`)
+were deleted after verifying complete local bundles, ISO checksums and source
+metadata. The remote artifact count was verified zero. Private backups,
+VM disks/checkpoints and workflow logs were preserved; the receipt is recorded
+in #15 and the restricted local evidence archive.
+
+This does not disable future manual/tag builds, which can create new artifacts.
 [GitHub permits signed-in repository readers to download workflow artifacts](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts).
 Consequently, a public repository can expose these experimental binaries even
 without a release or tag. The source-only attribution inventory is not an
-artifact redistribution review. Before the visibility change, explicitly
-decide whether the retained ISO artifacts may become public, or preserve the
-private evidence and arrange their expiry/removal with owner approval. Do not
-delete them merely because this plan names the decision.
+artifact redistribution review. Recheck the artifact list before the visibility
+change and obtain an explicit distribution/retention decision for any new ISO
+artifacts. Do not delete future artifacts merely because this plan names the decision.
