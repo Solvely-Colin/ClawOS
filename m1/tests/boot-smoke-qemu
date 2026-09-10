@@ -64,9 +64,9 @@ done
 # it briefly because `sshd -T` needs the host keys that exist once it started.
 sshd_keyonly_check='for attempt in {1..10}; do systemctl is-active --quiet sshd.service && break; sleep 1; done; '
 sshd_keyonly_check+='sshd -T >/tmp/sshd-effective.conf'
-sshd_keyonly_check+=' && grep -Fqx "passwordauthentication no" /tmp/sshd-effective.conf'
-sshd_keyonly_check+=' && grep -Fqx "kbdinteractiveauthentication no" /tmp/sshd-effective.conf'
-sshd_keyonly_check+=' && grep -Fqx "permitrootlogin no" /tmp/sshd-effective.conf'
+sshd_keyonly_check+=' && grep -Fqxi "passwordauthentication no" /tmp/sshd-effective.conf'
+sshd_keyonly_check+=' && grep -Fqxi "kbdinteractiveauthentication no" /tmp/sshd-effective.conf'
+sshd_keyonly_check+=' && grep -Fqxi "permitrootlogin no" /tmp/sshd-effective.conf'
 
 # The serial console echoes every command it is sent, so a marker spelled out
 # in a command would satisfy a plain grep of the transcript. Build the PASS:

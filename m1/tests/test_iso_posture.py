@@ -68,6 +68,30 @@ def run_scan(*files):
 
 
 class SourceHooks(unittest.TestCase):
+    @unittest.skipUnless(sys.platform == 'linux', 'Bash behavior tests run on Linux')
+    def test_effective_check_accepts_keyword_case_but_never_yes_or_missing(self):
+        for script in (BOOT_SMOKE, M2_E2E):
+            declarations = '\n'.join(line for line in script.read_text().splitlines()
+                                     if line.startswith('sshd_keyonly_check=') or line.startswith('sshd_keyonly_check+='))
+            fixtures = [('lower', '\n'.join(EFFECTIVE), 0),
+                        ('canonical', '\n'.join(DIRECTIVES), 0),
+                        ('upper', '\n'.join(DIRECTIVES).upper(), 0)]
+            for index in range(3):
+                weakened = list(DIRECTIVES)
+                weakened[index] = weakened[index].replace(' no', ' yes')
+                fixtures.append((f'weakened-{index}', '\n'.join(weakened), 1))
+                fixtures.append((f'missing-{index}', '\n'.join(DIRECTIVES[:index] + DIRECTIVES[index+1:]), 1))
+            for label, output, expected in fixtures:
+                with self.subTest(script=script.name, fixture=label), tempfile.TemporaryDirectory() as tmp:
+                    program = ('set -euo pipefail\n'
+                               'systemctl() { return 0; }\n'
+                               'sshd() { printf "%s\\n" "$SSHD_OUTPUT"; }\n' +
+                               declarations.replace('/tmp/sshd-effective.conf', str(Path(tmp)/'effective.conf')) +
+                               '\neval "$sshd_keyonly_check"\n')
+                    result = subprocess.run(['bash', '-c', program],
+                                            env={**os.environ, 'SSHD_OUTPUT': output}, capture_output=True, text=True)
+                    self.assertEqual(result.returncode, expected, result.stderr)
+
     def test_validate_iso_extracts_and_checks_the_shipped_sshd_files(self):
         source = VALIDATE_ISO.read_text()
         self.assertIn('etc/ssh/sshd_config etc/ssh/sshd_config.d etc/issue', source)
@@ -92,7 +116,7 @@ class SourceHooks(unittest.TestCase):
                 source = script.read_text()
                 self.assertIn('sshd -T >/tmp/sshd-effective.conf', source)
                 for setting in EFFECTIVE:
-                    self.assertIn(f'grep -Fqx "{setting}" /tmp/sshd-effective.conf', source)
+                    self.assertIn(f'grep -Fqxi "{setting}" /tmp/sshd-effective.conf', source)
                 loops = marker_loops(source)
                 for marker in markers:
                     self.assertIn(f'echo "${{PASS}}{marker}"', source)
