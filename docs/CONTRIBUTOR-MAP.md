@@ -27,6 +27,9 @@ can include earlier approaches; current code and dated evidence take priority.
 
 ## Planned component migration
 
+Tracked in [#92](https://github.com/Solvely-Colin/ClawOS/issues/92); not part of
+the documentation-only launch cleanup.
+
 The intended direction is `image/` for image assembly, `runtime/` for installed
 shell/installer/deployment components, `integrations/openclaw/` for the plugin,
 `services/clawosd/` for the broker, and `tests/integration/roles/` for role tests.

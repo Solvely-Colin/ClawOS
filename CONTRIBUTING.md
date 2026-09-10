@@ -26,6 +26,11 @@ tests and build entry points without learning the old milestone numbering.
 The pinned [Start here issue](https://github.com/Solvely-Colin/ClawOS/issues/86)
 collects newcomer entry points and source-only launch expectations.
 
+Small starter tasks: [plain-language glossary #89](https://github.com/Solvely-Colin/ClawOS/issues/89),
+[keyboard reference #90](https://github.com/Solvely-Colin/ClawOS/issues/90), and
+[offline documentation-link check #91](https://github.com/Solvely-Colin/ClawOS/issues/91).
+Check whether a task is still open and comment before starting to avoid overlap.
+
 Issues carry labels. `good first issue` and `help wanted` mark work open to newcomers.
 Docs, CI (`ci`) and unit-tested modules need no VM; CI checks them on every pull request.
 Installer, boot and fresh-install work (`installer`, `hardware`, `evidence`) is labeled
