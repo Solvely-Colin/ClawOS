@@ -15,9 +15,7 @@ supported versions.
 
 Do not open a public issue for a security problem.
 
-- Email [colin@solvely.net](mailto:colin@solvely.net), the maintainer's designated
-  private reporting contact. Do not include live credentials in an initial report.
-- [GitHub private vulnerability reporting](https://github.com/Solvely-Colin/ClawOS/security/advisories/new) was enabled and verified on 2026-09-10. The public Security page exposes “Report a vulnerability”; submitting requires GitHub sign-in. The email route above remains available.
+Report vulnerabilities through [GitHub private vulnerability reporting](https://github.com/Solvely-Colin/ClawOS/security/advisories/new). This route was enabled and verified on 2026-09-10; submitting requires GitHub sign-in. Do not include live credentials in an initial report.
 
 Include the commit SHA, install mode (encrypted or passwordless), security level
 (Full Root, Full Approvals, User Limited), and how to reproduce. Redact tokens and

@@ -1,5 +1,12 @@
 # Current development boundaries
 
+- **Source-test robustness:** the ISO posture test's marker parser no longer
+  uses overlapping regex alternatives for continuation lines. A subprocess
+  timeout regression covers malformed input without hanging the suite. This
+  affects test execution, not an installed OS service. The separate CodeQL
+  redirect-replacement alert is a false positive: the local operator can
+  contain at most one ampersand at that expression; runtime parsing is unchanged.
+
 - **Fullscreen/layout:** Windows QEMU has an absolute tablet, but setup-window
   offset/scaling is not fully solved. The GTK installer's clipped Back/Erase
   actions were fixed in #81 and verified in CI ISO run 34432248984 at 1440x900;
