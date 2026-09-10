@@ -27,7 +27,7 @@ set -euo pipefail
 
 image=archlinux:base-devel
 # Same list as ci.yml; --dbus appends what verify_dbus_authorization.py needs.
-packages=(git inetutils nodejs python jq)
+packages=(git inetutils nodejs python jq shellcheck)
 dbus_packages=(dbus python-dbus python-gobject)
 
 usage() {

@@ -61,3 +61,16 @@ jobs:
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Run the pre-ISO source gate
         run: ./m1/bin/preflight-iso
+  container-wrapper:
+    # Exercise the contributor entry point itself, including its read-only
+    # mount and dependency provisioning. This catches drift from preflight.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Run the contributor container gate and D-Bus proof
+        run: ./tools/dev/preflight-in-container.sh --engine docker --dbus
