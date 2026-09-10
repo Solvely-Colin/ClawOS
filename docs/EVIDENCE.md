@@ -18,9 +18,37 @@ instead of prose.
 | 2026-09-10 | `30541badb58dc09eb11e7faef3f13437703f1b7f` | `9c36f76a02c3054ae775d700323eac818d9b4adbe1a673cc1840c3e924b3b22e` | `release.yml` run 34429154651; Get-CiIso verification | live boot, key-only sshd and listener inspection, graphical Welcome/Inspect/disk selection | Windows QEMU 11.1/WHPX, OVMF, 8 GiB RAM, blank 40 GiB NVMe, 1440x900 | live SSH policy passed; GTK Back/Erase controls were clipped, so no install was attempted. A temporary layout patch was then visually checked at 1440x900 and 1280x768, including confirmation gating; that is not fresh-ISO acceptance | ISO, manifest, build log, live posture output and before/after screenshots retained privately |
 | 2026-09-10 | `de19c1bccc839a47696afd4c7009f6717c43d934` | `119768a247fd5e76f15a0df1914f554cc9bd2f5f4a53db3c810d68693a5ede32` | `release.yml` run 34432248984; Get-CiIso verification | unmodified ISO: graphical encrypted install, disk-only boot/LUKS unlock, local Gateway/model-later/Full Root onboarding, API completion, Control UI, SSH and listener checks | Windows QEMU 11.1/WHPX, OVMF, fresh 40 GiB NVMe, 8 GiB RAM, 1440x900 | pass for this path; archive resets recovered on attempt 3; intermittent host-forwarded SSH timeouts recorded; no inference or non-default policy proof | full observations, screenshots, metadata and offline checkpoints retained privately; see HARDWARE-INSTALLER-VALIDATION.md |
 | 2026-09-10 | `01655a6012d74610d37fbb829740c7d7f49cfb5f` | `1b6a0f43a405eae95c0b4c4551a4e53a88dc025c0169490ffbf81e49a4f45767` | local fast build, `clawos-fast-2026.09.10-x86_64.iso` | clean build after component-directory migration; ISO boot-chain, runtime-version and SSH-policy validation | Windows-managed QEMU/WHPX Linux builder with isolated virtio scratch storage | build and validation passed; this ISO was not newly booted or installed | ISO, checksum and logs retained privately; no release or public binary artifact published |
+| 2026-09-10 | `0b2f80b9899067a20f0e17fba5e6efb310978b7d` | `ebf236162e3bb0362918a7ca62d9579dbd8da3a7ce33fc4547519935a231b3d6` | `release.yml` run 34505506520 | clean build and live KVM smoke: identity, systemd, DHCP, overlay root, SSH policy and serial-shell poweroff | GitHub-hosted Ubuntu runner, Arch container, QEMU/KVM | passed; preliminary shutdown path superseded by the ACPI run below | scanned boot evidence retained; ISO retention disabled; no release |
+| 2026-09-10 | `82afc7051c055305dc983b61fc0f4ee45a1271b0` | `8d30dfc6b95a0c290e1f09c298c96fd1c6a04bf994b21b1abe66f7669094cb40` | `release.yml` run 34507795187 | clean build, all seven live smoke markers, acknowledged ACPI request, kernel Power down and normal QEMU exit | GitHub-hosted Ubuntu runner, Arch container, QEMU/KVM | passed; no installation, onboarding or inference tested | scanned boot evidence retained; ISO retention disabled; no release |
 
 Full hashes are in the private copies and in the run artifacts; the ledger
 shows the first and last characters so a row can be matched to a file.
+
+## Automated live boot gate
+
+On 2026-09-10, [run 34505506520](https://github.com/Solvely-Colin/ClawOS/actions/runs/34505506520)
+at `0b2f80b9899067a20f0e17fba5e6efb310978b7d` built
+`clawos-2026.09.10-x86_64.iso`, SHA-256
+`ebf236162e3bb0362918a7ca62d9579dbd8da3a7ce33fc4547519935a231b3d6`,
+and booted that exact image in the Arch build container using hosted-runner KVM.
+The KVM device/API/VM-creation probe passed. Executed serial markers confirmed
+ClawOS identity, systemd health, QEMU DHCP address, overlay root and key-only SSH
+configuration; QEMU exited normally after guest poweroff. Result metadata says
+`Live boot smoke: RUN (KVM, run 34505506520)` and `Graceful shutdown: PASS`.
+
+Only the scanned `clawos-boot-evidence-*` artifact was uploaded (serial,
+transcript, QEMU log, metadata, result and checksum). Its logs were scanned
+again after download. ISO retention was disabled; the release job was skipped.
+This proves live boot, not installation, onboarding, inference or hardware.
+Follow-up commits tighten the optional ISO upload allowlist, record failed
+attempts explicitly, and switch successful shutdown from a serial-shell
+poweroff command to acknowledged ACPI. That final path passed in
+[run 34507795187](https://github.com/Solvely-Colin/ClawOS/actions/runs/34507795187)
+at `82afc7051c055305dc983b61fc0f4ee45a1271b0`: every marker was present,
+the serial log ended with `reboot: Power down`, and QEMU exited normally.
+Only the six-file scanned evidence artifact was uploaded; result and metadata
+checksums agreed. Later probe-error diagnostics and documentation changes do
+not change the tested boot harness or image content.
 
 ## Component-layout runtime verification
 

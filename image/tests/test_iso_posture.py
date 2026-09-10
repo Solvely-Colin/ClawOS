@@ -146,7 +146,7 @@ class SourceHooks(unittest.TestCase):
     def test_boot_smoke_markers_cannot_be_satisfied_by_the_echoed_command(self):
         source = BOOT_SMOKE.read_text()
         self.assertIn("commands=$'\\nPASS=PASS:\\n'", source)
-        self.assertIn('grep -Fq "PASS:$marker" "$transcript"', source)
+        self.assertIn('grep -Fxq "PASS:$marker" "$runtime/markers.log"', source)
         self.assertNotRegex(source, r'echo [A-Z_]+_OK\b')
 
     def test_qemu_gates_scan_their_evidence_before_success(self):
