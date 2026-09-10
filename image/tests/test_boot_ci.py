@@ -97,6 +97,8 @@ class BootCI(unittest.TestCase):
         self.assertLess(workflow.index('Probe KVM'), workflow.index('Build in disposable'))
         self.assertIn('--device /dev/kvm', workflow)
         self.assertIn('test -r /dev/kvm && test -w /dev/kvm', workflow)
+        self.assertIn('${RUNNER_ENVIRONMENT:-}', workflow)
+        self.assertLess(workflow.index('99-kvm4all.rules'), workflow.index('test -c /dev/kvm'))
         self.assertIn('inputs.retain_iso', workflow)
         self.assertIn("steps.evidence.outputs.safe == 'true'", workflow)
         self.assertIn('default: false', workflow)

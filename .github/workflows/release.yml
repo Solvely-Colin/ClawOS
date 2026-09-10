@@ -27,20 +27,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$RUNNER_ENVIRONMENT" == github-hosted ]] || { echo 'Hosted runner required'; exit 1; }
-          [[ -c /dev/kvm ]] || { echo 'KVM unavailable: run ./image/tests/boot-smoke-qemu on a KVM host. No boot gate will be skipped.'; exit 1; }
+          [[ "${RUNNER_ENVIRONMENT:-}" == github-hosted ]] || { echo 'Hosted runner required'; exit 1; }
+          fail_kvm() { echo 'KVM unavailable: run ./image/tests/boot-smoke-qemu on a KVM host. No boot gate will be skipped.'; exit 1; }
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-          sudo udevadm settle
-          ls -l /dev/kvm
-          test -r /dev/kvm && test -w /dev/kvm
-          python3 -c 'import fcntl, os; k=os.open("/dev/kvm", os.O_RDWR); assert fcntl.ioctl(k, 0xAE00, 0)==12; vm=fcntl.ioctl(k, 0xAE01, 0); os.close(vm); os.close(k); print("KVM VM creation probe passed")'
+          sudo udevadm control --reload-rules || fail_kvm
+          sudo udevadm trigger --name-match=kvm || { ls -l /dev/kvm || true; fail_kvm; }
+          sudo udevadm settle || fail_kvm
+          ls -l /dev/kvm || true
+          test -c /dev/kvm && test -r /dev/kvm && test -w /dev/kvm || fail_kvm
+          python3 -c 'import fcntl, os; k=os.open("/dev/kvm", os.O_RDWR); assert fcntl.ioctl(k, 0xAE00, 0)==12; vm=fcntl.ioctl(k, 0xAE01, 0); os.close(vm); os.close(k); print("KVM VM creation probe passed")' || fail_kvm
       - name: Reclaim unused SDK space on disposable hosted runner
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$RUNNER_ENVIRONMENT" == github-hosted ]] || { echo 'Refusing SDK cleanup outside a hosted runner'; exit 1; }
+          [[ "${RUNNER_ENVIRONMENT:-}" == github-hosted ]] || { echo 'Refusing SDK cleanup outside a hosted runner'; exit 1; }
           for sdk in /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup; do
             if [[ -d "$sdk" ]]; then
               [[ ! -L "$sdk" && "$(readlink -f "$sdk")" == "$sdk" ]] || { echo "Unexpected SDK target: $sdk"; exit 1; }
