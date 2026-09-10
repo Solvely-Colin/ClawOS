@@ -98,6 +98,16 @@ and passes only after `image/tests/scan-log-secrets.sh` finds no secret-shaped
 strings in them, so a CI upload step can publish them; the scanner names the
 file, line and pattern but never prints the matched text.
 
+The ISO workflow requires this live KVM gate against its just-built image;
+installation, onboarding, model inference and physical hardware remain separate.
+For local use, pass an explicit ISO path if it is outside the release-output
+directory. `CLAWOS_OVMF_CODE` selects firmware, `CLAWOS_OVMF_VARS` optionally
+selects its matching variables template, and `CLAWOS_SMOKE_DEADLINE` sets the
+boot-console timeout (default 180 seconds). KVM is required and failure is loud.
+`CLAWOS_SMOKE_RUNTIME` may name a new evidence directory; an existing one is
+refused. Guest poweroff or ACPI is used, never process termination. See
+[release automation](../docs/RELEASING.md) for evidence and upload rules.
+
 `m2-e2e-qemu` is the stronger graphical-installation gate. It creates a fresh
 throwaway qcow2 disk, proves the live graphical session and recovery TTY,
 captures the Try/Install screen, executes the exact guarded installer behind

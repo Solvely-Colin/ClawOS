@@ -83,6 +83,7 @@ class BootCI(unittest.TestCase):
         self.assertIn('inputs.retain_iso', workflow)
         self.assertIn("steps.evidence.outputs.safe == 'true'", workflow)
         self.assertIn('default: false', workflow)
+        self.assertNotIn('path: artifacts/m1/out/*', workflow)
         helper = (ROOT / 'tools/ci/build-release.sh').read_text()
         self.assertLess(helper.index('./image/tests/boot-smoke-qemu'), helper.index('Live boot smoke: RUN (KVM'))
         self.assertIn('Install/onboarding/hardware acceptance: NOT RUN', helper)

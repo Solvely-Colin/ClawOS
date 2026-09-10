@@ -97,7 +97,11 @@ jobs:
         if: success() && (startsWith(github.ref, 'refs/tags/v') || inputs.retain_iso)
         with:
           name: clawos-iso-${{ github.sha }}
-          path: artifacts/m1/out/*
+          path: |
+            artifacts/m1/out/*.iso
+            artifacts/m1/out/*.sha256
+            artifacts/m1/out/SHA256SUMS
+            artifacts/m1/out/BUILD-*.txt
           if-no-files-found: error
           compression-level: 0
           retention-days: 14

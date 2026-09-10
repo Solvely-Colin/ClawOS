@@ -65,11 +65,12 @@
   and [passwordless warning #45](https://github.com/Solvely-Colin/ClawOS/issues/45).
 - **Releases:** no tags exist and there is no downloadable release. `release.yml`
   went green for the first time on `main` on 2026-09-08 (run 34270708295; an
-  earlier branch run is in the ledger). The workflow validates the ISO but does
-  not boot it automatically. Run 34432248984 was manually verified through an
+  earlier branch run is in the ledger). The workflow now requires live KVM
+  boot smoke, but installation/onboarding are still not automated. Run 34432248984 was manually verified through an
   encrypted graphical install and default onboarding on 2026-09-10. All four
   retained ISO artifacts were removed from GitHub before the public launch,
-  with verified private backups. Future builds retain artifacts for 14 days;
+  with verified private backups. Manual ISO uploads are opt-in; scanned boot
+  evidence and explicitly retained ISO artifacts have 14-day retention;
   they are not supported releases. Release gates remain
   [#37](https://github.com/Solvely-Colin/ClawOS/issues/37).
   Build locally with `sudo ./image/bin/build-iso`, or

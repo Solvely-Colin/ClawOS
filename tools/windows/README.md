@@ -43,6 +43,10 @@ loops in the builder VM: they have no CI run id and their `Source commit` is
 whatever working tree was checked out, so they do not go in the ledger.
 
 `Get-CiIso.ps1` fetches one CI artifact and ties it to its run. It runs in
+Windows only when that run retained an ISO (`retain_iso` on a manual run, or a
+version-tag build). Evidence-only successful runs have no ISO to download;
+choose an explicit retained run rather than assuming `-Latest` has a binary.
+The helper runs in
 Windows PowerShell 5.1 like the other scripts here and needs the GitHub CLI
 logged in with read access to the repository (`gh auth login`).
 
