@@ -1,6 +1,6 @@
 # Privileged system broker
 
-M3 introduces `clawosd`, the root-owned typed system broker. In the default
+`clawosd` is the root-owned typed system broker. In the default
 Full Root mode, OpenClaw can prepare and commit exact actions without a human
 authorization prompt. The typed route still creates recovery points and audit
 receipts. Full User + Approvals retains short-lived single-use tokens and local

@@ -1,6 +1,6 @@
 # OpenClaw integration
 
-This milestone begins the real ClawOS/OpenClaw integration without patching the
+This component integrates ClawOS with upstream OpenClaw without patching the
 Control UI bundle.
 
 ## Current seam

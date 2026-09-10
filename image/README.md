@@ -1,6 +1,6 @@
 # Image tooling, installer and native shell
 
-This milestone produces the x86_64 ClawOS live ISO from Arch's official
+This component produces the x86_64 ClawOS live ISO from Arch's official
 `releng` profile plus a reviewed overlay, and the experimental blank-disk
 installer behind the live Try/Install surface. It is the first environment
 allowed to count toward ClawOS release gates.

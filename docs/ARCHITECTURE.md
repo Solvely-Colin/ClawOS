@@ -11,7 +11,7 @@ This is experimental source; [known issues](KNOWN-ISSUES.md) and the
 | Image assembly | `image/bin/materialize-profile`, `image/bin/build-iso` | Combine the ArchISO overlay, plugin and broker into a Linux-built image |
 | Installed desktop and setup | `image/profile-overlay/airootfs` | Sway session, panel, installer, onboarding, application registry and supporting surfaces |
 | OpenClaw integration | `integrations/openclaw` | Typed tools and minimal activity projection; no parallel conversation store |
-| System broker | `services/clawosd/clawosd`, `services/clawosd/dbus`, `services/clawosd/polkit` | Machine actions, approval boundaries and receipts; see SECURITY.md |
+| System broker | `services/clawosd/src`, `services/clawosd/dbus`, `services/clawosd/polkit` | Machine actions, approval boundaries and receipts; see SECURITY.md |
 | Role integration | `clawos-role` in the overlay; `tests/integration/roles` | Standalone/remote-node switching and fixture-based regression checks |
 | Host lifecycle | `tools/windows` | Windows-managed QEMU, SSH/ACPI shutdown and checkpoints |
 
