@@ -11,11 +11,13 @@
 - [x] Add SECURITY.md with the maintainer-designated email reporting route.
 - [x] Obtain confirmation of the reporting mailbox: owner confirmed it works
       on 2026-09-10. No independent outside-sender test or mailbox-rule inspection
-      is claimed. GitHub private vulnerability reporting remains flip-day work.
+      is claimed. GitHub private vulnerability reporting was enabled and verified
+      on 2026-09-10: its link is visible logged out; submission requires sign-in.
 - [x] Scan the preparation candidate and all local refs/history, including the
       five recovered commits, with gitleaks 8.30.1 and full redaction. Exact
-      candidate SHA, command and result are recorded in #15/private evidence.
-      Repeat at the actual visibility SHA if any commit changes after that scan.
+      visibility SHA was `b5512920695f53dcc5286ea3f1f19fb3a54c4993`: 183 commits,
+      zero findings on 2026-09-10. Command/result are recorded in #15/private
+      evidence; there was no push between this scan and the visibility change.
 - [x] Audit the current tracked tree for VM images, firmware, auth stores and
       personal paths/evidence. Private VM evidence remains outside Git.
 - [x] Resolve historical developer paths/session identifiers: owner accepted
