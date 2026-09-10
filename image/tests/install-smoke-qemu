@@ -97,7 +97,10 @@ commands=$(cat <<'COMMANDS'
 bash -c 'set -euo pipefail; P=PASS:; test "$(findmnt -no FSTYPE /)" = overlay; test "$(cat /sys/block/vda/serial)" = CLAWOS-SMOKE-DISK; disk_id=$(python3 /usr/lib/clawos/clawos_install_targets.py list | jq -er "[.[] | select(.path==\"/dev/vda\" and .serial==\"CLAWOS-SMOKE-DISK\")] | if length==1 then .[0].diskId else error(\"unexpected target\") end"); clawos-install-dev --vm-test --passwordless --target /dev/vda --disk-id "$disk_id" --confirm ERASE-/dev/vda; echo "${P}INSTALL_OK"'
 COMMANDS
 )
-printf '%s\n' "$commands" | python3 "$repo_root/tools/ci/qemu_io.py" capture "$serial_socket" "$transcript" 2700 --until PASS:INSTALL_OK
+# Completion is separate from success: a rejected installer fails promptly,
+# instead of waiting 45 minutes for a PASS line that will never be emitted.
+commands+=$'\nD=DONE:; echo "${D}INSTALL"\n'
+printf '%s\n' "$commands" | python3 "$repo_root/tools/ci/qemu_io.py" capture "$serial_socket" "$transcript" 2700 --until DONE:INSTALL
 tr -d '\r' <"$transcript" >"$runtime/live-markers.log"
 grep -Fxq 'PASS:INSTALL_OK' "$runtime/live-markers.log"
 shutdown_guest
@@ -110,7 +113,8 @@ commands=$(cat <<'COMMANDS'
 bash -c 'set -euo pipefail; P=PASS:; source /etc/os-release; test "$ID" = clawos; test "$(findmnt -no FSTYPE /)" = btrfs; test "$(findmnt -no SOURCE /)" = "/dev/vda2[/@]"; echo "${P}INSTALLED_ROOT_OK"; timeout 120 systemctl is-system-running --wait; test -z "$(systemctl --failed --no-legend --no-pager)"; for unit in clawos-session@clawos clawosd sshd NetworkManager; do systemctl is-active --quiet "$unit"; done; echo "${P}SERVICES_OK"; sshd -T >/tmp/sshd-effective.conf; for line in "passwordauthentication no" "kbdinteractiveauthentication no" "permitrootlogin no"; do grep -Fqxi "$line" /tmp/sshd-effective.conf; done; echo "${P}SSHD_KEYONLY_OK"; source /etc/clawos/versions.env; openclaw --version | grep -F "$OPENCLAW_VERSION"; echo "${P}OPENCLAW_VERSION_OK"; test "$(cat /etc/clawos-passwordless-entry)" = enabled; echo "${P}PASSWORDLESS_OK"; echo "${P}INSTALLED_OK"'
 COMMANDS
 )
-printf '%s\n' "$commands" | python3 "$repo_root/tools/ci/qemu_io.py" capture "$serial_socket" "$transcript" 180 --until PASS:INSTALLED_OK
+commands+=$'\nD=DONE:; echo "${D}INSTALLED"\n'
+printf '%s\n' "$commands" | python3 "$repo_root/tools/ci/qemu_io.py" capture "$serial_socket" "$transcript" 180 --until DONE:INSTALLED
 tr -d '\r' <"$transcript" >"$runtime/installed-markers.log"
 for marker in INSTALLED_ROOT_OK SERVICES_OK SSHD_KEYONLY_OK OPENCLAW_VERSION_OK PASSWORDLESS_OK INSTALLED_OK; do
   grep -Fxq "PASS:$marker" "$runtime/installed-markers.log"
