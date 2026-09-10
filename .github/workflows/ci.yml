@@ -8,6 +8,26 @@ concurrency:
   group: source-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  prototype:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: shell-prototype
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - run: npm ci
+      - run: npm ls react react-dom vite @vitejs/plugin-react
+      - run: npm run build
+      - run: npm run test:sites
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
+      - run: git diff --exit-code
   unit-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 10

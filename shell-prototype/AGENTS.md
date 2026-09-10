@@ -8,7 +8,7 @@ When the user gives durable prototype-specific design feedback, preferences, or 
 
 When implementing from a selected generated mock, treat that image as the source of truth for layout, component anatomy, density, spacing, color, typography, visible content, and hierarchy.
 
-Build app UI in `src/`. The Sites handoff files (`.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, `tests/sites-worker.test.mjs`) and the `build` and `test:sites` scripts that reference them are retained pending the owner decision recorded in README.md. Do not extend them, and do not treat `npm run build` or `npm run test:sites` as a gate: neither runs in CI and both may no longer work.
+Build app UI in `src/`. The Sites handoff files (`.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, `tests/sites-worker.test.mjs`) and the `build` and `test:sites` scripts that reference them are retained pending the owner decision recorded in README.md. Do not extend them. Dependency maintenance is covered by the `prototype` CI job: clean install, build, retained Sites tests, and Chromium rendering/Fast Refresh smoke tests. This does not make the prototype the installed OS runtime. Run browser tests in a dedicated checkout because the HMR test temporarily edits and restores `src/App.jsx`.
 
 ## ClawOS visual contract
 
