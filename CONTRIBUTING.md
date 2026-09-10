@@ -106,6 +106,14 @@ both together. Boot and install tests still need a disposable Arch VM.
 
 ## Before submitting
 
+The shared `.gitignore` excludes local agent worktrees, private transfer data,
+VM state, credentials and generated caches. Keep those rules in the repository,
+not only in `.git/info/exclude`. `m1/tests/test_gitignore.py` checks them in an
+isolated Git repository and rejects tracked files hidden by the shared rules.
+Ignore rules do not untrack existing files or remove past commits. Source,
+fixtures, artwork and frozen prototypes need deliberate migration/removal,
+not an ignore rule that conceals edits.
+
 1. Run focused tests and `./m1/bin/preflight-iso` for OS integration, in Arch
    or through `tools/dev/preflight-in-container.sh`.
 2. Include the source revision and execution environment. Deployment evidence
