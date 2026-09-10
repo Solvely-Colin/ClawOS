@@ -5,9 +5,11 @@ desktop: a top system bar with a system menu, a full-canvas mock Gmail
 surface, the centered bottom command shelf with an agent status strip, and an
 on-demand OpenClaw conversation panel. Its last design QA is
 [`design-qa.md`](design-qa.md), dated 2026-08-28, and it has not been
-developed since. It is not the installed OS runtime, and nothing in CI
-installs, builds or tests it. Treat it as unmaintained: `npm run build` and
-`npm run test:sites` may no longer work.
+developed since beyond dependency maintenance. It is not the installed OS
+runtime. The `prototype` CI job now installs its locked dependencies, builds,
+runs the retained Sites tests, and checks development/production rendering,
+conversation controls and React Fast Refresh in Chromium. This is dependency
+regression coverage, not renewed product development or installed-OS proof.
 
 The installed shell that grew out of these ideas lives under
 `m1/profile-overlay/airootfs/`:
@@ -34,6 +36,21 @@ npm run dev
 Vite prints the local URL. `vite.config.mjs` sets `server.host` to `0.0.0.0`,
 so the dev server listens on every interface of the machine, not only
 localhost.
+
+To run the dependency gate locally after `npm ci`:
+
+```sh
+npm run build
+npm run test:sites
+npx playwright install chromium
+npm run test:browser
+```
+
+The browser tests start loopback-only dev and preview servers. The Fast Refresh
+test temporarily edits `src/App.jsx` and restores it in `finally`; use a clean,
+dedicated checkout and do not edit that file concurrently. CI checks for drift.
+React/React DOM and Vite/React-plugin updates are grouped in Dependabot so each
+compatible pair can be reviewed and landed atomically.
 
 ## External assets
 

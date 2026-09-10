@@ -1,26 +1,73 @@
 # Contributing
 
-Read [features/status](FEATURES.md), the [roadmap](ROADMAP.md),
-[hardware boundaries](docs/HARDWARE.md) and [code of conduct](CODE_OF_CONDUCT.md).
-Use the bug or feature issue template to propose focused work. Release maintainers
-should follow [the release guide](docs/RELEASING.md); a green build is not permission
-to publish a stable or hardware-supported release.
+Read [features/status](FEATURES.md), the [roadmap](ROADMAP.md), the [project scope](docs/SCOPE.md),
+[hardware boundaries](docs/HARDWARE.md) and the [code of conduct](CODE_OF_CONDUCT.md). Use the
+bug or feature issue template to propose focused work. Release maintainers should follow
+[the release guide](docs/RELEASING.md); a green build is not permission to publish a
+stable or hardware-supported release.
 
-Start with a focused issue and a small branch. Describe the behavior changed,
-affected runtime components, verification, and remaining risks. Preserve
-unrelated work and distinguish unit tests from fresh-install proof.
+Start with a focused issue and a small branch. Describe the behavior changed, affected
+runtime components, verification, and remaining risks. Preserve unrelated work and
+distinguish unit tests from fresh-install proof. Issues and pull requests are read
+best-effort by one maintainer with no promised response time, the same no-SLA terms as
+[SECURITY.md](SECURITY.md). Report security problems as it says, never in a public issue.
+
+## Finding work
+
+Issues carry labels. `good first issue` and `help wanted` mark work open to newcomers.
+Docs, CI (`ci`) and unit-tested modules need no VM; CI checks them on every pull request.
+Installer, boot and fresh-install work (`installer`, `hardware`, `evidence`) is labeled
+`needs-vm` and needs a disposable Arch VM with a blank disk. The separate visual
+prototype must be ported and tested before it becomes runtime behavior.
 
 ## Environment
 
-- Build ISOs and run full preflight in a disposable Arch VM. Fast Python/Node
-  checks run in CI without root or provider keys.
+- Build ISOs and run install and boot tests in a disposable Arch VM.
 - Use your own provider credentials through OpenClaw setup. Never commit auth
   databases, browser profiles, tokens, keys, VM disks, firmware variables,
   checkpoints, credential screenshots or personal transcripts.
 - Review privileged scripts before execution. Installer/recovery experiments
   belong on disposable disks with an independent recovery route.
-- Windows scripts manage an already-provisioned development VM, not a complete
-  Windows installation wizard.
+
+## Testing without Arch or KVM
+
+`.github/workflows/ci.yml` runs four jobs on every push and pull request. None
+needs provider keys, KVM or an ISO build, so a PR gets checked with no local
+Arch install; a green run is source evidence only:
+
+- `unit-tests` (ubuntu-latest): the m1 and m3 Python unit tests, the OpenClaw
+  plugin Node tests and `git diff --check`.
+- `arch-preflight` (`archlinux:base-devel` container): `./m1/bin/preflight-iso`,
+  the same Arch source gate `tools/ci/build-release.sh` runs before an ISO build,
+  followed by the D-Bus caller-boundary proof from `m3/README.md`, which runs as
+  root against a private bus with real UIDs.
+
+- `container-wrapper` exercises the contributor container entry point and D-Bus proof.
+- `prototype` installs/builds the frozen visual prototype, runs its retained Sites
+  tests, and checks dev/production rendering and Fast Refresh in Chromium. See
+  [its README](shell-prototype/README.md) for local commands and limitations.
+
+Local equivalents:
+
+- The complete unit suite runs on Linux with Python 3.12+ and Node 24+
+  (commands in the README). Some tests require `fcntl`, POSIX file operations
+  and Linux paths; on Windows or macOS use the Linux container instead.
+- The source gate runs on any Docker host with the ci.yml recipe (CI also pins
+  the Arch snapshot from `m1/config/versions.env`; the recipe covers the source
+  gate only, not the D-Bus proof):
+
+  ```sh
+  docker run --rm -v "$PWD:/src" -w /src archlinux:base-devel bash -c \
+    'pacman -Syu --noconfirm git inetutils nodejs python jq shellcheck &&
+     git config --global --add safe.directory /src && ./m1/bin/preflight-iso'
+  ```
+
+- `./m1/bin/run-qemu --software` boots a built ISO under QEMU's TCG emulator
+  without KVM; slow, but it works where hardware virtualization is unavailable.
+- `m1/tests/boot-smoke-qemu`, `m1/tests/m2-e2e-qemu` and `m1/bin/run-installer-qemu`
+  currently require KVM.
+- Windows hosts drive an already-provisioned QEMU (WHPX) VM with the scripts in
+  [tools/windows/README.md](tools/windows/README.md); they are not an installer.
 
 ## Running the source gate without Arch
 
@@ -51,6 +98,15 @@ both together. Boot and install tests still need a disposable Arch VM.
 4. Review the staged diff for generated or personal files. Secret-scan source
    and history before sharing a new baseline.
 
+## License and merging
+
+Contributions are accepted under the [MIT License](LICENSE): inbound terms equal outbound
+terms, and there is no CLA. Do not submit code you cannot license that way. Third-party
+material (copied files, snippets, artwork, fonts) must be listed in [NOTICE.md](NOTICE.md)
+with its origin and license. Pull requests are merged with merge commits, as #1-#3 were;
+that is an owner decision tracked as a `decision` issue (#13); there is no squash or
+rebase rule.
+
 ## Safety and boundaries
 
 - Routine reversible work may proceed within the task. Ask before destructive
@@ -65,7 +121,3 @@ both together. Boot and install tests still need a disposable Arch VM.
   shipping paths. Retain historical notes and negative tests.
 - Delivery uses an OpenClaw 2026.8.2 adapter. Dependency changes require adapter
   and end-to-end verification, not removal of its version guard.
-
-Good first areas are listed in [known issues](docs/KNOWN-ISSUES.md): task routing,
-startup state, window layout, fresh-install proof and failure UX. The separate
-visual prototype must be ported and tested before it becomes runtime behavior.

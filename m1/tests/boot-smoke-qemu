@@ -59,13 +59,26 @@ until [[ -S "$serial_socket" ]] && grep -Fq 'clawos-live#' "$serial_log" 2>/dev/
   sleep 1
 done
 
-commands=$'\n'
-commands+=$'echo __CLAWOS_SMOKE_BEGIN__\n'
-commands+=$'. /etc/os-release; test "$ID" = clawos && echo IDENTITY_OK\n'
-commands+=$'test "$(systemctl --failed --no-legend --no-pager)" = "" && echo SYSTEMD_OK\n'
-commands+=$'for attempt in {1..30}; do ip -4 -brief address show enp0s1 | grep -q "10.0.2.15/24" && { echo NETWORK_OK; break; }; sleep 1; done\n'
-commands+=$'test "$(findmnt -no FSTYPE /)" = overlay && echo LIVE_ROOT_OK\n'
-commands+=$'echo __CLAWOS_SMOKE_END__\n'
+# Effective sshd posture as `sshd -T` reports it (case-insensitive keywords), not
+# the drop-in text. archiso enables sshd.service on the live medium; wait for
+# it briefly because `sshd -T` needs the host keys that exist once it started.
+sshd_keyonly_check='for attempt in {1..10}; do systemctl is-active --quiet sshd.service && break; sleep 1; done; '
+sshd_keyonly_check+='sshd -T >/tmp/sshd-effective.conf'
+sshd_keyonly_check+=' && grep -Fqxi "passwordauthentication no" /tmp/sshd-effective.conf'
+sshd_keyonly_check+=' && grep -Fqxi "kbdinteractiveauthentication no" /tmp/sshd-effective.conf'
+sshd_keyonly_check+=' && grep -Fqxi "permitrootlogin no" /tmp/sshd-effective.conf'
+
+# The serial console echoes every command it is sent, so a marker spelled out
+# in a command would satisfy a plain grep of the transcript. Build the PASS:
+# prefix inside the guest; only executed echoes produce it.
+commands=$'\nPASS=PASS:\n'
+commands+=$'echo "${PASS}__CLAWOS_SMOKE_BEGIN__"\n'
+commands+=$'. /etc/os-release; test "$ID" = clawos && echo "${PASS}IDENTITY_OK"\n'
+commands+=$'test "$(systemctl --failed --no-legend --no-pager)" = "" && echo "${PASS}SYSTEMD_OK"\n'
+commands+=$'for attempt in {1..30}; do ip -4 -brief address show enp0s1 | grep -q "10.0.2.15/24" && { echo "${PASS}NETWORK_OK"; break; }; sleep 1; done\n'
+commands+=$'test "$(findmnt -no FSTYPE /)" = overlay && echo "${PASS}LIVE_ROOT_OK"\n'
+commands+="$sshd_keyonly_check"$' && echo "${PASS}SSHD_KEYONLY_OK"\n'
+commands+=$'echo "${PASS}__CLAWOS_SMOKE_END__"\n'
 commands+=$'poweroff\n'
 
 {
@@ -80,8 +93,9 @@ for marker in \
   SYSTEMD_OK \
   NETWORK_OK \
   LIVE_ROOT_OK \
+  SSHD_KEYONLY_OK \
   __CLAWOS_SMOKE_END__; do
-  if ! grep -Fq "$marker" "$transcript"; then
+  if ! grep -Fq "PASS:$marker" "$transcript"; then
     echo "Missing smoke-test marker: $marker" >&2
     tail -n 120 "$transcript" >&2 || true
     exit 1
@@ -98,6 +112,10 @@ while kill -0 "$qemu_pid" 2>/dev/null; do
 done
 wait "$qemu_pid"
 qemu_pid=
+
+# The retained logs are upload candidates; refuse to call the run green while
+# any of them carries a secret-shaped string.
+"$repo_root/m1/tests/scan-log-secrets.sh" "$serial_log" "$transcript" "$qemu_log"
 
 echo "ClawOS headless boot smoke test passed."
 echo "Artifacts: $runtime"
