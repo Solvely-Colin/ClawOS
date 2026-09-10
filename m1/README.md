@@ -73,10 +73,29 @@ Every build rematerializes the ArchISO profile and recreates mkarchiso's work
 tree so overlay changes cannot be hidden by stale build state. The previous
 `out/` directory is moved under `artifacts/m1/archive/` before the new build.
 
+`build-iso` ends by running `m1/tests/validate-iso.sh` against the new image.
+Besides the boot chain and the pinned OpenClaw runtime, it extracts
+`etc/ssh/sshd_config`, `etc/ssh/sshd_config.d/` and `etc/issue` from
+`airootfs.sfs` and asserts the shipped sshd posture: `sshd_config` includes the
+drop-in directory, `00-clawos.conf` carries `PasswordAuthentication no`,
+`KbdInteractiveAuthentication no` and `PermitRootLogin no` as exact lines, and
+archiso's `10-archiso.conf` is present and sorts after it in C-locale order, so
+the key-only values win. It also requires `etc/issue` to keep saying "Verified
+only in virtual machines". Each failure names its reason. The checks are
+functions over an extracted tree; `m1/tests/test_iso_posture.py` runs them
+against fixture trees (a drop-in renamed `20-clawos.conf`, a missing
+`10-archiso.conf`) without an ISO, and the CI unit-test job runs that file.
+
 `boot-smoke-qemu` is the release gate for the live base. It boots the ISO
 headlessly, controls ClawOS over its serial console, verifies OS identity,
-systemd health, networking, and the live overlay root, then powers the VM off.
-Each run preserves its serial log and transcript in `artifacts/m1/smoke.*`.
+systemd health, networking, the live overlay root and the effective sshd
+posture (`sshd -T` inside the guest must report `passwordauthentication no`,
+`kbdinteractiveauthentication no` and `permitrootlogin no`; the marker loop
+requires the resulting `SSHD_KEYONLY_OK`), then powers the VM off. Each run
+preserves its serial log, transcript and QEMU log in `artifacts/m1/smoke.*`
+and passes only after `m1/tests/scan-log-secrets.sh` finds no secret-shaped
+strings in them, so a CI upload step can publish them; the scanner names the
+file, line and pattern but never prints the matched text.
 
 `m2-e2e-qemu` is the stronger graphical-installation gate. It creates a fresh
 throwaway qcow2 disk, proves the live graphical session and recovery TTY,
@@ -85,8 +104,11 @@ the UI, boots the encrypted result with the ISO detached, proves the native
 agent session/top bar/shelf/onboarding/recovery files are image-built, captures
 first boot, then exercises the native Milestone 3 approval broker with a real
 allowlisted package install, pre-change Btrfs snapshot, audit check, and
-single-use authorization check before shutting down cleanly. Evidence is retained under
-`artifacts/m1/m2-e2e.*`.
+single-use authorization check before shutting down cleanly. It runs the same
+`sshd -T` posture check on the live medium (`SSHD_KEYONLY_OK`) and again on the
+installed system (`INSTALLED_SSHD_KEYONLY_OK`), and both are required markers.
+Evidence is retained under `artifacts/m1/m2-e2e.*` after the same secret-string
+scan of its serial and QEMU logs.
 If a local assertion fails after installation, set
 `CLAWOS_M2_RESUME_RUNTIME=artifacts/m1/m2-e2e.<id>` to rerun only the
 ISO-detached installed-system phase against that disposable disk.
