@@ -31,8 +31,8 @@ prototype must be ported and tested before it becomes runtime behavior.
 
 ## Testing without Arch or KVM
 
-`.github/workflows/ci.yml` runs two jobs on every push and pull request. Neither
-needs provider keys, KVM or an ISO build, so a PR gets both checked with no local
+`.github/workflows/ci.yml` runs four jobs on every push and pull request. None
+needs provider keys, KVM or an ISO build, so a PR gets checked with no local
 Arch install; a green run is source evidence only:
 
 - `unit-tests` (ubuntu-latest): the m1 and m3 Python unit tests, the OpenClaw
@@ -41,6 +41,11 @@ Arch install; a green run is source evidence only:
   the same Arch source gate `tools/ci/build-release.sh` runs before an ISO build,
   followed by the D-Bus caller-boundary proof from `m3/README.md`, which runs as
   root against a private bus with real UIDs.
+
+- `container-wrapper` exercises the contributor container entry point and D-Bus proof.
+- `prototype` installs/builds the frozen visual prototype, runs its retained Sites
+  tests, and checks dev/production rendering and Fast Refresh in Chromium. See
+  [its README](shell-prototype/README.md) for local commands and limitations.
 
 Local equivalents:
 
