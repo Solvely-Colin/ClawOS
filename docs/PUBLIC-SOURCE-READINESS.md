@@ -7,9 +7,9 @@ The publication candidate must be scanned again after its final commit.
 | Gate | Work and evidence needed | Status |
 | --- | --- | --- |
 | Reporting | Outside-domain mail reaches the designated contact; spam/forwarding checked; conduct contact named | Contact documented; delivery and rule confirmation pending (#7) |
-| Attribution | Copied-source headers/licenses, assets and dependency notices reviewed; unknowns disclosed | Source inventory reviewed in NOTICE; final candidate audit pending (#15) |
+| Attribution | Copied-source headers/licenses, assets and dependency notices reviewed; unknowns disclosed | Tracked-source inventory reviewed in NOTICE; binary-artifact distribution review is separate |
 | Real setup | Current CI ISO, graphical encrypted install on a fresh virtual disk, first boot, default onboarding, SSH and network listeners | Verified on unmodified build 34432248984 at `de19c1b`: encrypted GTK install, disk-only boot, local/model-later/Full Root, API completion and Control UI; exact limits in HARDWARE-INSTALLER-VALIDATION.md (#8, #9, #12) |
-| Privacy/history | Redacted scan of final candidate and all history, including the five recovered commits; tracked-file audit | Initial secret scan clean; historical developer paths/session identifiers found, owner disposition pending; final candidate scan pending (#15) |
+| Privacy/history | Redacted scan of the preparation candidate and all history, including the five recovered commits; tracked-file audit | Candidate scan/command/result recorded in #15 and private evidence; repeat if publication SHA changes. Historical developer paths/session identifiers remain an owner disposition gate |
 | Reconciliation | Close only issues whose acceptance is evidenced; distinguish merged code from missing VM proof | Code-only versus VM-proof issues reconciled; new proof recorded. SECURITY.md socket-observation correction awaits owner approval; no risk exclusions changed |
 
 Private scan reports, logs, screenshots, test credentials and VM disks stay
