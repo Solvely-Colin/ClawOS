@@ -5,6 +5,12 @@
 [![Source checks](https://github.com/Solvely-Colin/ClawOS/actions/workflows/ci.yml/badge.svg)](https://github.com/Solvely-Colin/ClawOS/actions/workflows/ci.yml)
 
 An experimental Arch-based OS with OpenClaw as its primary agent interface.
+The goal is an agent that can inspect and change its own machine, work on the
+ClawOS source, deploy runtime changes live, and return verified results to the
+originating conversation. ClawOS owns machine integration and recovery;
+OpenClaw owns models, credentials, conversations and agent execution.
+Carapace is the intended design language.
+
 ClawOS is an independent project, not affiliated with or endorsed by OpenClaw
 or Arch Linux; see [NOTICE.md](NOTICE.md).
 This is **public, experimental, unreleased source**, not a production-ready
@@ -15,6 +21,21 @@ been inside a virtual machine. What is and is not in scope is summarized in
 [Features](FEATURES.md) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md) ·
 [Code map](docs/CONTRIBUTOR-MAP.md) ·
 [Hardware support](docs/HARDWARE.md) · [Release builds](docs/RELEASING.md)
+
+## Verified on a fresh VM
+
+On a fresh passwordless installation of a CI-built ISO, without manual runtime repairs:
+
+- A real OpenClaw agent edited a runtime source file and deployed it from inside the guest.
+- Checkpointed deployment and file-level rollback passed; all 101 managed targets
+  returned to their prior contents, permissions and ownership.
+- The same conversation continued after restart. Simulated acknowledgement loss
+  was retried without a duplicate completion notice in native history.
+
+See the [dated run and limits](docs/HARDWARE-INSTALLER-VALIDATION.md#2026-09-10-full-agent-loop-on-the-corrected-ci-image).
+This proves the tested runtime-file loop, not arbitrary OS recovery, hardware
+compatibility or containment of an untrusted agent. Startup and UX rough edges
+remain in [known issues](docs/KNOWN-ISSUES.md).
 
 **Installer boundary:** the experimental installer accepts eligible blank SATA,
 NVMe, virtio and eMMC disks on x86_64 UEFI systems and refuses boot media,
@@ -29,17 +50,18 @@ option leaves both accounts with empty passwords, no encryption and no screen
 lock. "Full Root" means the `clawos` account has passwordless sudo. See
 [hardware support](docs/HARDWARE.md).
 
-The aim is an agent that can inspect and change its own machine, deploy ClawOS
-runtime changes live, and return verified results to the originating conversation.
-ClawOS owns machine integration and recovery; OpenClaw owns models, credentials,
-conversations and agent execution. Carapace is the intended design language.
-
 ## Start contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) and [known issues](docs/KNOWN-ISSUES.md).
 Use a disposable Linux VM, not your daily-driver installation. A step-by-step
 build and install walkthrough, with a verification marker on every step, is in
 [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md).
+
+Help is especially useful on [startup readiness](https://github.com/Solvely-Colin/ClawOS/issues/53),
+[display scaling and pointer alignment](https://github.com/Solvely-Colin/ClawOS/issues/54),
+and [keeping supporting surfaces attached to their task](https://github.com/Solvely-Colin/ClawOS/issues/55).
+For a smaller first contribution, start with the
+[contributor guide](CONTRIBUTING.md#finding-work) and its scoped documentation/CI tasks.
 
 On Arch Linux, review and install build dependencies, then run the source gate:
 
@@ -60,7 +82,7 @@ python3 -m unittest discover -s services/clawosd/tests -p 'test_*.py'
 node --test integrations/openclaw/test/*.test.js
 ```
 
-See [M1 build instructions](image/README.md) for ISO construction and disposable-disk
+See [image build instructions](image/README.md) for ISO construction and disposable-disk
 testing, and [live development](docs/SELF-DEVELOPMENT.md) for checkpointed runtime
 deployment. ISO builds run inside Linux. Windows manages QEMU through the
 [host launcher scripts](tools/windows/README.md).

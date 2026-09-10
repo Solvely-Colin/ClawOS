@@ -26,9 +26,17 @@ The markers distinguish source descriptions from the exact paths exercised.
   encrypted and the passwordless mode, and checked first boot, LUKS unlock and
   key-only `sshd` on the installed systems.
 - `NOT YET VERIFIED`: the step is described from the source at HEAD and was
-  not exercised by the cited record. Provider login, remote Gateway and
-  non-default Polkit behavior remain unverified. Read
+  not exercised by the cited walkthrough record. Provider-wizard clicks, remote
+  Gateway and non-default Polkit behavior remain unverified by those records. Read
   those steps as a description of the code, not of an observed run.
+
+A separate [corrected-CI-image test](HARDWARE-INSTALLER-VALIDATION.md#2026-09-10-full-agent-loop-on-the-corrected-ci-image)
+at `7a2c464` (run 34522981039) verified a normal passwordless CLI install,
+native credential/model commands, real inference, agent-driven runtime update,
+lost-acknowledgement retry and file-level rollback in a fresh WHPX VM. It used
+8 GiB RAM and a 40 GiB virtio disk. That is not proof of the provider wizard's
+GUI flow or both-mode GTK installation described below; the initial auth request
+also needed a retry, as recorded in the evidence.
 
 ## Requirements
 
@@ -106,7 +114,7 @@ verify its `SHA256SUMS` and source metadata before using it.
    `NOT YET VERIFIED` in the 2026-09-07 run (the CI build installs the same
    packages in [tools/ci/build-release.sh](../tools/ci/build-release.sh)).
 2. Run the non-root source gate. It requires Node 24+ and Python 3.12+, runs
-   the M1 unit tests, profile and Omarchy checks, onboarding statics, broker
+   the image unit tests, profile and Omarchy checks, onboarding statics, broker
    tests, plugin tests, the role-switch test and `git diff --check`:
 
    ```sh

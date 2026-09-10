@@ -61,8 +61,10 @@ Milestones: Post-flip hardening and contributor tooling; Runtime reliability.
   or reworded: polkit admin identity, exec-hook rail, cgroup and scope tricks,
   PID reuse in attestation, tailscaled exposure; plus the D-Bus bus policy,
   deploy-runtime hint and tty1 autologin items tracked as hardening issues.
-- [ ] Contributor tooling: tree check, container preflight, shellcheck stage,
-  m0 and shell-prototype READMEs; artwork decision recorded.
+- [x] Contributor source tooling: tree audit, container preflight, ShellCheck,
+  and guarded historical host-session documentation (#46–#49).
+- [ ] Resolve the remaining frozen-prototype/Sites disposition and artwork
+  direction (#50, #51). Current experimental status and attribution are documented.
 - [x] Component-directory migration with reviewed ISO/live-deploy payload
   comparison, clean Linux ISO build/validation and checkpointed VM deployment
   plus rollback (#92, #96). Installed OS paths stayed unchanged; evidence is
