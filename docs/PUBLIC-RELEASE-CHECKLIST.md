@@ -34,7 +34,8 @@
 - [x] A clean checkout passes CI (`ci.yml`) and the full Arch preflight
       (all four jobs green on `main` at `30541ba`, run 34428511092; includes
       the full Arch preflight, D-Bus proof and prototype smoke tests).
-- [ ] Owner explicitly approves public visibility.
+- [x] Owner explicitly approved completing the remaining public-source launch
+      on 2026-09-10. This does not authorize publishing an ISO release.
 
 # Before the first prerelease
 
