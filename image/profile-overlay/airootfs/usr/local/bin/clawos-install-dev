@@ -295,6 +295,13 @@ install -d -m 0755 "$mount_root/etc/ssh/sshd_config.d"
 install -m 0644 /etc/ssh/sshd_config.d/00-clawos.conf \
   "$mount_root/etc/ssh/sshd_config.d/00-clawos.conf"
 cp -a /usr/lib/clawos/. "$mount_root/usr/lib/clawos/"
+# The profile normalizes modes; provision the updater explicitly instead of
+# relying on the copied source mode. Receipt delivery must survive first boot.
+install -m 0755 /usr/lib/clawos/clawos-deploy \
+  "$mount_root/usr/lib/clawos/clawos-deploy"
+install -m 0644 /etc/systemd/system/clawos-deploy-delivery.service \
+  /etc/systemd/system/clawos-deploy-delivery.timer \
+  "$mount_root/etc/systemd/system/"
 install -m 0644 /usr/lib/tmpfiles.d/clawos-control.conf \
   "$mount_root/usr/lib/tmpfiles.d/clawos-control.conf"
 cp -a /usr/share/applications/clawos-browser.desktop \
@@ -398,7 +405,7 @@ fi
 
 arch-chroot "$mount_root" systemctl enable \
   NetworkManager.service sshd.service tailscaled.service \
-  clawosd.service clawos-session@clawos.service
+  clawosd.service clawos-session@clawos.service clawos-deploy-delivery.timer
 arch-chroot "$mount_root" systemctl mask getty@tty2.service
 arch-chroot "$mount_root" mkinitcpio -P
 
