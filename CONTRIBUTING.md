@@ -44,14 +44,16 @@ Arch install; a green run is source evidence only:
 
 Local equivalents:
 
-- Unit tests run anywhere with Python 3.12+ and Node 24+ (commands in the README).
+- The complete unit suite runs on Linux with Python 3.12+ and Node 24+
+  (commands in the README). Some tests require `fcntl`, POSIX file operations
+  and Linux paths; on Windows or macOS use the Linux container instead.
 - The source gate runs on any Docker host with the ci.yml recipe (CI also pins
   the Arch snapshot from `m1/config/versions.env`; the recipe covers the source
   gate only, not the D-Bus proof):
 
   ```sh
   docker run --rm -v "$PWD:/src" -w /src archlinux:base-devel bash -c \
-    'pacman -Syu --noconfirm git inetutils nodejs python jq &&
+    'pacman -Syu --noconfirm git inetutils nodejs python jq shellcheck &&
      git config --global --add safe.directory /src && ./m1/bin/preflight-iso'
   ```
 
