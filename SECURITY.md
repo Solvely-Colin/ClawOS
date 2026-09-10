@@ -143,10 +143,29 @@ tested.
 - The OpenClaw plugin appends a `deploy-runtime` hint to the system context of
   the core agent in Full Root only, and only for sessions whose key matches
   `agent:<id>:<...>`. Its `before_tool_call` hook
-  blocks only `exec` calls whose command matches a regex of privileged binaries
-  at the start of the command or after `;`, `&`, `|`; the block is off entirely
+  blocks only `exec` calls. It splits the command the way a shell would
+  (newlines, `;`, `&&`, `||`, `|`, `&`, subshells, `$(...)`, backticks and
+  unquoted heredoc bodies), skips leading `VAR=value` assignments, redirections,
+  reserved words and `function NAME`, removes quotes and decodes backslash and
+  `$'...'` escapes, strips a wrapper allowlist (`env`, `nice`, `nohup`, `time`,
+  `timeout`, `exec`, `command`, `builtin`, `xargs`, `stdbuf`, `setsid`, `ionice`,
+  `chrt`, `taskset`, `watch`) and blocks when the basename of a command word is
+  `sudo`, `sudoedit`, `su`, `doas`, `pkexec`, `run0`, `pacman`, `systemctl`,
+  `bootctl`, `mkinitcpio`, `cryptsetup`, `mount`, `umount`, `btrfs` or
+  `clawosctl commit`, recursing into `sh`/`bash`/`zsh`/`dash`/`ksh`/`ash -c`
+  strings, `eval`, `watch` and `find -exec`. A command word that still holds a
+  brace, glob or variable expansion fails closed; the block is off entirely
   in Full Root for the core agent, and an `exec` without an agent id counts as
   core.
+- The exec rail is a guidance rail, not a sandbox. Its tests state what passes
+  it: script files (`bash install.sh`, `./install.sh`, `source x`,
+  `curl ... | bash`, `echo ... | sh`), other interpreters (`python -c`,
+  `perl -e`, `node -e`), command strings that are themselves command output
+  (`sh -c "$(cat cmd)"`), aliases and shell functions defined outside the
+  command, wrappers not in the allowlist (`chroot`, `nsenter`, `ssh localhost`,
+  `make`, `tmux`), and any tool other than `exec`, including a file written with
+  another tool and run later. See the `uncaught` table in
+  `m2/openclaw-plugin/test/embodiment.test.js`.
 
 - Caller-boundary regression tests include a real private D-Bus daemon with
   different OS UIDs and a fake machine runner. They do not constitute a complete
@@ -163,8 +182,6 @@ tested.
   defaults on the target and has not been observed. In passwordless mode the
   accounts are empty, so the installer expects the prompt to succeed without a
   secret; untested here.
-- The exec-hook regex is a guidance rail, not a sandbox. `env sudo`, `bash -c`,
-  a script file, or any tool other than `exec` should pass it. Not tested.
 - A process outside the gateway/node units should not be able to appear inside
   them in `/proc/<pid>/cgroup`; cgroup or systemd-scope tricks have not been
   tested.
