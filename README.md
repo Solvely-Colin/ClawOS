@@ -7,7 +7,7 @@
 An experimental Arch-based OS with OpenClaw as its primary agent interface.
 ClawOS is an independent project, not affiliated with or endorsed by OpenClaw
 or Arch Linux; see [NOTICE.md](NOTICE.md).
-This is **experimental, unreleased source**, not a production-ready
+This is **public, experimental, unreleased source**, not a production-ready
 distribution. There are no releases or tags yet, and every install so far has
 been inside a virtual machine. What is and is not in scope is summarized in
 [docs/SCOPE.md](docs/SCOPE.md).

@@ -17,8 +17,7 @@ Do not open a public issue for a security problem.
 
 - Email [colin@solvely.net](mailto:colin@solvely.net), the maintainer's designated
   private reporting contact. Do not include live credentials in an initial report.
-- GitHub private vulnerability reporting is an additional route only after it
-  has been enabled and verified. Do not assume the button exists at publication.
+- [GitHub private vulnerability reporting](https://github.com/Solvely-Colin/ClawOS/security/advisories/new) was enabled and verified on 2026-09-10. The public Security page exposes “Report a vulnerability”; submitting requires GitHub sign-in. The email route above remains available.
 
 Include the commit SHA, install mode (encrypted or passwordless), security level
 (Full Root, Full Approvals, User Limited), and how to reproduce. Redact tokens and
@@ -194,9 +193,15 @@ tested.
   `/proc/<pid>/cgroup`; a PID reused between those two reads would be
   misattributed. The window is small and has not been measured or exploited.
 
+## Tracking known limitations
+
+Public tracking links do not change reportability or establish that a gap is fixed: [Polkit identity #44](https://github.com/Solvely-Colin/ClawOS/issues/44), [Tailscale #42](https://github.com/Solvely-Colin/ClawOS/issues/42), [live-console autologin #43](https://github.com/Solvely-Colin/ClawOS/issues/43), [OpenClaw integrity #29](https://github.com/Solvely-Colin/ClawOS/issues/29), [dependency locking #31](https://github.com/Solvely-Colin/ClawOS/issues/31), [deploy hint #38](https://github.com/Solvely-Colin/ClawOS/issues/38), [exec rail #41](https://github.com/Solvely-Colin/ClawOS/issues/41), [attestation #40](https://github.com/Solvely-Colin/ClawOS/issues/40), [D-Bus policy #39](https://github.com/Solvely-Colin/ClawOS/issues/39), [recovery #56](https://github.com/Solvely-Colin/ClawOS/issues/56), [passwordless warning #45](https://github.com/Solvely-Colin/ClawOS/issues/45), and [fresh-install policy/inference proof #33](https://github.com/Solvely-Colin/ClawOS/issues/33).
+
 ## How fixes are communicated
 
 Fixes land as ordinary commits on `main`, with the boundary they change noted in
 `docs/KNOWN-ISSUES.md`. There are no GitHub security advisories, CVEs, release
 notes, or backports yet. If you want credit, say so in the report and you will be
 named in the commit message.
+
+Public security follow-up uses the [security label](https://github.com/Solvely-Colin/ClawOS/labels/security). New vulnerability reports must still use the private routes above.

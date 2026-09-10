@@ -15,13 +15,16 @@ Milestones: Flip-ready (gates the flip), Flip day (same sitting).
   RELEASING, CONTRIBUTING, CODE_OF_CONDUCT reporting route, test counts.
 - [x] docs/SCOPE.md, docs/GETTING-STARTED.md and docs/EVIDENCE.md exist; every
   ISO proof is a ledger row naming ISO SHA256, source commit and host.
-- [ ] Live side of a CI-built ISO observed with key-only sshd; the GTK installer
-  and onboarding past the first screen observed once on a fresh VM.
+- [x] Live side of a CI-built ISO observed with key-only sshd; the GTK installer
+  and default onboarding observed on a fresh VM (2026-09-10, run 34432248984;
+  exact limits in docs/HARDWARE-INSTALLER-VALIDATION.md).
 - [x] Real-bus broker authorization proof runs in CI (`arch-preflight`).
-- [ ] Secret scan at the flip SHA including force-pushed commits; tree audit;
-  owner approval ticked last; repository flipped at that SHA.
-- [ ] Flip day: private vulnerability reporting, scanning alerts triaged, rulesets,
-  CodeQL, action restrictions; SECURITY.md names the verified routes.
+- [x] Secret scan at the flip SHA including force-pushed commits; tree audit;
+  owner approval ticked last; repository flipped at `b551292` on 2026-09-10.
+- [x] Flip day: private vulnerability reporting, scanning alerts triaged, rulesets,
+  CodeQL, action restrictions; SECURITY.md names the verified routes (2026-09-10).
+  Two CodeQL alerts remain open after static triage; see
+  docs/PUBLIC-SOURCE-READINESS.md. No ISO release was published.
 
 ## 2. Prove the image in CI and ship a first prerelease
 

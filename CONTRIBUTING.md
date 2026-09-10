@@ -14,6 +14,9 @@ best-effort by one maintainer with no promised response time, the same no-SLA te
 
 ## Finding work
 
+The pinned [Start here issue](https://github.com/Solvely-Colin/ClawOS/issues/86)
+collects newcomer entry points and source-only launch expectations.
+
 Issues carry labels. `good first issue` and `help wanted` mark work open to newcomers.
 Docs, CI (`ci`) and unit-tested modules need no VM; CI checks them on every pull request.
 Installer, boot and fresh-install work (`installer`, `hardware`, `evidence`) is labeled
@@ -104,8 +107,19 @@ Contributions are accepted under the [MIT License](LICENSE): inbound terms equal
 terms, and there is no CLA. Do not submit code you cannot license that way. Third-party
 material (copied files, snippets, artwork, fonts) must be listed in [NOTICE.md](NOTICE.md)
 with its origin and license. Pull requests are merged with merge commits, as #1-#3 were;
-that is an owner decision tracked as a `decision` issue (#13); there is no squash or
-rebase rule.
+that is the owner decision in #13. The active main ruleset permits merge commits
+only, requires a PR and the four checks `unit-tests`, `arch-preflight`,
+`container-wrapper`, and `prototype`, and blocks force-push and deletion.
+Zero approvals are required; CODEOWNERS is informational. Administrators retain
+bypass for recovery, not the normal contribution path; explain any use in the PR.
+The `v*` tag ruleset restricts creation, update and deletion to administrators.
+
+Since the 2026-09-10 public launch, Actions requires full-commit-SHA action pins
+and permits only GitHub-owned or verified-creator actions. An unpinned action is
+blocked even when GitHub owns it; a pinned action from an unapproved creator is
+also blocked. Reusable workflows may use tags. All external contributors need
+workflow-run approval. Workflow tokens default to read-only and cannot approve
+PR reviews. These settings protect the repository workflow, not the guest OS.
 
 ## Safety and boundaries
 
