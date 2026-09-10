@@ -59,7 +59,7 @@ until [[ -S "$serial_socket" ]] && grep -Fq 'clawos-live#' "$serial_log" 2>/dev/
   sleep 1
 done
 
-# Effective sshd posture as `sshd -T` reports it (lowercased keywords), not
+# Effective sshd posture as `sshd -T` reports it (case-insensitive keywords), not
 # the drop-in text. archiso enables sshd.service on the live medium; wait for
 # it briefly because `sshd -T` needs the host keys that exist once it started.
 sshd_keyonly_check='for attempt in {1..10}; do systemctl is-active --quiet sshd.service && break; sleep 1; done; '

@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # The lines 00-clawos.conf must carry, spelled as sshd_config(5) spells them.
-# `sshd -T` reports the same settings lowercased; boot-smoke-qemu and
-# m2-e2e-qemu grep that form inside the guest.
+# boot-smoke-qemu and m2-e2e-qemu compare `sshd -T` inside the guest
+# case-insensitively; keyword capitalization varies between builds.
 sshd_keyonly_directives=(
   'PasswordAuthentication no'
   'KbdInteractiveAuthentication no'

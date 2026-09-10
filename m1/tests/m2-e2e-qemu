@@ -169,7 +169,7 @@ wait_poweroff() {
   qemu_pid=
 }
 
-# Effective sshd posture as `sshd -T` reports it (lowercased keywords), run on
+# Effective sshd posture as `sshd -T` reports it (case-insensitive keywords), run on
 # the live medium and again on the installed system. sshd.service is enabled
 # on both; wait for it briefly because `sshd -T` needs the host keys that exist
 # once it started.
