@@ -8,7 +8,7 @@ The publication candidate must be scanned again after its final commit.
 | --- | --- | --- |
 | Reporting | Outside-domain mail reaches the designated contact; spam/forwarding checked; conduct contact named | Contact documented; delivery and rule confirmation pending (#7) |
 | Attribution | Copied-source headers/licenses, assets and dependency notices reviewed; unknowns disclosed | Source inventory reviewed in NOTICE; final candidate audit pending (#15) |
-| Real setup | Current CI ISO, graphical encrypted install on a fresh virtual disk, first boot, default onboarding, SSH and network listeners | Build 34429154651 dispatched from `30541badb58dc09eb11e7faef3f13437703f1b7f`; proof pending (#8, #9, #12) |
+| Real setup | Current CI ISO, graphical encrypted install on a fresh virtual disk, first boot, default onboarding, SSH and network listeners | Build 34429154651 verified and booted; live SSH passed but GTK actions were clipped. Layout fix verified in a temporary live process; rebuilt-ISO install proof pending (#8, #9, #12, #54) |
 | Privacy/history | Redacted scan of final candidate and all history, including the five recovered commits; tracked-file audit | Initial secret scan clean; historical developer paths/session identifiers found, owner disposition pending; final candidate scan pending (#15) |
 | Reconciliation | Close only issues whose acceptance is evidenced; distinguish merged code from missing VM proof | In progress |
 
