@@ -145,6 +145,8 @@ tested.
 - Caller-boundary regression tests include a real private D-Bus daemon with
   different OS UIDs and a fake machine runner. They do not constitute a complete
   system compromise test or prove isolation between agents sharing a runtime.
+  The suite runs on every push and pull request in the `arch-preflight` job in
+  `.github/workflows/ci.yml`.
 
 ### Constructed by reasoning, not observed
 

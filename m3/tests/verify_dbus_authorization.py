@@ -43,6 +43,7 @@ with tempfile.TemporaryDirectory(prefix='clawos-bus-proof-') as tmp:
     root = Path(tmp)
     root.chmod(0o755)
     config = json.loads((repo/'m3/config/clawosd.json').read_text())
+    owner = config['openclaw']['ownerUser']
     (root/'config.json').write_text(json.dumps(config))
     (root/'bus.conf').write_text(f'''<busconfig><type>session</type>
 <listen>unix:path={root}/bus</listen><auth>EXTERNAL</auth>
@@ -76,16 +77,22 @@ print(getattr(p,sys.argv[2])(*sys.argv[3:]))
         for context in ('{}', '{"agentId":"main"}'):
             assert not call('nobody','PrepareAction','service.manage',params,context)['ok']
         assert not call('nobody','ListPending')['ok']
-        prepared = call('clawos','PrepareAction','service.manage',params,'{}')
+        prepared = call(owner,'PrepareAction','service.manage',params,'{}')
         assert prepared['ok'], prepared
         token = prepared['result']['token']
+        inspected = call('nobody','Inspect')
+        assert inspected['ok'] and inspected['result']['pendingCount'] == 1, inspected
+        assert 'token' not in json.dumps(inspected['result']), inspected
+        receipt = call('nobody','GetAction',prepared['result']['actionId'])
+        assert receipt['ok'] and 'token' not in json.dumps(receipt['result']), receipt
+        assert receipt['result']['actionId'] == prepared['result']['actionId'], receipt
         assert not call('nobody','CommitAction',token)['ok']
         assert not call('nobody','CancelAction',token)['ok']
-        assert call('clawos','ListPending')['result'][0]['token'] == token
-        completed = call('clawos','CommitAction',token)
+        assert call(owner,'ListPending')['result'][0]['token'] == token
+        completed = call(owner,'CommitAction',token)
         assert completed['ok'] and completed['result']['state']=='complete', completed
-        assert not call('clawos','CommitAction',token)['ok']
-        print('PASS: real D-Bus UID enforcement; unrelated caller denied; separate owner CLI processes work; no real system actions')
+        assert not call(owner,'CommitAction',token)['ok']
+        print('PASS: real D-Bus UID enforcement; unrelated caller denied; public reads carry no token; separate owner CLI processes work; no real system actions')
     finally:
         if server:
             server.terminate()

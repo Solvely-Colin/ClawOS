@@ -2,6 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
+# shellcheck source=../config/versions.env
 source "$repo_root/m1/config/versions.env"
 destination="${1:-$repo_root/artifacts/m1/profile}"
 releng=/usr/share/archiso/configs/releng

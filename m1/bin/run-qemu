@@ -9,7 +9,7 @@ serial_log="$runtime/serial.log"
 disk_args=()
 boot_args=()
 display_args=(-display gtk)
-machine_args=(-enable-kvm -machine q35,accel=kvm -cpu host)
+machine_args=(-enable-kvm -machine 'q35,accel=kvm' -cpu host)
 disk=
 installed=false
 headless_vnc=false
@@ -59,7 +59,7 @@ if $headless_vnc; then
 fi
 
 if $software; then
-  machine_args=(-machine q35,accel=tcg -cpu max)
+  machine_args=(-machine 'q35,accel=tcg' -cpu max)
 fi
 
 if [[ -n "$disk" ]]; then

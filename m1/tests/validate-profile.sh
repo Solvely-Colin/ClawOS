@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# shellcheck disable=SC2154  # status is assigned inside the trap string itself
 trap 'status=$?; printf "ClawOS image profile validation failed at line %s (exit %s).\n" "$LINENO" "$status" >&2' ERR
 
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
 profile="${1:-$repo_root/m1/profile-overlay}"
 
+# shellcheck source=../config/versions.env
 source "$repo_root/m1/config/versions.env"
 
 node_check() {
