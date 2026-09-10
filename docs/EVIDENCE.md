@@ -38,8 +38,10 @@ Only the scanned `clawos-boot-evidence-*` artifact was uploaded (serial,
 transcript, QEMU log, metadata, result and checksum). Its logs were scanned
 again after download. ISO retention was disabled; the release job was skipped.
 This proves live boot, not installation, onboarding, inference or hardware.
-Follow-up commits tighten the optional ISO upload allowlist and record failed
-attempts explicitly; they do not change the tested boot harness or image content.
+Follow-up commits tighten the optional ISO upload allowlist, record failed
+attempts explicitly, and switch successful shutdown from a serial-shell
+poweroff command to acknowledged ACPI. The final ACPI path requires its own
+workflow proof before merge; image content is unchanged by these harness edits.
 
 ## Component-layout runtime verification
 
