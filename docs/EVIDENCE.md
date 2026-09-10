@@ -20,3 +20,23 @@ instead of prose.
 
 Full hashes are in the private copies and in the run artifacts; the ledger
 shows the first and last characters so a row can be matched to a file.
+
+## Component-layout migration verification
+
+On 2026-09-10, source `01655a6012d74610d37fbb829740c7d7f49cfb5f` produced
+`clawos-fast-2026.09.10-x86_64.iso`, SHA-256
+`1b6a0f43a405eae95c0b4c4551a4e53a88dc025c0169490ffbf81e49a4f45767`,
+in a Windows-managed QEMU/WHPX Linux builder using isolated virtio scratch storage.
+The clean fast build and ISO boot-chain, runtime-version and SSH-policy validator
+passed. This locally built image was not newly booted or installed; no release
+or public binary artifact was published.
+
+Compared with pre-migration source `7233f4d`, assembled profile and runtime
+payload comparisons found no removed destinations or mode changes. Reviewed
+differences were the new source-path instructions/deployer mappings and plugin
+README. A checkpointed live deployment of the path-migrated runtime completed
+with desktop/broker ready and plugin loaded, then rolled back. Hash, mode,
+ownership, excluded-configuration and dirty source-checkout comparisons matched
+their pre-test state. The final follow-up payload differs from the live-tested
+one only in plugin README prose. Model inference and full-system rollback are
+not established by this test. Detailed receipts remain private; review is #96.
