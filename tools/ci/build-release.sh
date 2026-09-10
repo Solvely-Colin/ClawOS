@@ -37,7 +37,8 @@ out=/src/artifacts/m1/out
   printf 'Build channel: experimental development ISO\n'
   printf 'Validation: source preflight and ISO boot-chain structure\n'
   printf 'Live boot smoke: NOT RUN\n'
-  printf 'Install/onboarding/hardware acceptance: NOT RUN by this workflow\n'
+  printf 'Passwordless install smoke: NOT RUN\n'
+  printf 'Onboarding/encrypted-install/hardware acceptance: NOT RUN by this workflow\n'
   printf 'Installer: experimental x86_64 UEFI blank disks; physical hardware NOT verified\n'
   cat image/config/versions.env
 } >"$out/BUILD-METADATA.txt"
@@ -54,6 +55,18 @@ if CLAWOS_SMOKE_RUNTIME="$out/boot-smoke" \
 else
   status=$?
   sed -i "s/^Live boot smoke: NOT RUN$/Live boot smoke: FAILED (KVM, run $GITHUB_RUN_ID)/" \
+    "$out/BUILD-METADATA.txt"
+  exit "$status"
+fi
+
+# Fresh disposable disk; at most 60 minutes, with ACPI-only guest cleanup.
+if CLAWOS_INSTALL_RUNTIME="$out/install-smoke" \
+    timeout --signal=TERM --foreground 60m ./image/tests/install-smoke-qemu "${images[0]}"; then
+  sed -i "s/^Passwordless install smoke: NOT RUN$/Passwordless install smoke: RUN (KVM, run $GITHUB_RUN_ID)/" \
+    "$out/BUILD-METADATA.txt"
+else
+  status=$?
+  sed -i "s/^Passwordless install smoke: NOT RUN$/Passwordless install smoke: FAILED (KVM, run $GITHUB_RUN_ID)/" \
     "$out/BUILD-METADATA.txt"
   exit "$status"
 fi

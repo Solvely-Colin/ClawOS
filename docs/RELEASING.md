@@ -2,7 +2,7 @@
 
 The **Experimental ISO build** GitHub Actions workflow supports:
 
-- **Manual run:** build the selected ref and require a live KVM boot smoke test.
+- **Manual run:** build the selected ref and require live KVM boot and passwordless install smoke tests.
   Scanned boot evidence is retained for 14 days. ISO upload defaults off;
   select `retain_iso` explicitly to expose the ISO/checksum/build metadata to
   repository readers. It does not create a release on a branch.
@@ -43,6 +43,26 @@ and QEMU logs are scanned before publication, including failure evidence. The
 separate `clawos-boot-evidence-*` artifact contains no ISO, writable firmware
 variables or sockets. Evidence containing secret-shaped text is not uploaded.
 
+Next, `image/tests/install-smoke-qemu ISO` creates a new 32 GiB QCOW2 and
+installs using `--vm-test --passwordless`. It checks the dedicated virtio disk
+serial, obtains the installer's disk ID and supplies the exact erase confirmation.
+Existing runtime directories or disks are never reused. This test needs KVM,
+8 GiB guest memory and matching OVMF code/variable templates; the workflow gives
+it a separate 60-minute limit. Both guest shutdowns use acknowledged ACPI.
+After installation it boots the same disk and firmware variables with the ISO
+detached, checks Btrfs root, zero failed units, desktop/broker/SSH/network
+services, effective SSH policy and the pinned OpenClaw version, and captures
+one fresh-guest screendump. The evidence artifact's `install/` directory retains
+only explicitly listed, scanned logs and the screendump, never the disk or NVRAM.
+Text-pattern scanning of image bytes is not OCR or a general screenshot secret
+detector; this isolated guest receives no credentials or enrollment data.
+
+`--vm-test` changes the installed console by enabling serial **root autologin**,
+restricted by the installer to KVM, Q35 and `/dev/vda`. It proves the passwordless
+install/boot chain, not the shipped serial-console posture. Successful execution
+alone changes `Passwordless install smoke: NOT RUN` to `RUN (KVM, run <id>)`;
+failure records `FAILED`. Encrypted install and full onboarding remain separate.
+
 ## What success does not mean
 
 The 2026-09-10 public launch is source-only. Its four historical ISO artifacts
@@ -51,8 +71,8 @@ ISOs. New manual or tag builds can expose binaries to repository readers, so
 review artifact distribution before dispatching them. The public entry point
 is [building locally](GETTING-STARTED.md), not downloading an old CI run.
 
-The live boot gate does not install a fresh disk, run a model request,
-test physical hardware, or prove full-system rollback. It must not be described
+The live boot gate and separate passwordless install gate do not run a model
+request, test physical hardware, or prove full-system rollback. They must not be described
 as a verified stable release. See [hardware restrictions](HARDWARE.md) and the
 [public-release checklist](PUBLIC-RELEASE-CHECKLIST.md).
 

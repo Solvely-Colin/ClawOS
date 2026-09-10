@@ -9,16 +9,17 @@ import sys
 import time
 
 
-def console_ready(path):
+def console_ready(path, hostname='clawos-live'):
     with Path(path).open('rb') as log:
         log.seek(0, 2)
         log.seek(max(0, log.tell() - 65536))
         text = log.read().decode('utf-8', errors='replace')
     text = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', text)
-    return bool(re.search(r'clawos-live#|root@clawos-live[^\n]*#', text))
+    host = re.escape(hostname)
+    return bool(re.search(rf'{host}#|root@{host}[^\n]*#', text))
 
 
-def powerdown(path):
+def qmp_command(path, operation, arguments=None):
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
         client.settimeout(5)
         client.connect(path)
@@ -26,8 +27,11 @@ def powerdown(path):
             greeting = json.loads(stream.readline())
             if 'QMP' not in greeting:
                 raise ValueError('Missing QMP greeting')
-            for operation in ('qmp_capabilities', 'system_powerdown'):
-                stream.write((json.dumps({'execute': operation, 'id': operation}) + '\n').encode())
+            for command in ('qmp_capabilities', operation):
+                request = {'execute': command, 'id': command}
+                if command == operation and arguments:
+                    request['arguments'] = arguments
+                stream.write((json.dumps(request) + '\n').encode())
                 stream.flush()
                 deadline = time.monotonic() + 10
                 while time.monotonic() < deadline:
@@ -35,7 +39,7 @@ def powerdown(path):
                     if not line:
                         raise ValueError('QMP closed before acknowledging ACPI request')
                     reply = json.loads(line)
-                    if reply.get('id') != operation:
+                    if reply.get('id') != command:
                         continue
                     if 'error' in reply or 'return' not in reply:
                         raise ValueError('QMP rejected ACPI request')
@@ -44,11 +48,18 @@ def powerdown(path):
                     raise TimeoutError('QMP response deadline exceeded')
 
 
+def powerdown(path):
+    qmp_command(path, 'system_powerdown')
+
+
 def capture(path, destination, commands, seconds, until=None):
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
         client.settimeout(5)
         client.connect(path)
-        client.sendall(commands)
+        # Pace UART input: a single large write can overrun the guest FIFO.
+        for offset in range(0, len(commands), 64):
+            client.sendall(commands[offset:offset + 64])
+            time.sleep(.02)
         deadline = time.monotonic() + seconds
         tail = b''
         marker = until.encode() if until else None
@@ -80,7 +91,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest='action', required=True)
     sub.add_parser('powerdown').add_argument('socket')
-    sub.add_parser('ready').add_argument('log')
+    ready = sub.add_parser('ready')
+    ready.add_argument('log')
+    ready.add_argument('--hostname', choices=('clawos-live', 'clawos-installed'), default='clawos-live')
+    screen = sub.add_parser('screendump')
+    screen.add_argument('socket')
+    screen.add_argument('destination')
     serial = sub.add_parser('capture')
     serial.add_argument('socket')
     serial.add_argument('log')
@@ -90,10 +106,12 @@ def main():
     if args.action == 'powerdown':
         powerdown(args.socket)
     elif args.action == 'ready':
-        sys.exit(0 if console_ready(args.log) else 1)
+        sys.exit(0 if console_ready(args.log, args.hostname) else 1)
+    elif args.action == 'screendump':
+        qmp_command(args.socket, 'screendump', {'filename': str(Path(args.destination).resolve())})
     else:
-        if not 1 <= args.seconds <= 600:
-            parser.error('seconds must be between 1 and 600')
+        if not 1 <= args.seconds <= 3600:
+            parser.error('seconds must be between 1 and 3600')
         capture(args.socket, args.log, sys.stdin.buffer.read(), args.seconds, args.until)
 
 
