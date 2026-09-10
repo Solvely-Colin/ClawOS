@@ -25,7 +25,7 @@ Milestones: Flip-ready (gates the flip), Flip day (same sitting).
   owner approval ticked last; repository flipped at `b551292` on 2026-09-10.
 - [x] Flip day: private vulnerability reporting, scanning alerts triaged, rulesets,
   CodeQL, action restrictions; SECURITY.md names the verified routes (2026-09-10).
-  Two CodeQL alerts remain open after static triage; see
+  Two initial CodeQL alerts were recorded after static triage; see
   docs/PUBLIC-SOURCE-READINESS.md. No ISO release was published.
 
 ## 2. Prove the image in CI and ship a first prerelease

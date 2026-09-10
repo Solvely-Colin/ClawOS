@@ -38,8 +38,9 @@ submission route requires GitHub sign-in. No test vulnerability was submitted.
 CodeQL's first run, 34481145478, passed for Python and JavaScript/TypeScript.
 It raised two alerts, statically triaged in the private record: a source-test
 regex performance issue and a single-replacement warning defeated by a local
-parser invariant. Both remain open for maintainer disposition; this is not a
-zero-alert claim or a full security certification. Secret-scanning and
+parser invariant. Both were initially left open for maintainer disposition;
+that launch-time count is not a current alert count or a full security
+certification. See GitHub code scanning for current resolution states. Secret-scanning and
 Dependabot open-alert counts were zero at verification.
 
 The initial CodeQL readback preceded asynchronous setup completion; a later

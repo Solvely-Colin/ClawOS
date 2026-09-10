@@ -38,7 +38,9 @@ def marker_loops(source):
     """Return the marker lists of every `for marker in ...; do` loop."""
     return [
         set(re.sub(r'\\\n', ' ', block).split())
-        for block in re.findall(r'for marker in((?:[^;]|\\\n)*?); do', source)
+        # Backslash-newline is already included in [^;]; a second matching
+        # alternative makes malformed continued loops backtrack exponentially.
+        for block in re.findall(r'for marker in([^;]*); do', source)
     ]
 
 
@@ -65,6 +67,25 @@ def run_check(function, root):
 
 def run_scan(*files):
     return subprocess.run(['bash', str(SCAN_LOG_SECRETS), *map(str, files)], capture_output=True, text=True)
+
+
+class MarkerLoops(unittest.TestCase):
+    def test_multiple_loops_and_continuations(self):
+        self.assertEqual(marker_loops('for marker in A ' + '\\\n' +
+                                     ' B; do\ndone\nfor marker in C; do'),
+                         [{'A', 'B'}, {'C'}])
+
+    def test_malformed_continuations_finish_within_timeout(self):
+        # Isolate the regression so an exponential match cannot hang the suite.
+        program = (
+            'import runpy\n'
+            f'parse = runpy.run_path({str(Path(__file__).resolve())!r})["marker_loops"]\n'
+            'for suffix in ("", "; not-do"):\n'
+            '    assert parse("for marker in" + "\\\\\\n" * 64 + suffix) == []\n'
+        )
+        result = subprocess.run([sys.executable, '-c', program],
+                                capture_output=True, text=True, timeout=5)
+        self.assertEqual(result.returncode, 0, result.stderr)
 
 
 class SourceHooks(unittest.TestCase):

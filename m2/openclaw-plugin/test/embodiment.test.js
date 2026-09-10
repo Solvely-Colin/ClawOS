@@ -17,6 +17,13 @@ const applications = [
   { id: "desktop:chromium", name: "Chromium", kind: "desktop" },
 ];
 
+test("redirect parsing preserves combined streams without treating arguments as commands", () => {
+  for (const redirect of ["&>/dev/null", "&>>/dev/null", ">/dev/null 2>&1", "<<<text"]) {
+    assert.equal(isRawPrivilegedCommand(`${redirect} sudo id`), true, redirect);
+    assert.equal(isRawPrivilegedCommand(`echo ${redirect} sudo`), false, redirect);
+  }
+});
+
 const guarded = { fullRoot: false };
 const fullRootNonCore = { fullRoot: true, agentId: "reviewer" };
 const fullRootCore = { fullRoot: true, coreAgent: true };
