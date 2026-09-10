@@ -58,7 +58,7 @@ profile validation and the installed-system test check its presence.
 ## Artwork and images
 
 Origins recorded below come from embedded C2PA manifests,
-`docs/assets/HEADER.md`, `design-qa.md`, `shell-prototype/design-qa.md` and
+`docs/assets/HEADER.md`, `docs/history/design-qa.md`, `shell-prototype/design-qa.md` and
 git history. Where the repository holds no record, this file says so.
 
 - `m1/profile-overlay/airootfs/usr/share/clawos/theme/background.png`,
@@ -82,7 +82,7 @@ git history. Where the repository holds no record, this file says so.
   No third-party photograph or desktop application content is visible. The
   background and Radix-derived mark are covered above; the missing capture-tool
   name does not establish an additional artwork source.
-- Design mock-ups referenced in `design-qa.md` and
+- Design mock-ups referenced in `docs/history/design-qa.md` and
   `shell-prototype/design-qa.md` as "source visual truth" were AI-generated
   images stored outside this repository; they are not included.
 

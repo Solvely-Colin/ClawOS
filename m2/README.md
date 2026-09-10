@@ -38,9 +38,9 @@ navigations cannot attach the Control UI's Gateway WebSocket bearer token. The
 capability is advertised only in the authenticated Gateway hello, rotates on
 every Gateway start, and grants access only to this read-only HTML response.
 
-The thin ClawOS top panel shown in the shell prototype is a future native
-Wayland/compositor surface. It must not be injected into or wrapped around the
-compiled OpenClaw Control UI.
+The installed native panel and shell live in `m1/profile-overlay/airootfs`.
+The frozen shell prototype is design history, not the installed UI. The native
+panel must not be injected into or wrapped around compiled OpenClaw Control UI.
 
 ## Development install
 

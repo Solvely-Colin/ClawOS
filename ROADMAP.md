@@ -1,6 +1,6 @@
 # Roadmap
 
-The detailed PLAN.md retains the original long-term vision. This page is the
+The [archived plan](docs/history/PLAN.md) retains the original long-term vision. This page is the
 current contributor work queue; checkboxes are acceptance criteria, not promises.
 Each section maps to a GitHub milestone; issues carry the detail.
 
@@ -11,8 +11,10 @@ Milestones: Flip-ready (gates the flip), Flip day (same sitting).
 - [x] GitHub repository with history, contributor guide and unit CI.
 - [x] Automated clean ISO build completes on `main` (release.yml run 34270708295).
 - [x] Public license (MIT) with asset and dependency attribution in NOTICE.md.
-- [ ] Every public document describes what `main` does: checklist, KNOWN-ISSUES,
-  RELEASING, CONTRIBUTING, CODE_OF_CONDUCT reporting route, test counts.
+- [x] Contributor entry points reconciled for the source launch: local-build
+  walkthrough, scope/features evidence, release boundaries, reporting routes
+  and contribution defaults (2026-09-10). Historical plans are under
+  docs/history; ongoing documentation improvements remain #52.
 - [x] docs/SCOPE.md, docs/GETTING-STARTED.md and docs/EVIDENCE.md exist; every
   ISO proof is a ledger row naming ISO SHA256, source commit and host.
 - [x] Live side of a CI-built ISO observed with key-only sshd; the GTK installer
@@ -54,6 +56,9 @@ Milestones: Post-flip hardening and contributor tooling; Runtime reliability.
   deploy-runtime hint and tty1 autologin items tracked as hardening issues.
 - [ ] Contributor tooling: tree check, container preflight, shellcheck stage,
   m0 and shell-prototype READMEs; artwork decision recorded.
+- [ ] Component-directory migration with equivalent ISO/live-deploy payloads
+  and VM proof (#92). Contributor map is available now; runtime paths have
+  not been renamed as part of launch polish.
 - [ ] Fix setup/fullscreen offset and clipping; verify pointer alignment with
   saved screenshots.
 - [ ] Distinguish startup, locked, setup-incomplete, ready and repair-required
