@@ -44,12 +44,14 @@ def powerdown(path):
                     raise TimeoutError('QMP response deadline exceeded')
 
 
-def capture(path, destination, commands, seconds):
+def capture(path, destination, commands, seconds, until=None):
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
         client.settimeout(5)
         client.connect(path)
         client.sendall(commands)
         deadline = time.monotonic() + seconds
+        tail = b''
+        marker = until.encode() if until else None
         with Path(destination).open('wb') as output:
             while time.monotonic() < deadline:
                 client.settimeout(min(1, max(.01, deadline - time.monotonic())))
@@ -58,11 +60,19 @@ def capture(path, destination, commands, seconds):
                 except socket.timeout:
                     continue
                 except ConnectionResetError:
+                    if marker:
+                        raise ValueError('Serial connection reset before completion marker') from None
                     return
                 if not data:
+                    if marker:
+                        raise ValueError('Serial connection closed before completion marker')
                     return
                 output.write(data)
                 output.flush()
+                combined = tail + data
+                if marker and any(line.rstrip(b'\r') == marker for line in combined.split(b'\n')[:-1]):
+                    return
+                tail = combined[-8192:]
         raise TimeoutError('Serial capture deadline exceeded')
 
 
@@ -75,6 +85,7 @@ def main():
     serial.add_argument('socket')
     serial.add_argument('log')
     serial.add_argument('seconds', type=int)
+    serial.add_argument('--until')
     args = parser.parse_args()
     if args.action == 'powerdown':
         powerdown(args.socket)
@@ -83,7 +94,7 @@ def main():
     else:
         if not 1 <= args.seconds <= 600:
             parser.error('seconds must be between 1 and 600')
-        capture(args.socket, args.log, sys.stdin.buffer.read(), args.seconds)
+        capture(args.socket, args.log, sys.stdin.buffer.read(), args.seconds, args.until)
 
 
 if __name__ == '__main__':

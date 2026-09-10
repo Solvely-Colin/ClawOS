@@ -135,9 +135,8 @@ commands+=$'for attempt in {1..30}; do ip -4 -o address show scope global | grep
 commands+=$'test "$(findmnt -no FSTYPE /)" = overlay && echo "${PASS}LIVE_ROOT_OK"\n'
 commands+="$sshd_keyonly_check"$' && echo "${PASS}SSHD_KEYONLY_OK"\n'
 commands+=$'echo "${PASS}__CLAWOS_SMOKE_END__"\n'
-commands+=$'poweroff\n'
 
-printf '%s' "$commands" | python3 "$repo_root/tools/ci/qemu_io.py" capture "$serial_socket" "$transcript" 150
+printf '%s' "$commands" | python3 "$repo_root/tools/ci/qemu_io.py" capture "$serial_socket" "$transcript" 150 --until 'PASS:__CLAWOS_SMOKE_END__'
 tr -d '\r' <"$transcript" >"$runtime/markers.log"
 
 for marker in \
@@ -154,6 +153,7 @@ for marker in \
   fi
 done
 
+python3 "$repo_root/tools/ci/qemu_io.py" powerdown "$qmp_socket"
 shutdown_deadline=$((SECONDS + 30))
 while kill -0 "$qemu_pid" 2>/dev/null; do
   if (( SECONDS >= shutdown_deadline )); then

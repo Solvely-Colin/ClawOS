@@ -78,6 +78,20 @@ class BootCI(unittest.TestCase):
                 with self.assertRaises(TimeoutError):
                     qemu_io.capture('/test/socket', Path(tmp) / 'out', b'x', 5)
 
+    def test_serial_completion_marker_can_span_reads(self):
+        fake = FakeSocket(chunks=[b'echo "${PASS}END"\r\nPASS:E', b'ND\r\n', b'after'])
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch.object(qemu_io.socket, 'socket', return_value=fake):
+            qemu_io.capture('/test/socket', Path(tmp) / 'out', b'commands', 5, 'PASS:END')
+        self.assertEqual(fake.chunks, [b'after'])
+
+    def test_echoed_marker_and_early_eof_do_not_complete_capture(self):
+        fake = FakeSocket(chunks=[b'echo "${PASS}END"\r\n'])
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch.object(qemu_io.socket, 'socket', return_value=fake):
+            with self.assertRaises(ValueError):
+                qemu_io.capture('/test/socket', Path(tmp) / 'out', b'commands', 5, 'PASS:END')
+
     def test_workflow_requires_kvm_and_gates_uploads(self):
         workflow = (ROOT / '.github/workflows/release.yml').read_text()
         self.assertLess(workflow.index('Probe KVM'), workflow.index('Build in disposable'))
@@ -124,6 +138,7 @@ class BootCI(unittest.TestCase):
                 self.assertIn('kill -0 ', line)
         self.assertNotIn('enp0s1', source)
         self.assertIn('qemu_io.py" powerdown', source)
+        self.assertNotIn("commands+=$'poweroff", source)
         self.assertIn('grep -Fxq "PASS:$marker"', source)
         self.assertIn('CLAWOS_OVMF_CODE', source)
         self.assertIn('CLAWOS_SMOKE_DEADLINE', source)
