@@ -17,7 +17,7 @@
 #
 # The script never prints tokens or response headers, only status codes and
 # response bodies, so its output can be filed in the evidence archive as is.
-# See docs/FLIP-DAY.md for the order of operations around this script.
+# See docs/GITHUB-PROTECTIONS.md for the public maintenance guide.
 set -euo pipefail
 
 REPO=${GH_REPO:-Solvely-Colin/ClawOS}
@@ -169,7 +169,7 @@ step_visibility() {
   note "current: topics = $(current "" '.topics | join(", ")')"
   note "current: merge methods allowed = $(current "" '[(if .allow_merge_commit then "merge" else empty end), (if .allow_squash_merge then "squash" else empty end), (if .allow_rebase_merge then "rebase" else empty end)] | join(", ")')"
   if [[ $MODE == apply && $vis != public ]]; then
-    printf '\nRefusing --apply: %s is %s, not public. Flip the visibility first (docs/FLIP-DAY.md).\n' "$REPO" "$vis" >&2
+    printf '\nRefusing --apply: %s is %s, not public. See docs/GITHUB-PROTECTIONS.md.\n' "$REPO" "$vis" >&2
     exit 2
   fi
   [[ $vis == public ]] || note "(private: expect 403/404/409/422 from the security endpoints below)"

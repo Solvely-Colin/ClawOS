@@ -92,9 +92,9 @@ Source gates reject known Omarchy dependencies. Historical references and
 negative tests remain intentionally; removing those words would weaken checks.
 This is not a complete package/asset provenance certification.
 
-[Archived plans](docs/history/README.md) and milestone `STATUS.md` files include superseded designs. Treat
-current code and executable tests as evidence, not every historical "proven"
-statement as current release acceptance.
+Local working notes and retired milestone reports are not part of the public
+documentation. Start with the [architecture](docs/ARCHITECTURE.md), current
+roadmap and dated evidence; do not treat old Git history as release acceptance.
 
 ClawOS is released under the [MIT License](LICENSE). Third-party components,
 derived configuration files and artwork keep their own licenses and are listed

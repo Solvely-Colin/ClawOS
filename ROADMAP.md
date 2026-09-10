@@ -1,7 +1,7 @@
 # Roadmap
 
-The [archived plan](docs/history/PLAN.md) retains the original long-term vision. This page is the
-current contributor work queue; checkboxes are acceptance criteria, not promises.
+This page is the current contributor work queue; checkboxes are acceptance
+criteria, not promises. See [architecture](docs/ARCHITECTURE.md) for component boundaries.
 Each section maps to a GitHub milestone; issues carry the detail.
 
 ## 1. Make the source public without overstating readiness
@@ -13,8 +13,8 @@ Milestones: Flip-ready (gates the flip), Flip day (same sitting).
 - [x] Public license (MIT) with asset and dependency attribution in NOTICE.md.
 - [x] Contributor entry points reconciled for the source launch: local-build
   walkthrough, scope/features evidence, release boundaries, reporting routes
-  and contribution defaults (2026-09-10). Historical plans are under
-  docs/history; ongoing documentation improvements remain #52.
+  and contribution defaults (2026-09-10). Historical plans are now
+  local-only; ongoing documentation improvements remain #52.
 - [x] docs/SCOPE.md, docs/GETTING-STARTED.md and docs/EVIDENCE.md exist; every
   ISO proof is a ledger row naming ISO SHA256, source commit and host.
 - [x] Live side of a CI-built ISO observed with key-only sshd; the GTK installer
@@ -26,7 +26,7 @@ Milestones: Flip-ready (gates the flip), Flip day (same sitting).
 - [x] Flip day: private vulnerability reporting, scanning alerts triaged, rulesets,
   CodeQL, action restrictions; SECURITY.md names the verified routes (2026-09-10).
   Two initial CodeQL alerts were recorded after static triage; see
-  docs/PUBLIC-SOURCE-READINESS.md. No ISO release was published.
+  docs/KNOWN-ISSUES.md and GitHub code scanning for current states. No ISO release was published.
 
 ## 2. Prove the image in CI and ship a first prerelease
 

@@ -25,5 +25,5 @@ sudo CLAWOS_M0_EXPERIMENT=1 ./m0/bin/install-m0 "$owner"
 
 echo
 echo "Installation complete. The session is installed but not enabled at boot."
-echo "Verify the installed files, then start the session manually as described in m0/STATUS.md."
+echo "Verify the installed files; consult m0/README.md before running this historical experiment."
 read -r -p "Press Enter to close this installer..."

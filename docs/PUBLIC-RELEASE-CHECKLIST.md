@@ -1,56 +1,36 @@
-# Before public source
+# Public release checklist
 
-- [x] Owner approved MIT for ClawOS-owned code on 2026-09-08; LICENSE is present
-      and third-party license exceptions remain documented in NOTICE.md.
-- [x] Owner approved retaining the disclosed AI-generated artwork for the
-      experimental launch on 2026-09-08; original branding remains a follow-up.
-- [x] Complete the tracked-source attribution/provenance inventory review
-      (NOTICE.md, 2026-09-10 UTC). Copied-source exceptions, generated artwork,
-      the unknown screenshot capture tool and non-MIT prototype dependencies
-      are disclosed. This is not ISO redistribution clearance or legal certification.
-- [x] Add SECURITY.md with the maintainer-designated email reporting route.
-- [x] Obtain confirmation of the reporting mailbox: owner confirmed it works
-      on 2026-09-10. No independent outside-sender test or mailbox-rule inspection
-      is claimed. GitHub private vulnerability reporting was enabled and verified
-      on 2026-09-10: its link is visible logged out; submission requires sign-in.
-- [x] Scan the preparation candidate and all local refs/history, including the
-      five recovered commits, with gitleaks 8.30.1 and full redaction. Exact
-      visibility SHA was `b5512920695f53dcc5286ea3f1f19fb3a54c4993`: 183 commits,
-      zero findings on 2026-09-10. Command/result are recorded in #15/private
-      evidence; there was no push between this scan and the visibility change.
-- [x] Audit the current tracked tree for VM images, firmware, auth stores and
-      personal paths/evidence. Private VM evidence remains outside Git.
-- [x] Resolve historical developer paths/session identifiers: owner accepted
-      retaining the disclosed history on 2026-09-10; no rewrite requested.
-- [x] Resolve retained Actions ISO artifacts: owner authorized removal on
-      2026-09-10. All four GitHub copies were deleted after local checksum and
-      metadata verification; remote artifact count was verified zero (#15).
-      Private bundles, VM disks/checkpoints and build logs remain retained.
-      Recheck for newly created artifacts immediately before the visibility change.
-- [x] README, FEATURES, ROADMAP, NOTICE, m1/README, /etc/issue, os-release and loader titles say
-      "experimental, VM-verified only, no releases"; one repository URL everywhere
-      (image files pinned by the identity block at the end of `m1/tests/validate-profile.sh`;
-      the Markdown files checked by hand on 2026-09-08).
-- [x] Historical files carry the frozen-record banner
-      (`git grep -l '^> \*\*Historical record\.\*\*'` lists 14 files; 2026-09-08).
-- [x] A clean checkout passes CI (`ci.yml`) and the full Arch preflight
-      (all four jobs green on `main` at `30541ba`, run 34428511092; includes
-      the full Arch preflight, D-Bus proof and prototype smoke tests).
-- [x] Owner explicitly approved completing the remaining public-source launch
-      on 2026-09-10. This does not authorize publishing an ISO release.
+Source publication is complete; this is the reusable gate for future binary
+releases, not a diary of the maintainer's launch session. See
+[repository protections](GITHUB-PROTECTIONS.md) and [evidence](EVIDENCE.md).
 
-# Before the first prerelease
+## Before distributing an image
 
-- [x] `release.yml` completes once on a manual run; retain its artifact and hashes
-      (run 34270708295 on `main` at `00f81c5`, 2026-09-08; row in EVIDENCE.md).
-- [ ] Build an ISO from the tagged source, pass `validate-iso.sh`, and run a fresh
-      disposable-disk install and first boot (encrypted and passwordless).
+- [ ] Review licenses, dependency/asset provenance and notices for the actual
+  image, not only ClawOS-owned source.
+- [ ] Scan source/history and inspect the image and candidate upload for
+  credentials, private evidence and machine-specific state.
+- [ ] Confirm the private reporting route in SECURITY.md and repository
+  protection readbacks.
+- [ ] Pass all four source CI jobs and the full Arch preflight at the exact
+  candidate revision; inspect CodeQL and dependency findings.
+- [ ] Review the artifact list and distribution decision. Public Actions
+  artifacts can distribute binaries even without a GitHub release.
+- [ ] State experimental status, VM-only verification and unsupported hardware
+  clearly. Do not imply supported releases or arbitrary OS rollback.
+
+## Before the first prerelease
+
+- [x] The release workflow has completed on main; dated build records are in
+  EVIDENCE.md. Historical ISO copies were removed from GitHub for source-first
+  publication; retained private proof is not a public download.
+- [ ] Build an ISO from the tagged source, pass validate-iso.sh, and run fresh
+  disposable-disk installation and first boot in encrypted and passwordless modes.
 - [ ] Verify a real agent request, live update, rollback and completion delivery.
-- [ ] Document known failures and recovery instructions in the release notes.
+- [ ] Document known failures and recovery instructions in release notes.
 - [ ] Review the draft prerelease and its hashes; a green build is not a supported release.
-- [ ] Owner explicitly approves publication of the draft.
+- [ ] Obtain explicit owner approval to publish the draft.
 
-This checklist does not change repository visibility or publish a release.
-If a secret or private artifact surfaces, revoke/rotate affected credentials
-first, then remove and re-scan. Re-privatising a repository is not a remedy.
-See [current preparation evidence and pending gates](PUBLIC-SOURCE-READINESS.md).
+This checklist does not change visibility, create a tag or publish a release.
+If a credential or private artifact surfaces, revoke/rotate affected credentials
+first, then remove and re-scan. Re-privatising is not a remedy for disclosure.

@@ -49,6 +49,15 @@ class SharedIgnoreRules(unittest.TestCase):
             '.mypy_cache/state', 'pkg.egg-info/PKG-INFO', '.coverage',
             'htmlcov/index.html', 'app.tsbuildinfo', '.idea/workspace.xml',
             '.vscode/settings.json', 'file.swp', '.env', '.env.local',
+            '.local/audit.json', 'local-notes/handoff.md', 'docs/local/demo.md',
+            'docs/session.local.md', 'docs/history/PLAN.md',
+            'docs/history/new-working-note.md',
+            'docs/FLIP-DAY.md', 'docs/PUBLIC-SOURCE-READINESS.md',
+            'docs/SHARING.md', 'docs/assets/HEADER.md', 'm1/VPS-DEMO.md',
+            'm0/STATUS.md', 'm1/STATUS.md', 'm2/STATUS.md', 'm3/STATUS.md',
+            'm4/STATUS.md', 'm2/UX-AUDIT.md', 'm2/ACCESSIBILITY-AND-COPILOT.md',
+            'm2/ACTIVITY-SHELL.md', 'm2/APPLICATION-SURFACES.md',
+            'shell-prototype/design-qa.md',
             'id_ed25519', 'id_rsa', 'client.p12', 'state.sqlite3-wal',
             'state.db', 'state.db-wal', 'state.db-shm', 'auth-profiles.json',
         ]
@@ -60,7 +69,7 @@ class SharedIgnoreRules(unittest.TestCase):
             '.github/workflows/ci.yml', 'm1/config/versions.env',
             'm3/config/clawosd.json', 'm4/tests/fixtures/fake-openclaw',
             'shell-prototype/.openai/hosting.json', 'shell-prototype/package-lock.json',
-            'docs/assets/clawos-header.png', 'docs/history/PLAN.md',
+            'docs/assets/clawos-header.png', 'docs/ARCHITECTURE.md',
             'm1/profile-overlay/airootfs/usr/lib/clawos/clawos-entry',
         ]
         self.assertEqual(self.ignored(paths), set())

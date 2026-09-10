@@ -23,7 +23,8 @@ source check is not proof of installation, inference or full-system recovery.
 still run in preflight. `shell-prototype` is a frozen browser mockup with its
 own CI regression check, not the shipped desktop. Design rationale in `m2`
 can include earlier approaches; current code and dated evidence take priority.
-[Historical plans](history/README.md) are separate from the active roadmap.
+Retired plans, milestone diaries and private demo notes stay local. The public
+[architecture](ARCHITECTURE.md) describes component ownership and remaining gaps.
 
 ## Planned component migration
 

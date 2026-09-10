@@ -106,6 +106,11 @@ both together. Boot and install tests still need a disposable Arch VM.
 
 ## Before submitting
 
+Follow [document ownership](docs/DOCUMENTATION.md): public guides and redacted
+evidence belong in Git; operator handoffs, launch diaries, prompts and private
+demo notes belong in ignored local storage. Removal from the current tree does
+not erase Git history.
+
 The shared `.gitignore` excludes local agent worktrees, private transfer data,
 VM state, credentials and generated caches. Keep those rules in the repository,
 not only in `.git/info/exclude`. `m1/tests/test_gitignore.py` checks them in an
