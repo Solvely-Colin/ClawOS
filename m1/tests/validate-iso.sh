@@ -27,6 +27,7 @@ unsquashfs -no-progress -d "$tmpdir/runtime-check" "$squashfs" \
   usr/bin/openclaw usr/lib/node_modules/openclaw/openclaw.mjs >/dev/null
 test -x "$tmpdir/runtime-check/usr/bin/openclaw"
 unsquashfs -cat "$squashfs" usr/lib/node_modules/openclaw/package.json >"$tmpdir/openclaw-package.json"
+# shellcheck source=../config/versions.env
 source "$(dirname "$0")/../config/versions.env"
 python3 - "$tmpdir/openclaw-package.json" "$OPENCLAW_VERSION" <<'PY'
 import json, sys
