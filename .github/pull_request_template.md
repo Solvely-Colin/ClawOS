@@ -14,5 +14,5 @@ What behavior changes, and why? Link the relevant issue.
 What remains unverified? What is the recovery path?
 
 - [ ] No credentials, VM state or personal transcripts included.
-- [ ] Unrelated changes preserved; no new Omarchy dependency.
+- [ ] Unrelated changes preserved; no foreign-distribution runtime dependencies.
 - [ ] Claims distinguish unit, runtime and fresh-install proof.

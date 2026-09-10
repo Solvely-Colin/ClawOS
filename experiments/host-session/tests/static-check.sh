@@ -12,7 +12,7 @@ bash -n "$root/experiments/host-session/bin/pair-browser-profile"
 grep -Fq 'sway -c /etc/clawos/sway.conf' "$root/experiments/host-session/bin/clawos-session"
 grep -Fq 'exec /usr/lib/chromium/chromium' "$root/experiments/host-session/bin/clawos-browser"
 if grep -Fq '/usr/bin/chromium' "$root/experiments/host-session/bin/clawos-browser"; then
-  echo "ClawOS browser must bypass the Omarchy Chromium wrapper." >&2
+  echo "ClawOS browser must invoke the packaged Chromium binary directly." >&2
   exit 1
 fi
 grep -Fq 'DeveloperToolsAvailability' "$root/experiments/host-session/config/chromium-policy.json"

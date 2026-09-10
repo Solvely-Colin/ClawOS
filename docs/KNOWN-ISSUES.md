@@ -96,8 +96,6 @@
   Consolidate the current Carapace adapter and acceptance checklist
   ([#50](https://github.com/Solvely-Colin/ClawOS/issues/50),
   [#52](https://github.com/Solvely-Colin/ClawOS/issues/52)).
-- **Omarchy:** targeted source/runtime checks found no active dependency, but
-  do not certify every asset and package's provenance.
 - **Public release:** source became public on 2026-09-10 after owner approval,
   final history scanning, attribution review and artifact cleanup. The MIT
   license and NOTICE.md are in place; no supported or downloadable release

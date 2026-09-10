@@ -114,7 +114,7 @@ verify its `SHA256SUMS` and source metadata before using it.
    `NOT YET VERIFIED` in the 2026-09-07 run (the CI build installs the same
    packages in [tools/ci/build-release.sh](../tools/ci/build-release.sh)).
 2. Run the non-root source gate. It requires Node 24+ and Python 3.12+, runs
-   the image unit tests, profile and Omarchy checks, onboarding statics, broker
+   the image unit tests, profile and distribution-boundary checks, onboarding statics, broker
    tests, plugin tests, the role-switch test and `git diff --check`:
 
    ```sh

@@ -47,9 +47,10 @@ if grep -RniE 'SigLevel[[:space:]]*=[[:space:]]*(Never|Optional)' \
   exit 1
 fi
 
+# Forbidden-input literals are isolated to boundary checks, not shipping files.
 if grep -RniE 'omarchy|omacom|basecamp/omarchy' \
   "$repo_root/image/profile-overlay" "$repo_root/image/config"; then
-  echo "Omarchy contamination detected in build inputs." >&2
+  echo "Foreign-distribution content detected in build inputs." >&2
   exit 1
 fi
 
@@ -84,7 +85,7 @@ if grep -Fq 'bios.' "$repo_root/image/profile-overlay/profiledef.sh"; then
 fi
 
 if [[ -d "$profile/airootfs" ]]; then
-  "$repo_root/image/tests/no-omarchy.sh" "$profile/airootfs"
+  "$repo_root/image/tests/check-distribution-boundary.sh" "$profile/airootfs"
 fi
 
 installer="$profile/airootfs/usr/local/bin/clawos-install-dev"

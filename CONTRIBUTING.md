@@ -158,7 +158,8 @@ PR reviews. These settings protect the repository workflow, not the guest OS.
   recovery termination needs explicit approval.
 - OpenClaw owns conversations, model selection and credentials. Do not create
   a second provider catalog or independent transcript store.
-- Keep Omarchy wrappers, repositories, themes and runtime dependencies out of
-  shipping paths. Retain historical notes and negative tests.
+- Build on the pinned Arch base and ClawOS-owned integration. Do not introduce
+  another distribution's wrappers, repositories, themes or runtime dependencies.
+  Keep regression checks that enforce this boundary.
 - Delivery uses an OpenClaw 2026.8.2 adapter. Dependency changes require adapter
   and end-to-end verification, not removal of its version guard.

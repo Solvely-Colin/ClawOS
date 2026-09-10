@@ -38,7 +38,7 @@ python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 12) else 1)' || {
 python3 -m unittest discover -s image/tests -p 'test_*.py'
 
 echo "[1/9] Clean Arch profile and static integration"
-./image/tests/no-omarchy.sh ./image/profile-overlay/airootfs
+./image/tests/check-distribution-boundary.sh ./image/profile-overlay/airootfs
 ./image/tests/validate-profile.sh
 
 echo "[2/9] Historical host-session recovery contract"

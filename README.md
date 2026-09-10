@@ -110,10 +110,6 @@ rollback, hardware compatibility or safe root-agent behavior. Full Root
 intentionally grants the `clawos` account unrestricted passwordless sudo.
 Every ISO proof is a row in [the evidence ledger](docs/EVIDENCE.md).
 
-Source gates reject known Omarchy dependencies. Historical references and
-negative tests remain intentionally; removing those words would weaken checks.
-This is not a complete package/asset provenance certification.
-
 Local working notes and retired milestone reports are not part of the public
 documentation. Start with the [architecture](docs/ARCHITECTURE.md), current
 roadmap and dated evidence; do not treat old Git history as release acceptance.
