@@ -6,7 +6,7 @@
 # the repository root; keep any inline "# shellcheck disable=" directive on one
 # line with the reason next to it.
 #
-# Deferred: the scripts under m1/profile-overlay (usr/lib/clawos/*,
+# Deferred: the scripts under image/profile-overlay (usr/lib/clawos/*,
 # usr/local/bin/clawos-install-dev, profiledef.sh). They are syntax-checked by
 # validate-profile.sh and onboarding-static.sh, and their ShellCheck findings
 # have not been triaged. Add the directory to roots once they are.
@@ -17,10 +17,10 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$repo_root"
 
-roots=(m0/bin m0/tests m1/bin m1/tests m4/tests tools)
+roots=(experiments/host-session/bin experiments/host-session/tests image/bin image/tests tests/integration/roles tools)
 
 if ! command -v shellcheck >/dev/null 2>&1; then
-  echo 'check-shell: shellcheck not found. On Arch run ./m1/bin/install-build-deps; elsewhere install shellcheck.' >&2
+  echo 'check-shell: shellcheck not found. On Arch run ./image/bin/install-build-deps; elsewhere install shellcheck.' >&2
   exit 1
 fi
 

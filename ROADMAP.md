@@ -56,9 +56,10 @@ Milestones: Post-flip hardening and contributor tooling; Runtime reliability.
   deploy-runtime hint and tty1 autologin items tracked as hardening issues.
 - [ ] Contributor tooling: tree check, container preflight, shellcheck stage,
   m0 and shell-prototype READMEs; artwork decision recorded.
-- [ ] Component-directory migration with equivalent ISO/live-deploy payloads
-  and VM proof (#92). Contributor map is available now; runtime paths have
-  not been renamed as part of launch polish.
+- [x] Component-directory migration with reviewed ISO/live-deploy payload
+  comparison, clean Linux ISO build/validation and checkpointed VM deployment
+  plus rollback (#92, #96). Installed OS paths stayed unchanged; evidence is
+  recorded in docs/EVIDENCE.md.
 - [ ] Fix setup/fullscreen offset and clipping; verify pointer alignment with
   saved screenshots.
 - [ ] Distinguish startup, locked, setup-incomplete, ready and repair-required

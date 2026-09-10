@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 15
     defaults:
       run:
-        working-directory: shell-prototype
+        working-directory: experiments/shell-prototype
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -41,9 +41,9 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
-      - run: python3 -m unittest discover -s m1/tests -p 'test_*.py'
-      - run: python3 -m unittest discover -s m3/tests -p 'test_*.py'
-      - run: node --test m2/openclaw-plugin/test/*.test.js
+      - run: python3 -m unittest discover -s image/tests -p 'test_*.py'
+      - run: python3 -m unittest discover -s services/clawosd/tests -p 'test_*.py'
+      - run: node --test integrations/openclaw/test/*.test.js
       - run: git diff --check
       - run: ./tools/check-tree.sh
   arch-preflight:
@@ -52,8 +52,8 @@ jobs:
     # same pinned package snapshot, same script. Nothing here needs root-only
     # kernel features, KVM or network beyond the Arch archive.
     #
-    # The same container then runs m3/README.md's D-Bus caller-boundary proof
-    # (m3/tests/verify_dbus_authorization.py): a private dbus-daemon, the real
+    # The same container then runs services/clawosd/README.md's D-Bus caller-boundary proof
+    # (services/clawosd/tests/verify_dbus_authorization.py): a private dbus-daemon, the real
     # adapter, and runuser as nobody and as the configured owner, with a fake
     # machine runner. It needs only root (the container default), setuid, and
     # the dbus/python-dbus/python-gobject packages installed below.
@@ -74,7 +74,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          source m1/config/versions.env
+          source image/config/versions.env
           [[ "$ARCH_SNAPSHOT" =~ ^[0-9]{4}/[0-9]{2}/[0-9]{2}$ ]] || { echo 'ARCH_SNAPSHOT must be YYYY/MM/DD'; exit 1; }
           printf 'Server = https://archive.archlinux.org/repos/%s/$repo/os/$arch\n' "$ARCH_SNAPSHOT" >/etc/pacman.d/mirrorlist
           pacman -Syyuu --noconfirm --needed --disable-download-timeout \
@@ -89,8 +89,8 @@ jobs:
       - name: Trust the checkout owned by the runner account
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Run the pre-ISO source gate
-        run: ./m1/bin/preflight-iso
-      - name: Create the broker owner account named in m3/config/clawosd.json
+        run: ./image/bin/preflight-iso
+      - name: Create the broker owner account named in services/clawosd/config/clawosd.json
         # The proof resolves openclaw.ownerUser through the OS account database
         # (clawosd_core.account_uid), so the account must exist. nobody ships
         # with Arch's filesystem package; the agent account is only resolved in
@@ -98,20 +98,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          owner="$(jq -er '.openclaw.ownerUser' m3/config/clawosd.json)"
+          owner="$(jq -er '.openclaw.ownerUser' services/clawosd/config/clawosd.json)"
           [[ "$owner" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || { echo "unexpected ownerUser: $owner"; exit 1; }
           id -u "$owner" >/dev/null 2>&1 || useradd --create-home "$owner"
           id "$owner"
           id nobody
       - name: Prove D-Bus caller-boundary enforcement with real UIDs
-        # Same command as m3/README.md minus sudo (the container is root). The
+        # Same command as services/clawosd/README.md minus sudo (the container is root). The
         # script exits non-zero on any failed assertion; the grep also fails the
         # job if its PASS line is ever missing.
         shell: bash
         run: |
           set -euo pipefail
           log="$(mktemp)"
-          python3 m3/tests/verify_dbus_authorization.py "$PWD" | tee "$log"
+          python3 services/clawosd/tests/verify_dbus_authorization.py "$PWD" | tee "$log"
           grep -q '^PASS: ' "$log"
   container-wrapper:
     # Exercise the contributor entry point itself, including its read-only

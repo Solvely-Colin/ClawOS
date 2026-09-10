@@ -8,7 +8,7 @@ updates:
     schedule:
       interval: weekly
   - package-ecosystem: npm
-    directory: /shell-prototype
+    directory: /experiments/shell-prototype
     groups:
       react-runtime:
         patterns: [react, react-dom]
@@ -19,6 +19,6 @@ updates:
   - package-ecosystem: npm
     # The plugin declares only an optional peer dependency on openclaw today,
     # so this entry stays quiet until it gains real dependencies.
-    directory: /m2/openclaw-plugin
+    directory: /integrations/openclaw
     schedule:
       interval: weekly

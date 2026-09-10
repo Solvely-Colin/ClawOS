@@ -35,7 +35,7 @@ as a verified stable release. See [hardware restrictions](HARDWARE.md) and the
 [public-release checklist](PUBLIC-RELEASE-CHECKLIST.md).
 
 Before publishing a draft, independently run the disposable QEMU boot/install
-gates from m1/README.md and attach redacted evidence at the same source SHA.
+gates from image/README.md and attach redacted evidence at the same source SHA.
 Every ISO proof, automated or manual, gets a row in [EVIDENCE.md](EVIDENCE.md).
 The experimental installer accepts eligible blank x86_64 UEFI disks, but source
 validation is not physical-hardware proof. Do not describe it as universal Arch

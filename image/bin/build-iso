@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
+# shellcheck source=../config/versions.env
+source "$repo_root/image/config/versions.env"
+mode="release"
+case "${1:-}" in
+  ""|--release) mode="release" ;;
+  --fast) mode="fast" ;;
+  -h|--help)
+    echo "Usage: sudo $0 [--fast|--release]"
+    exit 0
+    ;;
+  *)
+    echo "Unknown build mode: $1" >&2
+    echo "Usage: sudo $0 [--fast|--release]" >&2
+    exit 2
+    ;;
+esac
+
+if [[ "$mode" == fast ]]; then
+  profile="$repo_root/artifacts/m1/profile-fast"
+  work="/var/tmp/clawos-m1-work-fast"
+  out="$repo_root/artifacts/m1/out-fast"
+else
+  profile="$repo_root/artifacts/m1/profile"
+  work="/var/tmp/clawos-m1-work"
+  out="$repo_root/artifacts/m1/out"
+fi
+# Keep mkarchiso's bind-mounted proc/sys/dev tree outside the desktop workspace.
+# Codex and file indexers inspect workspace descendants, which can pin those
+# mounts and make archiso cleanup fail even after a successful initramfs build.
+
+if [[ $EUID -ne 0 ]]; then
+  echo "Run as root: sudo $0" >&2
+  exit 1
+fi
+
+# A materialized profile and mkarchiso work tree are build products. Reusing
+# either can silently omit overlay changes, so every accepted image starts from
+# the pinned source inputs. Preserve the previous ISO output for comparison and
+# rollback; discard only reproducible profile/work intermediates.
+if [[ -d "$out" ]]; then
+  if [[ "$mode" == fast ]]; then
+    # Fast images are disposable iteration artifacts. Retaining every one
+    # would consume roughly 2 GiB per edit/build/test cycle.
+    find "$out" -depth -delete
+    echo "Removed previous disposable fast ISO output."
+  else
+    build_stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+    archive="$repo_root/artifacts/m1/archive/$mode-build-$build_stamp"
+    if [[ -e "$archive" ]]; then
+      archive="$archive-$$"
+    fi
+    mkdir -p "$archive"
+    mv "$out" "$archive/out"
+    echo "Archived previous ISO output at $archive/out"
+  fi
+fi
+
+# An interrupted mkarchiso/pacstrap run can leave proc, sys, dev, or run bound
+# below the disposable work tree. Unmount only those generated submounts before
+# deleting the work product; never traverse outside the resolved artifact path.
+if [[ -d "$work" ]]; then
+  mapfile -t work_mounts < <(findmnt -r -n -o TARGET)
+  for ((mount_index=${#work_mounts[@]} - 1; mount_index >= 0; mount_index--)); do
+    work_mount="${work_mounts[$mount_index]}"
+    [[ "$work_mount" == "$work"/* ]] || continue
+    umount "$work_mount" 2>/dev/null || umount --lazy "$work_mount"
+  done
+fi
+
+for generated_dir in "$profile" "$work"; do
+  if [[ -d "$generated_dir" ]]; then
+    find "$generated_dir" -depth -delete
+  fi
+done
+
+sudo -u "${SUDO_USER:-root}" "$repo_root/image/bin/materialize-profile" "$profile"
+
+# Archive responses can stall under concurrent libalpm transfers, including in
+# QEMU/WHPX. Apply this only to the generated build config, not the host's pacman
+# settings or the installed target. Package signature policy stays unchanged.
+sed -i -e 's/^ParallelDownloads[[:space:]]*=.*/ParallelDownloads = 1/' \
+  -e '/^\[options\]/a DisableDownloadTimeout' "$profile/pacman.conf"
+
+"$repo_root/image/tests/validate-profile.sh" "$profile"
+
+# Ship the pinned runtime as an ISO build input. Target installation copies
+# this clean package tree, never the builder's personal/global installation.
+for attempt in 1 2 3; do
+  if timeout --kill-after=10s 15m npm install --global \
+    --prefix "$profile/airootfs/usr" --no-audit --no-fund \
+    --allow-scripts='openclaw,@google/genai,tree-sitter-bash,protobufjs' \
+    "openclaw@$OPENCLAW_VERSION"; then
+    break
+  fi
+  (( attempt < 3 )) || { echo 'Pinned OpenClaw ISO preparation failed.' >&2; exit 1; }
+  sleep 3
+done
+"$profile/airootfs/usr/bin/openclaw" --version | grep -Fq "$OPENCLAW_VERSION"
+# ArchISO normalizes overlay file modes to 0644 unless explicitly listed.
+# Preserve executable package entry points and native helpers, not just the
+# top-level openclaw symlink. %q keeps package paths literal in profiledef.sh.
+while IFS= read -r -d '' executable; do
+  printf 'file_permissions[%q]="0:0:755"\n' "${executable#"$profile/airootfs"}" >>"$profile/profiledef.sh"
+done < <(find "$profile/airootfs/usr/lib/node_modules/openclaw" -type f -perm /111 -print0)
+
+if [[ "$mode" == fast ]]; then
+  # Development images remain clean, validated ArchISO builds, but zstd cuts
+  # the edit/build/boot loop substantially. Keep them visibly distinct from
+  # the XZ-compressed release artifact and its evidence.
+  sed -i \
+    -e 's/^iso_name="clawos"$/iso_name="clawos-fast"/' \
+    -e "s/^airootfs_image_tool_options=.*/airootfs_image_tool_options=('-comp' 'zstd' '-Xcompression-level' '3' '-b' '1M')/" \
+    "$profile/profiledef.sh"
+  grep -Fqx 'iso_name="clawos-fast"' "$profile/profiledef.sh"
+  grep -Fqx "airootfs_image_tool_options=('-comp' 'zstd' '-Xcompression-level' '3' '-b' '1M')" "$profile/profiledef.sh"
+  echo "Fast development mode: zstd level 3, isolated fast output."
+fi
+mkdir -p "$work" "$out"
+mkarchiso -v -w "$work" -o "$out" "$profile"
+
+iso="$(find "$out" -maxdepth 1 -type f -name '*.iso' -print -quit)"
+test -n "$iso"
+"$repo_root/image/tests/validate-iso.sh" "$iso"
+sha256sum "$iso" >"$iso.sha256"
+echo "Built $iso"
+echo "Profile was freshly materialized from the pinned overlay for this build."
+echo "Build mode: $mode"

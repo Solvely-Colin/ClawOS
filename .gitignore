@@ -5,17 +5,10 @@
 *.local.md
 # Retired operator/session records; public guidance lives in docs/.
 /docs/history/
-/m0/STATUS.md
-/m1/STATUS.md
-/m2/STATUS.md
-/m3/STATUS.md
-/m4/STATUS.md
-/m1/VPS-DEMO.md
-/m2/UX-AUDIT.md
-/m2/ACCESSIBILITY-AND-COPILOT.md
-/m2/ACTIVITY-SHELL.md
-/m2/APPLICATION-SURFACES.md
-/shell-prototype/design-qa.md
+# Retired layout: preserved notes/cache are under .local/legacy-milestones/.
+/m[0-4]/
+/shell-prototype/
+/experiments/shell-prototype/design-qa.md
 /docs/FLIP-DAY.md
 /docs/PUBLIC-SOURCE-READINESS.md
 /docs/SHARING.md

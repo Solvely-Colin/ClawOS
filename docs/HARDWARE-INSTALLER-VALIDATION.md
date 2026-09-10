@@ -12,9 +12,9 @@ experimental and has not yet been used to install a physical machine.
 - Full Arch preflight: 35 M1 tests, 21 broker tests, 26 plugin tests and existing
   profile/onboarding/role integration checks passed.
 - Suite sizes move; count them rather than trusting prose. At `00f81c5` in the
-  builder VM, `python3 -m unittest discover -s m1/tests -p 'test_*.py'` reported
-  49 tests, the same command over `m3/tests` reported 27, and `node --test
-  m2/openclaw-plugin/test/*.test.js` reported 28.
+  builder VM, `python3 -m unittest discover -s image/tests -p 'test_*.py'` reported
+  49 tests, the same command over `services/clawosd/tests` reported 27, and `node --test
+  integrations/openclaw/test/*.test.js` reported 28.
 - Bash syntax and ShellCheck passed for the installer, excluding only SC1091
   for its installed `/etc/clawos/versions.env` include.
 - The new discovery helper was run on the installed development workstation and

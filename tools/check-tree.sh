@@ -23,7 +23,7 @@ cd "$repo_root"
 # Files that hold the patterns below, or fixtures that exercise them, are
 # skipped by the text scans: this script, the QEMU-gate log scanner and its
 # test. Every other tracked file is scanned.
-pattern_holders=(tools/check-tree.sh m1/tests/scan-log-secrets.sh m1/tests/test_iso_posture.py)
+pattern_holders=(tools/check-tree.sh image/tests/scan-log-secrets.sh image/tests/test_iso_posture.py)
 max_bytes=$((2 * 1024 * 1024))
 forbidden_path_re='(^|/)(transfer|artifacts)/'
 # The left boundary keeps prose such as "root/home/boot" out of the results.

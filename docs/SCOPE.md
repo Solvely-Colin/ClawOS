@@ -13,14 +13,14 @@ for daily-driver machines. Steps are in [GETTING-STARTED.md](GETTING-STARTED.md)
 
 **Supported target:** an x86_64 UEFI virtual machine (QEMU/KVM or Windows
 QEMU/WHPX) with OVMF firmware, 4 GiB RAM, a blank disk of at least 32 GiB, and
-network to the pinned Arch archive snapshot (`m1/config/versions.env`) and npm.
+network to the pinned Arch archive snapshot (`image/config/versions.env`) and npm.
 
 | Bucket | Capability | Evidence |
 | --- | --- | --- |
-| Supported in VM | Live ISO boots under UEFI/OVMF; installed system boots without the ISO through its systemd-boot entry; LUKS unlock with the typed passphrase | WHPX: [HARDWARE-INSTALLER-VALIDATION.md](HARDWARE-INSTALLER-VALIDATION.md) "2026-09-07: sshd policy and both install modes re-verified". KVM gates: `m1/tests/boot-smoke-qemu`, `m1/tests/m2-e2e-qemu` (not run in CI). ISO structure: `m1/tests/validate-iso.sh`, run by `build-iso` |
-| Supported in VM | Blank-disk install, encrypted (LUKS2) and `--passwordless`, driven from the live `tty1`; complete package set downloaded and signature-verified before the first disk write | same 2026-09-07 section and "Download-failure regression checks (2026-09-07)"; `m1/tests/test_install_targets.py`, `m1/tests/test_install_packages.py` (`ci.yml` job `unit-tests`) |
+| Supported in VM | Live ISO boots under UEFI/OVMF; installed system boots without the ISO through its systemd-boot entry; LUKS unlock with the typed passphrase | WHPX: [HARDWARE-INSTALLER-VALIDATION.md](HARDWARE-INSTALLER-VALIDATION.md) "2026-09-07: sshd policy and both install modes re-verified". KVM gates: `image/tests/boot-smoke-qemu`, `image/tests/m2-e2e-qemu` (not run in CI). ISO structure: `image/tests/validate-iso.sh`, run by `build-iso` |
+| Supported in VM | Blank-disk install, encrypted (LUKS2) and `--passwordless`, driven from the live `tty1`; complete package set downloaded and signature-verified before the first disk write | same 2026-09-07 section and "Download-failure regression checks (2026-09-07)"; `image/tests/test_install_targets.py`, `image/tests/test_install_packages.py` (`ci.yml` job `unit-tests`) |
 | Supported in VM | Installed system: `sshd` refuses password, keyboard-interactive and root login; `tailscaled` enabled but not enrolled; `clawosd` and `clawos-session@clawos` active | same 2026-09-07 section (`sshd -T`, `tailscale status`) |
-| Supported in VM | Source gate: Python and Node unit tests, `./m1/bin/preflight-iso` | `ci.yml` jobs `unit-tests` and `arch-preflight` on every push |
+| Supported in VM | Source gate: Python and Node unit tests, `./image/bin/preflight-iso` | `ci.yml` jobs `unit-tests` and `arch-preflight` on every push |
 | Experimental | GTK installer (`clawos-live-welcome`), default onboarding and the Control UI | Encrypted graphical install, disk-only boot, local Gateway, model deferred and Full Root verified on 2026-09-10 at `de19c1b`, CI run 34432248984, WHPX/8 GiB/40 GiB NVMe. Passwordless GTK, non-default policy, remote Gateway and provider inference remain unverified by that run ([record](HARDWARE-INSTALLER-VALIDATION.md#2026-09-10-graphical-encrypted-install-and-default-onboarding-on-the-ci-iso)) |
 | Experimental | Runtime deployment and rollback, broker approvals, remote-node roles, Windows VM lifecycle scripts | development VM and isolated tests only ([FEATURES.md](../FEATURES.md)) |
 | Experimental | CI-built ISO (`release.yml`); physical x86_64 UEFI hardware | Run 34432248984 at `de19c1b` was manually installed and booted under WHPX on 2026-09-10. The workflow validates but does not automatically boot/install. No physical machine installed; no downloadable ISO retained for the source launch ([EVIDENCE.md](EVIDENCE.md)) |

@@ -40,7 +40,7 @@ Build host:
   keeps its profile, work tree and ISO output under `artifacts/m1/` and
   `/var/tmp/`.
 - Network access to `archive.archlinux.org` at the pinned snapshot
-  (`ARCH_SNAPSHOT` in [m1/config/versions.env](../m1/config/versions.env)) and
+  (`ARCH_SNAPSHOT` in [image/config/versions.env](../image/config/versions.env)) and
   to `registry.npmjs.org`, from which `build-iso` installs
   `openclaw@$OPENCLAW_VERSION` into the image.
 
@@ -58,9 +58,9 @@ Guest:
 
 Accelerators:
 
-- **KVM** (Linux host with `/dev/kvm`): the default in `m1/bin/run-qemu`,
+- **KVM** (Linux host with `/dev/kvm`): the default in `image/bin/run-qemu`,
   which passes `-enable-kvm -machine q35,accel=kvm -cpu host`.
-- **TCG**: `m1/bin/run-qemu --software` switches to
+- **TCG**: `image/bin/run-qemu --software` switches to
   `-machine q35,accel=tcg -cpu max`. It needs no KVM, so it works inside a VM
   without nested virtualization, but boot and install are much slower. No
   install has been recorded on TCG.
@@ -100,7 +100,7 @@ verify its `SHA256SUMS` and source metadata before using it.
    `socat`, `shellcheck` and `rsync`:
 
    ```sh
-   ./m1/bin/install-build-deps
+   ./image/bin/install-build-deps
    ```
 
    `NOT YET VERIFIED` in the 2026-09-07 run (the CI build installs the same
@@ -110,19 +110,19 @@ verify its `SHA256SUMS` and source metadata before using it.
    tests, plugin tests, the role-switch test and `git diff --check`:
 
    ```sh
-   ./m1/bin/preflight-iso
+   ./image/bin/preflight-iso
    ```
 
    `NOT YET VERIFIED` in the 2026-09-07 run (the `arch-preflight` job in
    [ci.yml](../.github/workflows/ci.yml) runs it on every push).
 3. Build the fast ISO. `--fast` compresses with zstd, writes
    `clawos-fast-<date>-x86_64.iso` and its `.sha256` to
-   `artifacts/m1/out-fast/`, and archives the previous fast output. It
+   `artifacts/m1/out-fast/`, and replaces the previous disposable fast output. It
    rematerializes the profile from source, installs the pinned OpenClaw from
-   npm into the image and runs `m1/tests/validate-iso.sh` on the result.
+   npm into the image and runs `image/tests/validate-iso.sh` on the result.
 
    ```sh
-   sudo ./m1/bin/build-iso --fast
+   sudo ./image/bin/build-iso --fast
    ```
 
    `verified 2026-09-07 at ee2f4f1 (fast ISO built in the builder VM), WHPX`.
@@ -131,7 +131,7 @@ verify its `SHA256SUMS` and source metadata before using it.
    `artifacts/m1/archive/`:
 
    ```sh
-   sudo ./m1/bin/build-iso
+   sudo ./image/bin/build-iso
    ```
 
    `NOT YET VERIFIED` as this exact local walkthrough command. Release mode
@@ -142,16 +142,16 @@ verify its `SHA256SUMS` and source metadata before using it.
    under `artifacts/m1/disks/` and refuses to overwrite an existing one:
 
    ```sh
-   ./m1/bin/create-dev-disk                 # artifacts/m1/disks/clawos-dev.qcow2, 32G
-   ./m1/bin/create-dev-disk other.qcow2 40G # a second disk
+   ./image/bin/create-dev-disk                 # artifacts/m1/disks/clawos-dev.qcow2, 32G
+   ./image/bin/create-dev-disk other.qcow2 40G # a second disk
    ```
 
    `NOT YET VERIFIED` (the 2026-09-07 disks were created on the Windows host).
 6. Boot the ISO with that disk attached as virtio:
 
    ```sh
-   ./m1/bin/run-installer-qemu              # default disk
-   ./m1/bin/run-installer-qemu artifacts/m1/disks/other.qcow2
+   ./image/bin/run-installer-qemu              # default disk
+   ./image/bin/run-installer-qemu artifacts/m1/disks/other.qcow2
    ```
 
    `run-installer-qemu` calls `run-qemu --disk <image>`, and `run-qemu` looks
@@ -159,15 +159,15 @@ verify its `SHA256SUMS` and source metadata before using it.
    image from `artifacts/m1/out-fast/` into `artifacts/m1/out/` first.
    `run-qemu` needs `/usr/share/edk2/x64/OVMF_CODE.4m.fd` (or `OVMF_CODE.fd`)
    from `edk2-ovmf`, opens a GTK window on a 1440 x 900 virtio-vga output and
-   prints the serial log path; `m1/bin/qemu-console` and `m1/bin/qemu-monitor`
+   prints the serial log path; `image/bin/qemu-console` and `image/bin/qemu-monitor`
    attach to the guest. `--software` (TCG) and `--headless-vnc` are `run-qemu`
    flags, so call it directly for those:
-   `./m1/bin/run-qemu --disk artifacts/m1/disks/clawos-dev.qcow2 --software`.
+   `./image/bin/run-qemu --disk artifacts/m1/disks/clawos-dev.qcow2 --software`.
    `NOT YET VERIFIED`.
 7. After installing, boot the disk alone to prove the ISO is no longer needed:
 
    ```sh
-   ./m1/bin/run-installed-qemu              # run-qemu --installed --disk <image>
+   ./image/bin/run-installed-qemu              # run-qemu --installed --disk <image>
    ```
 
    `NOT YET VERIFIED` through this script; the same first boot without media
@@ -187,7 +187,7 @@ recovery console (`Ctrl+Alt+F3`).
 The encrypted path through these screens is `verified 2026-09-10 at de19c1b, CI ISO/WHPX`.
 Passwordless GTK and the remote/non-default onboarding alternatives are not
 covered. The copy is read from
-`m1/profile-overlay/airootfs/usr/lib/clawos/clawos-live-welcome`.
+`image/profile-overlay/airootfs/usr/lib/clawos/clawos-live-welcome`.
 
 1. **Welcome screen.** A window titled "ClawOS Setup" opens with the headline
    "Your machine, ready to work with you." and two buttons, **Install ClawOS**
@@ -202,7 +202,7 @@ covered. The copy is read from
    `/dev/vda`. If nothing qualifies the screen says "No eligible blank disk of
    at least 32 GiB found." No-default selection and the eligible NVMe choice
    were verified on 2026-09-10; the no-eligible-disk UI was not. Eligibility
-   rules are unit-tested in `m1/tests/test_install_targets.py`.
+   rules are unit-tested in `image/tests/test_install_targets.py`.
 4. **Passphrase, or the passwordless checkbox.** "Disk unlock and session-lock
    passphrase": at least 10 characters, typed twice. The screen says one
    passphrase unlocks the encrypted disk and is also the `root` and `clawos`
@@ -422,4 +422,4 @@ still need their own tests.
 
 See also [SCOPE.md](SCOPE.md), [HARDWARE.md](HARDWARE.md),
 [KNOWN-ISSUES.md](KNOWN-ISSUES.md), [SECURITY.md](../SECURITY.md) and
-[m1/README.md](../m1/README.md) for the build and QEMU gates in detail.
+[image/README.md](../image/README.md) for the build and QEMU gates in detail.

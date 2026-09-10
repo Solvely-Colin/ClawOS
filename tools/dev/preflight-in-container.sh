@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Run ./m1/bin/preflight-iso, the pre-ISO source gate, inside the same
+# Run ./image/bin/preflight-iso, the pre-ISO source gate, inside the same
 # archlinux:base-devel container that CI uses, so a contributor on Debian,
 # Fedora, macOS or Windows (Git Bash) can run it with Docker or Podman instead
 # of an Arch install.
 #
 # .github/workflows/ci.yml, job arch-preflight, is the source of truth for the
 # recipe. Its steps run here in the same order: pin the Arch package archive to
-# ARCH_SNAPSHOT from m1/config/versions.env, `pacman -Syyuu` the same package
+# ARCH_SNAPSHOT from image/config/versions.env, `pacman -Syyuu` the same package
 # list, verify Node 24+ and Python 3.12+, add git safe.directory, run
-# ./m1/bin/preflight-iso. The one step not repeated is "install git so the
+# ./image/bin/preflight-iso. The one step not repeated is "install git so the
 # checkout is a real repository": that exists for actions/checkout, while here
 # the checkout already exists on the host and is bind-mounted, so git arrives
 # with the other packages. When ci.yml changes, change this script to match.
@@ -21,7 +21,7 @@
 # needs it; on Linux that can leave root-owned __pycache__ in the tree.
 #
 # The exit status is preflight-iso's. With --dbus, the D-Bus caller-boundary
-# proof from m3/README.md (m3/tests/verify_dbus_authorization.py) runs after a
+# proof from services/clawosd/README.md (services/clawosd/tests/verify_dbus_authorization.py) runs after a
 # passing preflight, as CI does, and its failure also fails this script.
 set -euo pipefail
 
@@ -34,15 +34,15 @@ usage() {
   cat <<'EOF'
 Usage: tools/dev/preflight-in-container.sh [options]
 
-Run ./m1/bin/preflight-iso inside archlinux:base-devel with the Arch package
-snapshot pinned from m1/config/versions.env, exactly as CI's arch-preflight job
+Run ./image/bin/preflight-iso inside archlinux:base-devel with the Arch package
+snapshot pinned from image/config/versions.env, exactly as CI's arch-preflight job
 does (.github/workflows/ci.yml). Needs Docker or Podman and network access to
 archive.archlinux.org. Exit status is preflight-iso's.
 
 Options:
   --engine docker|podman  Container engine (default: docker if found, else
                           podman; CONTAINER_ENGINE in the environment also works)
-  --dbus                  Also run m3/tests/verify_dbus_authorization.py after a
+  --dbus                  Also run services/clawosd/tests/verify_dbus_authorization.py after a
                           passing preflight, with the extra packages CI installs
   --writable              Mount the checkout read-write instead of read-only
   -h, --help              Show this help
@@ -70,8 +70,8 @@ run_inside() {
     die '--inside is internal: it runs only in the container this script starts.'
 
   # ci.yml "Install preflight tooling from the pinned Arch snapshot"
-  # shellcheck source=m1/config/versions.env
-  source m1/config/versions.env
+  # shellcheck source=image/config/versions.env
+  source image/config/versions.env
   [[ "$ARCH_SNAPSHOT" =~ ^[0-9]{4}/[0-9]{2}/[0-9]{2}$ ]] || die 'ARCH_SNAPSHOT must be YYYY/MM/DD'
   printf 'Server = https://archive.archlinux.org/repos/%s/$repo/os/$arch\n' "$ARCH_SNAPSHOT" >/etc/pacman.d/mirrorlist
   if (( dbus )); then
@@ -90,24 +90,24 @@ run_inside() {
 
   # ci.yml "Run the pre-ISO source gate". Its status is this script's status.
   status=0
-  ./m1/bin/preflight-iso || status=$?
+  ./image/bin/preflight-iso || status=$?
   (( status == 0 )) || exit "$status"
   (( dbus )) || exit 0
 
   # The proof resolves openclaw.ownerUser through the OS account database, so
   # the account must exist; nobody ships with Arch's filesystem package.
-  owner="$(jq -er '.openclaw.ownerUser' m3/config/clawosd.json)"
+  owner="$(jq -er '.openclaw.ownerUser' services/clawosd/config/clawosd.json)"
   [[ "$owner" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || die "unexpected ownerUser: $owner"
   id -u "$owner" >/dev/null 2>&1 || useradd --create-home "$owner"
   id "$owner"
   id nobody
 
-  # Same command as m3/README.md minus sudo (the container is root). The
+  # Same command as services/clawosd/README.md minus sudo (the container is root). The
   # script exits non-zero on a failed assertion; the grep also fails this run
   # if its PASS line is ever missing.
-  echo "[dbus] m3/tests/verify_dbus_authorization.py"
+  echo "[dbus] services/clawosd/tests/verify_dbus_authorization.py"
   log="$(mktemp)"
-  python3 m3/tests/verify_dbus_authorization.py "$PWD" | tee "$log"
+  python3 services/clawosd/tests/verify_dbus_authorization.py "$PWD" | tee "$log"
   grep -q '^PASS: ' "$log"
 }
 
@@ -145,7 +145,7 @@ cd "$repo_root"
 # .git directory must travel with the bind mount: a linked worktree or
 # submodule keeps a `.git` file that points outside the tree, which the
 # container cannot follow.
-for marker in m1/bin/preflight-iso m1/config/versions.env .github/workflows/ci.yml; do
+for marker in image/bin/preflight-iso image/config/versions.env .github/workflows/ci.yml; do
   [[ -f "$marker" ]] || die "$repo_root is not a ClawOS checkout: $marker is missing."
 done
 [[ -e .git ]] || die "$repo_root is not a git checkout (no .git); clone the repository instead of downloading it."
@@ -153,9 +153,9 @@ done
   die "$repo_root/.git is not the repository directory (a git worktree or submodule?). Run this from a normal clone."
 
 # Fail before pulling an image if the pin is malformed; the container checks it again.
-# shellcheck source=m1/config/versions.env
-source m1/config/versions.env
-[[ "${ARCH_SNAPSHOT:-}" =~ ^[0-9]{4}/[0-9]{2}/[0-9]{2}$ ]] || die 'ARCH_SNAPSHOT in m1/config/versions.env must be YYYY/MM/DD'
+# shellcheck source=image/config/versions.env
+source image/config/versions.env
+[[ "${ARCH_SNAPSHOT:-}" =~ ^[0-9]{4}/[0-9]{2}/[0-9]{2}$ ]] || die 'ARCH_SNAPSHOT in image/config/versions.env must be YYYY/MM/DD'
 
 if [[ -z "$engine" ]]; then
   if command -v docker >/dev/null 2>&1; then
@@ -163,7 +163,7 @@ if [[ -z "$engine" ]]; then
   elif command -v podman >/dev/null 2>&1; then
     engine=podman
   else
-    die 'neither docker nor podman was found; install one, or run ./m1/bin/preflight-iso on Arch.'
+    die 'neither docker nor podman was found; install one, or run ./image/bin/preflight-iso on Arch.'
   fi
 fi
 case "$engine" in

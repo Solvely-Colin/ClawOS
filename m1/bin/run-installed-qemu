@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
-disk="${1:-$repo_root/artifacts/m1/disks/clawos-dev.qcow2}"
-
-exec "$repo_root/m1/bin/run-qemu" --installed --disk "$disk"

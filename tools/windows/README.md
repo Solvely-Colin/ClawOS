@@ -38,7 +38,7 @@ development. CodeQL `sarif-artifact-*` downloads are not OS images.
 Acceptance runs (the WHPX install and boot proofs recorded in
 `docs/HARDWARE-INSTALLER-VALIDATION.md` and the evidence ledger) use ISOs built
 by the **Experimental ISO build** workflow (`.github/workflows/release.yml`)
-only. Guest-built `sudo ./m1/bin/build-iso --fast` images are for edit/build
+only. Guest-built `sudo ./image/bin/build-iso --fast` images are for edit/build
 loops in the builder VM: they have no CI run id and their `Source commit` is
 whatever working tree was checked out, so they do not go in the ledger.
 
