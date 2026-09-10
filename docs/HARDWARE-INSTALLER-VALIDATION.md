@@ -183,3 +183,63 @@ are retained privately. This supersedes the default encrypted GTK/onboarding
 gaps above, not the historical results. Passwordless GTK, non-default policy
 dialogs, remote Gateway, provider login/inference, live-update/rollback, KVM/TCG
 and physical hardware are not established by this run.
+
+## 2026-09-10: fresh passwordless agent loop and installer defect
+
+A new 40 GiB virtio disk was installed from CI ISO run 34432248984 (source
+`de19c1bccc839a47696afd4c7009f6717c43d934`, SHA-256
+`119768a247fd5e76f15a0df1914f554cc9bd2f5f4a53db3c810d68693a5ede32`).
+Windows QEMU/WHPX, Q35/OVMF and 8 GiB RAM were used. Installation invoked the
+normal passwordless CLI with disk-serial/identity/exact-confirmation checks,
+not GTK and not `--vm-test`. A temporary live operator account and the existing
+public SSH key supplied test access; root/password SSH restrictions stayed off.
+The installed system booted without the ISO, with Btrfs root on `/dev/vda2[/@]`.
+An offline disk check and `before-agent-enrollment` checkpoint preceded setup.
+
+Machine setup used the loopback setup API in local/Full Root mode. Provider
+enrollment used OpenClaw's native credential CLI, not a copied auth database or
+conversation history. A real `ollama-cloud/minimax-m2.7` request passed (run
+`1f944d9a-63a7-4b39-84ba-54f60155662f`). Source preflight passed on checkout
+`aad78292095bfc94072af578b159c18ac70b5f1a` after installing standard build tools
+from the same pinned Arch snapshot. Archive low-speed timeout and intermittent
+WHPX SSH forwarding failures were observed; retry and an additional loopback
+forward restored access, without establishing their root cause.
+
+**The unmodified image failed live-update readiness.** `clawos-deploy` existed
+as root-owned mode 0644, and the delivery service/timer were absent. Consequently
+`deploy-runtime plan` failed with `sudo: ...clawos-deploy: command not found`.
+A read-only Btrfs snapshot preceded a narrow repair: executable mode on that
+file, installation of the two delivery units, and enabling the timer. The
+installer/profile fix and a new installed-boot assertion are in PR #99.
+
+The following is **repaired-guest evidence**, not an unmodified-image pass:
+
+- The guest agent added one harmless comment to `integrations/openclaw/lib/embodiment.js`
+  and dispatched apply itself in its existing conversation. Run
+  `008f4f87-fe54-4cb9-93e6-a24d308f4cc3`; deployment
+  `db4891f1-d46b-4654-b885-a2d0836f992c` completed in 33 seconds, health verified,
+  manifest drift empty, with its own root snapshot and file backup.
+- A temporary runtime-only systemd condition held the delivery service. The
+  real Gateway append was invoked and its acknowledgement deliberately discarded,
+  without editing OpenClaw state or the deployer's pending record. Releasing the
+  condition let normal delivery retry; native history contained exactly one
+  completion notice with the job/outcome idempotency key.
+- The same agent invoked the explicitly authorized file-level rollback. Run
+  `08b02ee4-c662-4f76-beca-22496a275c5c`; rollback completed in 26 seconds with
+  health verified. Independent comparison of all 101 runtime targets found zero
+  differences in content hashes, modes, ownership or existence versus the
+  pre-update baseline. The original null installed manifest was restored.
+- Native history confirmed the same session ID, one update notice and one
+  rollback notice, with no truncated history. A further real agent turn read
+  the rolled-back receipt and returned the expected verification response
+  (run `04e3355b-cbdf-4ca2-8071-e3b1a4c02014`).
+- The delivery-test condition was removed; the normal timer was active, no
+  system units were failed, and effective SSH still refused root/password/
+  keyboard-interactive authentication. The source comment remained separate
+  from installed-file rollback, as intended.
+
+Raw transcripts and credentials remain private; retained response/history
+evidence was secret-pattern scanned. This is not both-mode GTK acceptance,
+non-default policy-dialog proof, full-system rollback, physical-hardware proof,
+or a complete run on a corrected, unmodified release candidate. Issue #33 stays
+open for those remaining prerelease requirements.

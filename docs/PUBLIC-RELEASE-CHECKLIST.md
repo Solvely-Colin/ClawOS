@@ -30,6 +30,8 @@ releases, not a diary of the maintainer's launch session. See
     34511620906: fresh disk, install, disk-only boot and ACPI shutdown.
     This does not tick the tagged-source or encrypted-mode requirement above.
 - [ ] Verify a real agent request, live update, rollback and completion delivery.
+  - Repaired-guest loop passed on 2026-09-10; see HARDWARE-INSTALLER-VALIDATION.md.
+    Repeat on the corrected unmodified candidate before ticking this release gate.
 - [ ] Document known failures and recovery instructions in release notes.
 - [ ] Review the draft prerelease and its hashes; a green build is not a supported release.
 - [ ] Obtain explicit owner approval to publish the draft.

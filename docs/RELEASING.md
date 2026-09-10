@@ -94,3 +94,30 @@ manual encrypted GTK install and default onboarding under WHPX on 2026-09-10;
 provider inference and full update/recovery were not part of that proof.
 Do not create a release tag just to make the
 workflow look complete.
+
+## Draft release-notes template
+
+Fill this from the candidate's evidence, never from an older green run:
+
+```text
+ClawOS VERSION — experimental, VM-tested only
+Source commit: FULL_SHA
+ISO: FILENAME
+SHA-256: FULL_HASH
+Build/install evidence: RUN_URL and EVIDENCE.md row
+Verified install modes and environment: EXACT_MODES / HOST / DISK
+Agent inference, live update, delivery and rollback: PASS/FAIL/NOT RUN, evidence
+Known failures: candidate-specific failures and links; list manual repairs
+Not verified: encrypted/GTK/policy/hardware paths or other omitted acceptance
+
+Recovery: Ctrl+Alt+F3 opens the independent local recovery console.
+Log in using this installation's account policy. For a known runtime job,
+inspect `sudo /usr/lib/clawos/clawos-deploy status JOB_ID` before acting.
+Only an explicitly chosen job with a completed backup may be rolled back with
+`sudo /usr/lib/clawos/clawos-deploy rollback JOB_ID`.
+This restores managed runtime files, not packages, boot files, credentials or
+user data. For boot failure or recovery-required, inspect the retained recovery
+checkpoint and instructions; do not replay apply or claim full-system rollback.
+
+Distribution: maintainer-reviewed draft; no supported-hardware or stability claim.
+```
