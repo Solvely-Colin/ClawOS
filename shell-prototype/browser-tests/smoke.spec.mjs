@@ -36,6 +36,9 @@ test('development: React Fast Refresh updates JSX and preserves input state', as
     await expect(input).toHaveValue('preserve this draft');
     expect(errors).toEqual([]);
   } finally {
+    // Keep the two synthetic saves outside the file watcher's coalescing window.
+    // The assertions above already waited for the first refresh and its state.
+    await new Promise(resolve => setTimeout(resolve, 300));
     await writeFile(source, original);
   }
   await expect(page.getByText(before, { exact: true })).toBeVisible();
