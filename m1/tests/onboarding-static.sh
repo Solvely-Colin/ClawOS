@@ -136,8 +136,8 @@ grep -Fq 'Enter Agent workspace' "$root/usr/share/clawos/onboarding/index.html"
 # coordinated rollback is unproven; recovery.rollback needs a reboot).
 grep -Fq 'whole-system rollback is not yet proven' "$root/usr/share/clawos/onboarding/index.html"
 ! grep -Fq 'recoverable' "$root/usr/share/clawos/onboarding/index.html"
-# The passwordless checkbox must say that approval levels then protect nothing.
-grep -Fq 'approval levels protect nothing in this mode' "$live_welcome"
+# Passwordless entry removes password identity proof, not the broker boundary.
+grep -Fq 'do not identify who approves; local approval decisions and broker restrictions still apply' "$live_welcome"
 grep -Fq 'Setup required' "$root/usr/lib/clawos/clawos-panel-status"
 grep -Fq 'gateway.remote.url' "$root/usr/lib/clawos/clawos-panel-status"
 grep -Fq "json 'Controller offline'" "$root/usr/lib/clawos/clawos-panel-status"
