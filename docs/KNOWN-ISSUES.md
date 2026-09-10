@@ -3,6 +3,8 @@
 - **Fresh-install updater:** a passwordless installation from CI run 34432248984
   had a non-executable `clawos-deploy` and omitted delivery units. PR #99 explicitly
   provisions their modes/units and adds an installed-boot assertion. After a
+  fresh rebuild, hosted KVM run 34519540819 passed updater readiness without
+  manual repair. Separately, after a
   checkpointed repair, real inference, agent-driven update/rollback and lost-ack
   delivery deduplication passed; this is not an unmodified-image acceptance pass.
   See [the bounded evidence](HARDWARE-INSTALLER-VALIDATION.md#2026-09-10-fresh-passwordless-agent-loop-and-installer-defect).

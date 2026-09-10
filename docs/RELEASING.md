@@ -51,7 +51,8 @@ Existing runtime directories or disks are never reused. This test needs KVM,
 it a separate 60-minute limit. Both guest shutdowns use acknowledged ACPI.
 After installation it boots the same disk and firmware variables with the ISO
 detached, checks Btrfs root, zero failed units, desktop/broker/SSH/network
-services, effective SSH policy and the pinned OpenClaw version, and captures
+services, effective SSH policy, the pinned OpenClaw version, executable updater
+and installed/enabled delivery units, and captures
 one fresh-guest screendump. The evidence artifact's `install/` directory retains
 only explicitly listed, scanned logs and the screendump, never the disk or NVRAM.
 Text-pattern scanning of image bytes is not OCR or a general screenshot secret

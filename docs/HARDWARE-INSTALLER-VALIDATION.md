@@ -243,3 +243,18 @@ evidence was secret-pattern scanned. This is not both-mode GTK acceptance,
 non-default policy-dialog proof, full-system rollback, physical-hardware proof,
 or a complete run on a corrected, unmodified release candidate. Issue #33 stays
 open for those remaining prerelease requirements.
+
+### Corrected installer: unmodified hosted-KVM proof
+
+[CI run 34519540819](https://github.com/Solvely-Colin/ClawOS/actions/runs/34519540819)
+at `4e9767f44bc410a386e7247720392a54247ced2b` built ISO SHA-256
+`081ec3fe13d54f6204836eff23ce420fcc92fec712edf9981a5026c27dce08d2`.
+The live gate and fresh passwordless install/disk-only boot gate passed without
+manual repair. The new `DEPLOY_READY_OK` assertion verified executable updater
+mode, CLI startup, the delivery service file and enabled timer. All other
+installed markers, ACPI shutdowns and the offline disk check passed.
+Artifact 10170028322 contained only scanned evidence, not the ISO or disk;
+it was downloaded and re-scanned, and its desktop screendump was inspected.
+This KVM gate uses `--vm-test`; it does not rerun provider enrollment or the
+full agent loop on this corrected binary. Later commits change documentation
+only. No release or publicly retained ISO was created.
