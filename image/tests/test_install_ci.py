@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location('qemu_io_install', ROOT / 'tools/ci/qemu_io.py')
@@ -47,6 +48,26 @@ class InstallCI(unittest.TestCase):
             self.assertNotIn(forbidden, whitelist)
         self.assertIn('installed.ppm', whitelist)
         self.assertLess(workflow.index('scan-log-secrets.sh "$source"'), workflow.index('cp "$source" artifacts/boot-evidence/install/'))
+
+    def test_uart_input_is_paced_without_losing_bytes(self):
+        class Serial:
+            def __init__(self): self.sent = []
+            def __enter__(self): return self
+            def __exit__(self, *args): pass
+            def settimeout(self, timeout): pass
+            def connect(self, path): pass
+            def sendall(self, data): self.sent.append(data)
+            def recv(self, size): return b'DONE:INSTALL\r\n'
+        serial = Serial()
+        commands = b'x' * 1500
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch.object(qemu_io.socket, 'AF_UNIX', 1, create=True), \
+                patch.object(qemu_io.socket, 'socket', return_value=serial), \
+                patch.object(qemu_io.time, 'sleep') as pause:
+            qemu_io.capture('/test/socket', Path(tmp) / 'log', commands, 5, 'DONE:INSTALL')
+        self.assertEqual(b''.join(serial.sent), commands)
+        self.assertTrue(all(len(chunk) <= 64 for chunk in serial.sent))
+        self.assertEqual(pause.call_count, len(serial.sent))
 
     @unittest.skipUnless(sys.platform == 'linux', 'Shell contract runs on Linux CI')
     def test_install_metadata_cannot_mask_failure(self):
