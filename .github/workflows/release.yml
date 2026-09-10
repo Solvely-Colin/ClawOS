@@ -69,7 +69,7 @@ jobs:
           # the host touches it (cp here, upload-artifact next).
           sudo chown -R "$(id -u):$(id -g)" artifacts
           cp build-container-digest.txt artifacts/m1/out/BUILD-CONTAINER.txt
-      - name: Prepare scanned boot evidence (including failed runs)
+      - name: Prepare scanned boot and install evidence (including failed runs)
         id: evidence
         if: always()
         shell: bash
@@ -84,6 +84,17 @@ jobs:
           if test -f artifacts/m1/out/boot-smoke/result.txt; then
             ./image/tests/scan-log-secrets.sh artifacts/m1/out/boot-smoke/result.txt
             cp artifacts/m1/out/boot-smoke/result.txt artifacts/boot-evidence/
+          fi
+          if test -d artifacts/m1/out/install-smoke; then
+            mkdir -p artifacts/boot-evidence/install
+            # Explicit whitelist: never retain disks, firmware variables or sockets.
+            for name in live-serial.log live-transcript.log live-qemu.log installed-serial.log installed-transcript.log installed-qemu.log disk-check.log result.txt installed.ppm; do
+              source="artifacts/m1/out/install-smoke/$name"
+              if test -f "$source"; then
+                ./image/tests/scan-log-secrets.sh "$source"
+                cp "$source" artifacts/boot-evidence/install/
+              fi
+            done
           fi
           echo 'safe=true' >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -130,7 +141,7 @@ jobs:
             "Experimental ClawOS build from $SOURCE_SHA." \
             'The experimental installer accepts eligible blank x86_64 UEFI disks.' \
             'Boot media, mounted/in-use disks and nonblank disks are protected. Physical hardware is not yet verified.' \
-            'Source preflight, ISO structure and live KVM boot smoke passed; install/onboarding/hardware acceptance is separate.' \
+            'Source preflight, ISO structure, live KVM boot and passwordless disk-only install smoke passed; onboarding/encrypted-install/hardware acceptance is separate.' \
             'This draft is not a supported or stable release. Review BUILD-METADATA.txt and verify SHA256SUMS.' > notes.md
           gh release create "$RELEASE_TAG" --verify-tag --draft --prerelease \
             --title "ClawOS $RELEASE_TAG — experimental" --notes-file notes.md ./release/*

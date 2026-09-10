@@ -105,13 +105,13 @@ class BootCI(unittest.TestCase):
         self.assertNotIn('path: artifacts/m1/out/*', workflow)
         helper = (ROOT / 'tools/ci/build-release.sh').read_text()
         self.assertLess(helper.index('./image/tests/boot-smoke-qemu'), helper.index('Live boot smoke: RUN (KVM'))
-        self.assertIn('Install/onboarding/hardware acceptance: NOT RUN', helper)
+        self.assertIn('Onboarding/encrypted-install/hardware acceptance: NOT RUN', helper)
         self.assertIn('Live boot smoke: FAILED (KVM', helper)
 
     @unittest.skipUnless(sys.platform == 'linux', 'Shell contract runs on Linux CI')
     def test_metadata_records_success_and_failure_without_masking_exit(self):
         helper = (ROOT / 'tools/ci/build-release.sh').read_text()
-        fragment = helper[helper.index('# Same freshly built ISO'):]
+        fragment = helper[helper.index('# Same freshly built ISO'):helper.index('# Fresh disposable disk')]
         for status in (0, 23):
             with self.subTest(status=status), tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
