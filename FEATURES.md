@@ -27,7 +27,7 @@ install and boot proof is from QEMU (Linux KVM or Windows WHPX).
 | Remote-node roles | Implementation and isolated tests; broader live acceptance remains |
 | Physical hardware installation | Eligible blank SATA/NVMe/eMMC disks accepted; verified only in QEMU/WHPX, no physical machine installed yet; not "any Arch hardware" |
 | Graphical install and first setup | Encrypted GTK install, disk-only boot and local/model-later/Full Root onboarding verified on 2026-09-10 at `de19c1b` in WHPX; provider inference, passwordless GTK and non-default policy are separate gates |
-| CI-built ISO | Run 34432248984 produced the image used for that manual install proof. CI validates image structure but does not automatically boot/install. Historical ISO artifacts were removed for source-first publication; build locally, with no downloadable release promised ([evidence](docs/EVIDENCE.md)) |
+| CI-built ISO | Run 34432248984 produced the image used for that manual install proof. The workflow now requires image validation and live KVM boot smoke; installation remains separate. Manual ISO retention is opt-in, with no downloadable release promised ([evidence](docs/EVIDENCE.md)) |
 
 ## Not implemented or by design
 

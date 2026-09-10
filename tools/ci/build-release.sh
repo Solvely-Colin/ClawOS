@@ -47,7 +47,13 @@ pacman -Q >"$out/BUILD-PACKAGES.txt"
 shopt -s nullglob
 images=("$out/"*.iso)
 (( ${#images[@]} == 1 )) || { echo 'Expected one ISO for boot smoke.' >&2; exit 1; }
-CLAWOS_SMOKE_RUNTIME="$out/boot-smoke" \
-  ./image/tests/boot-smoke-qemu "${images[0]}"
-sed -i "s/^Live boot smoke: NOT RUN$/Live boot smoke: RUN (KVM, run $GITHUB_RUN_ID)/" \
-  "$out/BUILD-METADATA.txt"
+if CLAWOS_SMOKE_RUNTIME="$out/boot-smoke" \
+    ./image/tests/boot-smoke-qemu "${images[0]}"; then
+  sed -i "s/^Live boot smoke: NOT RUN$/Live boot smoke: RUN (KVM, run $GITHUB_RUN_ID)/" \
+    "$out/BUILD-METADATA.txt"
+else
+  status=$?
+  sed -i "s/^Live boot smoke: NOT RUN$/Live boot smoke: FAILED (KVM, run $GITHUB_RUN_ID)/" \
+    "$out/BUILD-METADATA.txt"
+  exit "$status"
+fi

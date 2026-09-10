@@ -87,6 +87,7 @@ class BootCI(unittest.TestCase):
         helper = (ROOT / 'tools/ci/build-release.sh').read_text()
         self.assertLess(helper.index('./image/tests/boot-smoke-qemu'), helper.index('Live boot smoke: RUN (KVM'))
         self.assertIn('Install/onboarding/hardware acceptance: NOT RUN', helper)
+        self.assertIn('Live boot smoke: FAILED (KVM', helper)
 
     def test_smoke_has_no_process_termination_and_uses_exact_markers(self):
         source = (ROOT / 'image/tests/boot-smoke-qemu').read_text()
