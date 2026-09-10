@@ -33,7 +33,7 @@ Milestones: Flip-ready (gates the flip), Flip day (same sitting).
 Milestones: Green Pipeline, v0.1.0-alpha.1.
 
 - [x] release.yml boots the just-built ISO under runner KVM and asserts key-only
-  sshd plus graceful shutdown (#20; run 34505506520, 2026-09-10).
+  sshd plus ACPI shutdown (#20; run 34507795187, 2026-09-10).
 - [ ] A passwordless install and installed boot follow under their own timeout (#21).
 - [ ] m2-e2e-qemu passes once on a CI-built ISO, or its failures are triaged.
 - [ ] Gates run under TCG for contributors without KVM; WHPX evidence names a

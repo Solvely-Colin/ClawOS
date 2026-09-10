@@ -31,8 +31,9 @@ with a live probe because runner capabilities can change.
 
 The same Arch container then boots the exact newly built ISO using
 `image/tests/boot-smoke-qemu`. Executed serial markers check ClawOS identity,
-systemd health, DHCP, overlay root and effective SSH policy. The guest must
-power off and QEMU must exit successfully. Cleanup requests ACPI, never QEMU
+systemd health, DHCP, overlay root and effective SSH policy. The host then
+requests acknowledged ACPI powerdown; the guest must shut down and QEMU must
+exit successfully. Cleanup also requests ACPI, never QEMU
 termination. If a failed guest refuses shutdown, the gate stays failed; the
 disposable container/runner may subsequently be reclaimed by CI infrastructure.
 
