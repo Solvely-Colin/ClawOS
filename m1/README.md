@@ -17,6 +17,9 @@ QEMU (Linux KVM and Windows WHPX); no physical machine has been installed.
 
 ## Validate and build
 
+[docs/GETTING-STARTED.md](../docs/GETTING-STARTED.md) walks a first-time
+contributor through this section and marks which steps have been verified.
+
 For edits to the running ClawOS shell, broker, plugin, or UI assets, use the
 in-guest runtime deployment loop before building another ISO:
 
@@ -39,6 +42,12 @@ sudo ./m1/bin/build-iso
 ./m1/tests/m2-e2e-qemu
 ./m1/bin/run-qemu
 ```
+
+`boot-smoke-qemu`, `m2-e2e-qemu` and `run-installer-qemu` need Linux KVM with a
+Q35 machine; a Linux guest without nested virtualization has none. `run-qemu --software`
+runs the ISO under TCG (slow, no install gate), and Windows hosts drive QEMU
+through `tools/windows/`. `build-iso --fast` writes a quicker-compressing image
+to `artifacts/m1/out-fast/` for iteration; the Linux gates read `artifacts/m1/out/`.
 
 `preflight-iso` is the required non-root source gate. It covers clean-Arch
 provenance, first-boot resume behavior, Gateway/UI lifecycle, exact local-node

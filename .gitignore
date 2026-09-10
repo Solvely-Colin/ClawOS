@@ -23,3 +23,11 @@ auth-profiles.json
 checkpoints/
 .DS_Store
 Thumbs.db
+# Bundles, secret dumps, squashfs images and audit logs never belong in the tree.
+*.bundle
+*.tgz
+*.tar.gz
+*secrets*.json
+*.sfs
+audit.jsonl
+*.jsonl.gz

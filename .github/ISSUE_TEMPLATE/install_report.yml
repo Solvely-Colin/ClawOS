@@ -1,0 +1,143 @@
+name: Install or boot report
+description: Record what happened when you booted a ClawOS ISO or installed it to a blank disk
+title: "Install report: "
+labels:
+  - installer
+  - needs-vm
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for the outcome of booting a ClawOS ISO or running the
+        installer, whether it worked or not. Working runs are as useful as
+        failures; they are the install evidence this project has. Every proof so
+        far is from QEMU (Linux KVM or Windows WHPX); physical hardware is
+        experimental, so read docs/HARDWARE.md first. Use the bug report form for
+        other defects. Do not report security problems here; see SECURITY.md.
+
+        Omit serial numbers, MAC addresses, credentials, passphrases and
+        identifying logs. Crop them out of screenshots too.
+  - type: input
+    id: source_commit
+    attributes:
+      label: Source commit
+      description: Full commit SHA. Read `Source commit` from BUILD-METADATA.txt next to a CI-built ISO, or run `git rev-parse HEAD` in the tree you built from.
+      placeholder: 40 hexadecimal characters
+    validations:
+      required: true
+  - type: input
+    id: iso_sha256
+    attributes:
+      label: ISO SHA-256
+      description: From the `.iso.sha256` or SHA256SUMS file written next to the ISO, or run `sha256sum` on the file you booted.
+      placeholder: 64 hexadecimal characters
+    validations:
+      required: true
+  - type: dropdown
+    id: iso_source
+    attributes:
+      label: ISO source
+      options:
+        - GitHub Actions artifact from the Experimental ISO build workflow
+        - Release asset (draft or published tag)
+        - Local build with sudo ./m1/bin/build-iso
+    validations:
+      required: true
+  - type: input
+    id: iso_reference
+    attributes:
+      label: Actions run ID or release tag
+      description: Leave empty for a local build.
+  - type: dropdown
+    id: host
+    attributes:
+      label: Host
+      options:
+        - QEMU with Linux KVM
+        - QEMU with Windows WHPX
+        - QEMU with TCG (software emulation)
+        - Physical machine
+        - Other (describe below)
+    validations:
+      required: true
+  - type: input
+    id: machine
+    attributes:
+      label: Machine model or VM configuration
+      description: Laptop or board model, or QEMU machine type, RAM and firmware image. No serial numbers.
+  - type: dropdown
+    id: firmware
+    attributes:
+      label: Firmware mode
+      description: ClawOS targets x86_64 UEFI with Secure Boot off. Other modes are outside the supported path but still worth recording.
+      options:
+        - UEFI, Secure Boot off
+        - UEFI, Secure Boot on
+        - Legacy BIOS or CSM
+        - Unknown
+    validations:
+      required: true
+  - type: dropdown
+    id: disk_type
+    attributes:
+      label: Target disk type
+      options:
+        - virtio
+        - SATA
+        - NVMe
+        - eMMC
+        - No target disk (live boot only)
+    validations:
+      required: true
+  - type: dropdown
+    id: install_mode
+    attributes:
+      label: Install mode
+      options:
+        - Encrypted (LUKS2, the default)
+        - Passwordless (--passwordless, no encryption or screen lock)
+        - No install attempted (live boot only)
+    validations:
+      required: true
+  - type: dropdown
+    id: security_level
+    attributes:
+      label: Security level chosen at onboarding
+      options:
+        - Full Root (default)
+        - Full Approvals (Full user + approvals)
+        - User Limited
+        - Onboarding not reached
+  - type: dropdown
+    id: result
+    attributes:
+      label: Result
+      options:
+        - Live ISO booted; no install attempted
+        - Live ISO did not boot or the live session did not appear
+        - Installer refused or stopped before writing to the disk
+        - Installer failed after disk writes started
+        - Install completed but the installed system did not boot
+        - Install completed and the installed system booted
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: What you did and what you saw
+      description: Steps, the exact message shown on failure, and how far first boot got. Screenshots are welcome once identifying details are cropped.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Redacted logs
+      description: Installer output, `journalctl -b` excerpts or serial console text with identifiers removed.
+      render: shell
+  - type: checkboxes
+    id: redaction
+    attributes:
+      label: Redaction
+      options:
+        - label: I removed serial numbers, MAC addresses, credentials, passphrases and identifying logs from this report.
+          required: true

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security problem
+    url: https://github.com/Solvely-Colin/ClawOS/blob/main/SECURITY.md
+    about: Do not open a public issue for a security problem. SECURITY.md has the private route.
+  - name: Contributing and testing without a VM
+    url: https://github.com/Solvely-Colin/ClawOS/blob/main/CONTRIBUTING.md
+    about: How CI runs, which labels to look at, and how to test without Arch or KVM.

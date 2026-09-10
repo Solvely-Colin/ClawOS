@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+readme="$(cd "$(dirname "$0")/.." && pwd)/README.md"
+if [[ "${CLAWOS_M0_EXPERIMENT:-}" != "1" ]]; then
+  echo "Refusing to run: this modifies the host it runs on (historical Milestone 0 experiment)." >&2
+  echo "Read $readme, then set CLAWOS_M0_EXPERIMENT=1 to proceed." >&2
+  exit 1
+fi
+
 owner="${1:-}"
 if [[ $EUID -ne 0 ]]; then
-  echo "Run as root: sudo $0 <owner-user>" >&2
+  echo "Run as root: sudo CLAWOS_M0_EXPERIMENT=1 $0 <owner-user>" >&2
   exit 1
 fi
 if [[ -z "$owner" ]] || ! id "$owner" >/dev/null 2>&1; then

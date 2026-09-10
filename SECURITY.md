@@ -69,8 +69,10 @@ Welcome:
 - Credentials exposed to unrelated accounts, public logs or world-readable
   files. Owner-process credential environments and same-UID access are not a
   promised isolation boundary; see the explicit contract above.
-- Anything that lets a process outside the gateway/node units become
-  `gateway-attested`, or lets a non-core agent take core actions without a grant.
+- Anything that lets a process running as a different UID than the gateway/node
+  unit become `gateway-attested`, or lets a non-core agent take core actions
+  without a grant. Same-UID escapes inside that unit are the known, untested
+  gap: reports are welcome, but isolation there is not a promised boundary.
 
 Out of scope:
 
@@ -124,7 +126,10 @@ tested.
   happens only on KVM with the Q35 product string. The live graphical session
   runs as `clawos-live` on `tty2` and may `pkexec` the installer without
   authentication. Installed systems get serial root autologin only with
-  `--vm-test`.
+  `--vm-test`. The live image runs sshd on port 22 under the same key-only
+  drop-in (`00-clawos.conf` sorts ahead of archiso's `10-archiso.conf`); the
+  live root account has no password and root login is refused outright, so no
+  account can log in over SSH until a key is installed for `clawos-live`.
 - Passwordless mode: no LUKS, `root` and `clawos` passwords deleted,
   `/etc/clawos-passwordless-entry` written, and `clawos-lock` exits without
   locking when that root-owned 0644 file says `enabled`. Without the file it
@@ -160,6 +165,9 @@ tested.
 - A process outside the gateway/node units should not be able to appear inside
   them in `/proc/<pid>/cgroup`; cgroup or systemd-scope tricks have not been
   tested.
+- Attestation reads the caller's PID from the bus and then its cgroup from
+  `/proc/<pid>/cgroup`; a PID reused between those two reads would be
+  misattributed. The window is small and has not been measured or exploited.
 - An enabled but unconfigured `tailscaled` should expose nothing until someone
   runs `tailscale up`; not verified against the installed image.
 

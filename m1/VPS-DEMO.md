@@ -1,5 +1,9 @@
 # ClawOS VPS demo path (not for public exposure)
 
+> **Status:** operator notes for a private demo host. Not a supported deployment
+> path and not exercised since the key-only sshd change; treat as a checklist,
+> not a proof.
+
 The demo must expose the real ClawOS graphical session. It must not create a
 second HTML desktop or publish an unauthenticated VNC listener.
 

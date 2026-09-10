@@ -2,10 +2,15 @@
 
 # ClawOS
 
+[![Source checks](https://github.com/Solvely-Colin/ClawOS/actions/workflows/ci.yml/badge.svg)](https://github.com/Solvely-Colin/ClawOS/actions/workflows/ci.yml)
+
 An experimental Arch-based OS with OpenClaw as its primary agent interface.
+ClawOS is an independent project, not affiliated with or endorsed by OpenClaw
+or Arch Linux; see [NOTICE.md](NOTICE.md).
 This is **experimental, unreleased source**, not a production-ready
 distribution. There are no releases or tags yet, and every install so far has
-been inside a virtual machine.
+been inside a virtual machine. What is and is not in scope is summarized in
+[docs/SCOPE.md](docs/SCOPE.md).
 
 [Features](FEATURES.md) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md) ·
 [Hardware support](docs/HARDWARE.md) · [Release builds](docs/RELEASING.md)
@@ -31,7 +36,9 @@ conversations and agent execution. Carapace is the intended design language.
 ## Start contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) and [known issues](docs/KNOWN-ISSUES.md).
-Use a disposable Linux VM, not your daily-driver installation.
+Use a disposable Linux VM, not your daily-driver installation. A step-by-step
+build and install walkthrough, with a verification marker on every step, is in
+[docs/GETTING-STARTED.md](docs/GETTING-STARTED.md).
 
 On Arch Linux, review and install build dependencies, then run the source gate:
 
@@ -61,8 +68,8 @@ deployment. ISO builds run inside Linux. Windows manages QEMU through the
 | `m2/openclaw-plugin/` | Machine tools, activity integration and deployment notices |
 | `m3/` | Privileged broker, approval UI, recovery and tests |
 | `m4/` | Standalone/remote-node role switching and tests |
-| `shell-prototype/` | Separate visual prototype, not the installed OS runtime |
-| `m0/` | Historical compositor experiment and retained regression checks |
+| [`shell-prototype/`](shell-prototype/README.md) | Frozen 2026-08 visual prototype, not the installed OS runtime; not built or tested in CI |
+| [`m0/`](m0/README.md) | Historical 2026-08 host-side kiosk experiment; only its static check still runs, as `preflight-iso` stage 2 |
 | `tools/windows/` | Host lifecycle source, without VM images or credentials |
 
 ## Evidence and limits
@@ -74,6 +81,7 @@ QEMU/WHPX guests have completed encrypted and passwordless installs and booted
 without the ISO. Unit checks are not proof of fresh installation, arbitrary OS
 rollback, hardware compatibility or safe root-agent behavior. Full Root
 intentionally grants the `clawos` account unrestricted passwordless sudo.
+Every ISO proof is a row in [the evidence ledger](docs/EVIDENCE.md).
 
 Source gates reject known Omarchy dependencies. Historical references and
 negative tests remain intentionally; removing those words would weaken checks.

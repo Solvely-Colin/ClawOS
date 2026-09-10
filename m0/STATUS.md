@@ -38,14 +38,14 @@ Run the package and session install from a visible terminal:
 
 ```bash
 cd /path/to/ClawOS
-./m0/bin/complete-host-install
+CLAWOS_M0_EXPERIMENT=1 ./m0/bin/complete-host-install <user>
 ```
 
 Do not enable the unit. OpenClaw is already listening on the configured URL;
 after verifying the installed files, start the experiment manually:
 
 ```bash
-sudo systemctl start clawos-session@colin.service
+sudo systemctl start clawos-session@<user>.service
 ```
 
 Validate VT switching, lock, idle, suspend, lid close, Chromium policy, HiDPI,

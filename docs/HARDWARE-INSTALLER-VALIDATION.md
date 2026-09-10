@@ -11,8 +11,10 @@ experimental and has not yet been used to install a physical machine.
   kernel disk-generation changes, exact confirmation and raw filesystem signatures.
 - Full Arch preflight: 35 M1 tests, 21 broker tests, 26 plugin tests and existing
   profile/onboarding/role integration checks passed.
-- Current suite sizes at the publication baseline: 44 M1, 22 broker and 26 plugin
-  unit tests; the target-policy file now holds 16 tests.
+- Suite sizes move; count them rather than trusting prose. At `00f81c5` in the
+  builder VM, `python3 -m unittest discover -s m1/tests -p 'test_*.py'` reported
+  49 tests, the same command over `m3/tests` reported 27, and `node --test
+  m2/openclaw-plugin/test/*.test.js` reported 28.
 - Bash syntax and ShellCheck passed for the installer, excluding only SC1091
   for its installed `/etc/clawos/versions.env` include.
 - The new discovery helper was run on the installed development workstation and
@@ -85,9 +87,9 @@ installation remain outside this first implementation.
 ## 2026-09-07: sshd policy and both install modes re-verified
 
 ISO `clawos-fast-2026.09.07-x86_64.iso` (SHA-256
-`dbc1f556389f618369ec6759ab59242f6f4d76e5a1e4a0f8781c6ebd2d8c4094` was the
-09-06 image; the 09-07 image was built from `ee2f4f1` in the builder VM and
-checksum-verified after transfer) on Windows QEMU (WHPX, OVMF), fresh 32 GiB
+`11ccf162b6bab582f07d43b10312b43ee1e0fde8008355a5c6963ad7ff764d3d`, built from
+`ee2f4f1` in the builder VM and checksum-verified after transfer; the 09-06
+image was `dbc1f556…8c4094`) on Windows QEMU (WHPX, OVMF), fresh 32 GiB
 virtio disk and fresh firmware variables per run, installer driven from the
 live `tty1` root shell. `systemd-detect-virt` reports `qemu`, so this is the
 hardware branch, not `--vm-test`.
@@ -108,3 +110,21 @@ hardware branch, not `--vm-test`.
   fix has not been rebuilt into an ISO yet.
 - Not exercised: the GTK installer path (driven from tty1), onboarding past the
   first screen, physical hardware.
+
+## 2026-09-08: live side of a CI-built ISO observed with key-only sshd
+
+The `release.yml` run 34270708295 artifact (`clawos-2026.09.08-x86_64.iso`,
+SHA-256 `9442e105d287c300e08b8ce9821859fa684067d761afd3b69491552a956816fd`,
+`BUILD-METADATA.txt` source commit `00f81c5`) was booted live on Windows QEMU
+(WHPX, OVMF) with no install. From the live `tty1` root shell:
+
+- `/etc/ssh/sshd_config.d/` lists `00-clawos.conf 10-archiso.conf
+  20-systemd-userdb.conf 99-archlinux.conf`, so the ClawOS drop-in is read first.
+- `sshd -T` reports `PermitRootLogin no`, `PasswordAuthentication no`,
+  `KbdInteractiveAuthentication no`, `PermitEmptyPasswords no`.
+- `sshd` is active and listening on port 22 (IPv4 and IPv6); the live `root`
+  account has no password and root login is refused, so no account can log in
+  over SSH until a key is installed for `clawos-live`.
+
+This replaces the 2026-09-07 note that the live-side fix had not been rebuilt
+into an ISO. It is the first observation of a CI-built image. Ledger row added.

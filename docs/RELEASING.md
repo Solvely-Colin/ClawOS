@@ -30,6 +30,7 @@ as a verified stable release. See [hardware restrictions](HARDWARE.md) and the
 
 Before publishing a draft, independently run the disposable QEMU boot/install
 gates from m1/README.md and attach redacted evidence at the same source SHA.
+Every ISO proof, automated or manual, gets a row in [EVIDENCE.md](EVIDENCE.md).
 The experimental installer accepts eligible blank x86_64 UEFI disks, but source
 validation is not physical-hardware proof. Do not describe it as universal Arch
 hardware support; record the exact machine and disk types actually tested.
@@ -37,5 +38,8 @@ hardware support; record the exact machine and disk types actually tested.
 Builds can fail if the pinned archive/tool versions are unavailable, hosted-runner
 disk space is insufficient, or ArchISO needs kernel capabilities the hosted
 container does not expose. Diagnose those failures rather than skipping gates.
-First successful automated build remains an acceptance item until its run is
-verified. Do not create a release tag just to make the workflow look complete.
+The first green run on `main` was 34270708295 on 2026-09-08 (source commit
+`00f81c5`, ISO SHA-256 beginning `9442e105`); a branch run had succeeded earlier
+that day. The workflow validates but does not boot; that artifact was booted
+live by hand (EVIDENCE.md). Do not create a release tag just to make the
+workflow look complete.
