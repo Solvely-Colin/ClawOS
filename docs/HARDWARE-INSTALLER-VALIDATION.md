@@ -192,7 +192,7 @@ A new 40 GiB virtio disk was installed from CI ISO run 34432248984 (source
 Windows QEMU/WHPX, Q35/OVMF and 8 GiB RAM were used. Installation invoked the
 normal passwordless CLI with disk-serial/identity/exact-confirmation checks,
 not GTK and not `--vm-test`. A temporary live operator account and the existing
-public SSH key supplied test access; root/password SSH restrictions stayed off.
+public SSH key supplied test access; root/password SSH authentication stayed off.
 The installed system booted without the ISO, with Btrfs root on `/dev/vda2[/@]`.
 An offline disk check and `before-agent-enrollment` checkpoint preceded setup.
 
