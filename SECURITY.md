@@ -141,7 +141,8 @@ tested.
   read-only snapshot of `/`; `@home`, `@var_log`, `@pkg`, `@snapshots` and the ESP
   are separate and untouched, and a reboot is required.
 - The OpenClaw plugin appends a `deploy-runtime` hint to the system context of
-  every session whose key matches `agent:<id>:<...>`. Its `before_tool_call` hook
+  the core agent in Full Root only, and only for sessions whose key matches
+  `agent:<id>:<...>`. Its `before_tool_call` hook
   blocks only `exec` calls whose command matches a regex of privileged binaries
   at the start of the command or after `;`, `&`, `|`; the block is off entirely
   in Full Root for the core agent, and an `exec` without an agent id counts as
