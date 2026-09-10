@@ -9,16 +9,18 @@
       the unknown screenshot capture tool and non-MIT prototype dependencies
       are disclosed. This is not ISO redistribution clearance or legal certification.
 - [x] Add SECURITY.md with the maintainer-designated email reporting route.
-- [ ] Verify mailbox delivery before publication; optionally enable and verify
-      GitHub private vulnerability reporting when available.
+- [x] Obtain confirmation of the reporting mailbox: owner confirmed it works
+      on 2026-09-10. No independent outside-sender test or mailbox-rule inspection
+      is claimed. GitHub private vulnerability reporting remains flip-day work.
 - [x] Scan the preparation candidate and all local refs/history, including the
       five recovered commits, with gitleaks 8.30.1 and full redaction. Exact
       candidate SHA, command and result are recorded in #15/private evidence.
       Repeat at the actual visibility SHA if any commit changes after that scan.
 - [x] Audit the current tracked tree for VM images, firmware, auth stores and
       personal paths/evidence. Private VM evidence remains outside Git.
-- [ ] Resolve owner disposition of historical developer paths/session identifiers
-      and retained Actions ISO artifacts before changing visibility (#15).
+- [x] Resolve historical developer paths/session identifiers: owner accepted
+      retaining the disclosed history on 2026-09-10; no rewrite requested.
+- [ ] Resolve retained Actions ISO artifact disposition before changing visibility (#15).
 - [x] README, FEATURES, ROADMAP, NOTICE, m1/README, /etc/issue, os-release and loader titles say
       "experimental, VM-verified only, no releases"; one repository URL everywhere
       (image files pinned by the identity block at the end of `m1/tests/validate-profile.sh`;
