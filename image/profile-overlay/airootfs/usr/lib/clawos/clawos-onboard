@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+printf '\033[2J\033[H'
+printf 'ClawOS first boot\n\n'
+printf 'OpenClaw will configure this machine as either:\n'
+printf '  - a local Gateway with its own agent, or\n'
+printf '  - a client/node connected to an existing Gateway.\n\n'
+printf 'The setup is resumable. Ctrl+Alt+F3 always opens recovery.\n\n'
+
+if ! /usr/bin/nm-online --quiet --timeout=5; then
+  printf 'A network connection is required for setup.\n'
+  /usr/bin/nmtui-connect
+fi
+
+while true; do
+  printf '\nWhere should the OpenClaw Gateway run?\n\n'
+  printf '  1. This machine (recommended)\n'
+  printf '     Run the agent, Gateway, and Control UI as one ClawOS system.\n\n'
+  printf '  2. An existing Gateway\n'
+  printf '     Use its agent and connect this ClawOS machine as an execution node.\n'
+  printf '     A private Tailscale address is recommended.\n\n'
+  read -r -p 'Choose 1 or 2: ' gateway_location
+  case "$gateway_location" in
+    1)
+      exec /usr/bin/openclaw onboard \
+        --classic \
+        --mode local \
+        --gateway-auth token \
+        --install-daemon \
+        --skip-ui \
+        --suppress-gateway-token-output
+      ;;
+    2)
+      exec /usr/bin/openclaw onboard \
+        --classic \
+        --flow manual \
+        --mode remote \
+        --skip-daemon \
+        --skip-ui \
+        --suppress-gateway-token-output
+      ;;
+    *)
+      printf 'Please enter 1 or 2.\n'
+      ;;
+  esac
+done

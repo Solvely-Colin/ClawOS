@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+target_pid="${1:-}"
+health_url="${2:-}"
+[[ "$target_pid" =~ ^[1-9][0-9]*$ ]] || exit 2
+url_pattern='^https?://[A-Za-z0-9._~:/?=&%-]+$'
+[[ "$health_url" =~ $url_pattern ]] || exit 2
+
+armed=false
+failures=0
+while /usr/bin/kill -0 "$target_pid" 2>/dev/null; do
+  if /usr/bin/curl --fail --silent --show-error --max-time 2 "$health_url" >/dev/null 2>&1; then
+    armed=true
+    failures=0
+  elif $armed; then
+    failures=$((failures + 1))
+    if (( failures >= 2 )); then
+      # The Control UI can retain an incomplete asset graph across a Gateway
+      # restart. End only its owning Chromium process; clawos-entry recreates it
+      # through the health-gated bootstrap page.
+      /usr/bin/kill -TERM "$target_pid" 2>/dev/null || true
+      exit 0
+    fi
+  fi
+  /usr/bin/sleep 1
+done

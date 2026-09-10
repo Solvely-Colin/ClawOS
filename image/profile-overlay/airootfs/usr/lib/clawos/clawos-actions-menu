@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Use the same compact, intent-first palette exposed by the activity control.
+# The former full-height nwg-bar sheet read as a second OS sidebar and competed
+# with the application already on screen.
+exec /usr/lib/clawos/clawos-intent-palette

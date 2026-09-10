@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state_root="${XDG_STATE_HOME:-$HOME/.local/state}/clawos/roles"
+openclaw_root="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
+config_file="$openclaw_root/openclaw.json"
+env_file="$openclaw_root/.env"
+runtime_root="${XDG_RUNTIME_DIR:-/tmp}"
+if [[ ! -d "$runtime_root" || ! -w "$runtime_root" ]]; then
+  runtime_root=/tmp
+fi
+lock_file="$runtime_root/clawos-role.$(id -u).lock"
+openclaw_bin="${CLAWOS_OPENCLAW_BIN:-/usr/bin/openclaw}"
+systemctl_bin="${CLAWOS_SYSTEMCTL_BIN:-/usr/bin/systemctl}"
+node_installer="${CLAWOS_NODE_INSTALLER:-/usr/lib/clawos/clawos-install-node}"
+
+mkdir -p "$state_root" "$openclaw_root"
+chmod 700 "$state_root" "$openclaw_root"
+exec 9>"$lock_file"
+flock -x 9
+
+mode() {
+  "$openclaw_bin" config get gateway.mode 2>/dev/null || true
+}
+
+save_file() {
+  local source="$1" destination="$2" permissions="$3" temporary
+  [[ -f "$source" ]] || return 0
+  temporary="${destination}.tmp.$$"
+  install -m "$permissions" "$source" "$temporary"
+  mv -f "$temporary" "$destination"
+}
+
+save_profile() {
+  local current destination
+  current="$(mode)"
+  [[ "$current" == local || "$current" == remote ]] || {
+    echo "ClawOS role is not configured." >&2
+    return 1
+  }
+  destination="$state_root/$current"
+  mkdir -p "$destination"
+  chmod 700 "$destination"
+  save_file "$config_file" "$destination/openclaw.json" 600
+  save_file "$env_file" "$destination/.env" 600
+  printf '%s\n' "$current" >"$destination/mode"
+  chmod 600 "$destination/mode"
+}
+
+activate_services() {
+  local target="$1"
+  if [[ "$target" == local ]]; then
+    "$openclaw_bin" node stop >/dev/null 2>&1 || true
+    "$systemctl_bin" --user restart openclaw-gateway.service || return 1
+    "$systemctl_bin" --user is-active --quiet openclaw-gateway.service
+  else
+    "$systemctl_bin" --user stop openclaw-gateway.service >/dev/null 2>&1 || true
+    "$node_installer" || return 1
+    "$openclaw_bin" node status --json >/dev/null
+  fi
+}
+
+switch_profile() {
+  local target="$1" source previous backup
+  [[ "$target" == standalone || "$target" == node ]] || {
+    echo "Usage: clawos-role switch {standalone|node}" >&2
+    return 2
+  }
+  [[ "$target" == standalone ]] && target=local || target=remote
+  source="$state_root/$target"
+  [[ -s "$source/openclaw.json" ]] || {
+    echo "The $target role has not been enrolled on this machine." >&2
+    return 1
+  }
+  previous="$(mode)"
+  [[ "$previous" == "$target" ]] && { activate_services "$target"; return; }
+  [[ "$previous" == local || "$previous" == remote ]] && save_profile
+  backup="$(mktemp -d "$state_root/.switch.XXXXXX")"
+  save_file "$config_file" "$backup/openclaw.json" 600
+  save_file "$env_file" "$backup/.env" 600
+  save_file "$source/openclaw.json" "$config_file" 600
+  if [[ -f "$source/.env" ]]; then
+    save_file "$source/.env" "$env_file" 600
+  else
+    rm -f -- "$env_file"
+  fi
+  if ! "$openclaw_bin" config validate >/dev/null || ! activate_services "$target"; then
+    save_file "$backup/openclaw.json" "$config_file" 600
+    if [[ -f "$backup/.env" ]]; then
+      save_file "$backup/.env" "$env_file" 600
+    else
+      rm -f -- "$env_file"
+    fi
+    [[ "$previous" == local || "$previous" == remote ]] && activate_services "$previous" || true
+    rm -f -- "$backup/openclaw.json" "$backup/.env"
+    rmdir -- "$backup"
+    echo "Role switch failed; the previous OpenClaw role was restored." >&2
+    return 1
+  fi
+  save_profile
+  rm -f -- "$backup/openclaw.json" "$backup/.env"
+  rmdir -- "$backup"
+}
+
+case "${1:-}" in
+  profile-save) save_profile ;;
+  switch) switch_profile "${2:-}" ;;
+  status)
+    printf '{"mode":"%s","standaloneEnrolled":%s,"nodeEnrolled":%s}\n' \
+      "$(mode)" \
+      "$([[ -s "$state_root/local/openclaw.json" ]] && echo true || echo false)" \
+      "$([[ -s "$state_root/remote/openclaw.json" ]] && echo true || echo false)"
+    ;;
+  *) echo "Usage: clawos-role {profile-save|switch {standalone|node}|status}" >&2; exit 2 ;;
+esac

@@ -1,0 +1,128 @@
+name: Source checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: source-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  prototype:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: experiments/shell-prototype
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - run: npm ci
+      - run: npm ls react react-dom vite @vitejs/plugin-react
+      - run: npm run build
+      - run: npm run test:sites
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
+      - run: git diff --exit-code
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - run: python3 -m unittest discover -s image/tests -p 'test_*.py'
+      - run: python3 -m unittest discover -s services/clawosd/tests -p 'test_*.py'
+      - run: node --test integrations/openclaw/test/*.test.js
+      - run: git diff --check
+      - run: ./tools/check-tree.sh
+  arch-preflight:
+    # The full source gate that README.md tells Arch contributors to run and
+    # that tools/ci/build-release.sh runs before every ISO build: same image,
+    # same pinned package snapshot, same script. Nothing here needs root-only
+    # kernel features, KVM or network beyond the Arch archive.
+    #
+    # The same container then runs services/clawosd/README.md's D-Bus caller-boundary proof
+    # (services/clawosd/tests/verify_dbus_authorization.py): a private dbus-daemon, the real
+    # adapter, and runuser as nobody and as the configured owner, with a fake
+    # machine runner. It needs only root (the container default), setuid, and
+    # the dbus/python-dbus/python-gobject packages installed below.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      image: archlinux:base-devel
+    steps:
+      # base-devel ships no git. Without it actions/checkout silently falls
+      # back to a tarball download and "git diff --check" in preflight-iso
+      # has no repository to inspect, so install git before the checkout.
+      - name: Install git so the checkout is a real repository
+        run: pacman -Syu --noconfirm --needed --disable-download-timeout git
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install preflight and D-Bus proof tooling from the pinned Arch snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          source image/config/versions.env
+          [[ "$ARCH_SNAPSHOT" =~ ^[0-9]{4}/[0-9]{2}/[0-9]{2}$ ]] || { echo 'ARCH_SNAPSHOT must be YYYY/MM/DD'; exit 1; }
+          printf 'Server = https://archive.archlinux.org/repos/%s/$repo/os/$arch\n' "$ARCH_SNAPSHOT" >/etc/pacman.d/mirrorlist
+          pacman -Syyuu --noconfirm --needed --disable-download-timeout \
+            git inetutils nodejs python jq dbus python-dbus python-gobject shellcheck
+      - name: Verify the toolchain the README promises
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --version; python3 --version; jq --version; git --version; shellcheck --version
+          node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)'
+          python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 12) else 1)'
+      - name: Trust the checkout owned by the runner account
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Run the pre-ISO source gate
+        run: ./image/bin/preflight-iso
+      - name: Create the broker owner account named in services/clawosd/config/clawosd.json
+        # The proof resolves openclaw.ownerUser through the OS account database
+        # (clawosd_core.account_uid), so the account must exist. nobody ships
+        # with Arch's filesystem package; the agent account is only resolved in
+        # user-limited mode, which the shipped full-root config never enters.
+        shell: bash
+        run: |
+          set -euo pipefail
+          owner="$(jq -er '.openclaw.ownerUser' services/clawosd/config/clawosd.json)"
+          [[ "$owner" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || { echo "unexpected ownerUser: $owner"; exit 1; }
+          id -u "$owner" >/dev/null 2>&1 || useradd --create-home "$owner"
+          id "$owner"
+          id nobody
+      - name: Prove D-Bus caller-boundary enforcement with real UIDs
+        # Same command as services/clawosd/README.md minus sudo (the container is root). The
+        # script exits non-zero on any failed assertion; the grep also fails the
+        # job if its PASS line is ever missing.
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="$(mktemp)"
+          python3 services/clawosd/tests/verify_dbus_authorization.py "$PWD" | tee "$log"
+          grep -q '^PASS: ' "$log"
+  container-wrapper:
+    # Exercise the contributor entry point itself, including its read-only
+    # mount and dependency provisioning. This catches drift from preflight.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Run the contributor container gate and D-Bus proof
+        run: ./tools/dev/preflight-in-container.sh --engine docker --dbus

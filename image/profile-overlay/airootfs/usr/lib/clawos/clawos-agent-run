@@ -1,0 +1,103 @@
+#!/usr/bin/env python3
+import json
+import os
+import pathlib
+import stat
+import subprocess
+import sys
+from datetime import datetime, timezone
+
+
+OPENCLAW = os.environ.get("CLAWOS_OPENCLAW", "/usr/bin/openclaw")
+APPCTL = os.environ.get("CLAWOS_APPCTL", "/usr/lib/clawos/clawos-appctl")
+STATE_HOME = pathlib.Path(
+    os.environ.get("XDG_STATE_HOME", os.path.join(os.path.expanduser("~"), ".local", "state"))
+)
+QUEUE = (STATE_HOME / "clawos" / "agent-requests").resolve()
+RECEIPTS = STATE_HOME / "clawos" / "agent-receipts"
+
+
+def receipt(request_id, status_value):
+    RECEIPTS.mkdir(mode=0o700, parents=True, exist_ok=True)
+    os.chmod(RECEIPTS, 0o700)
+    destination = RECEIPTS / f"{request_id}.json"
+    temporary = RECEIPTS / f".{request_id}.{os.getpid()}.tmp"
+    with open(temporary, "w", encoding="utf-8") as target:
+        json.dump(
+            {
+                "version": 1,
+                "requestId": request_id,
+                "status": status_value,
+                "finishedAt": datetime.now(timezone.utc).isoformat(),
+            },
+            target,
+            separators=(",", ":"),
+        )
+        target.write("\n")
+    os.chmod(temporary, 0o600)
+    os.replace(temporary, destination)
+
+
+def valid_request(value):
+    candidate = pathlib.Path(value)
+    try:
+        metadata = candidate.lstat()
+        resolved = candidate.resolve(strict=True)
+    except OSError:
+        return None
+    if resolved.parent != QUEUE or not resolved.name.endswith(".txt"):
+        return None
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
+        return None
+    if metadata.st_uid != os.getuid() or stat.S_IMODE(metadata.st_mode) != 0o600:
+        return None
+    request_id = resolved.stem
+    if len(request_id) != 32 or any(character not in "0123456789abcdef" for character in request_id):
+        return None
+    return resolved, request_id
+
+
+def main():
+    if len(sys.argv) != 2:
+        raise SystemExit(64)
+    validated = valid_request(sys.argv[1])
+    if not validated:
+        raise SystemExit(65)
+    request_path, request_id = validated
+    try:
+        result = subprocess.run(
+            [
+                OPENCLAW,
+                "agent",
+                "--session-key",
+                "agent:main:main",
+                "--message-file",
+                str(request_path),
+                "--json",
+            ],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=900,
+            check=False,
+        )
+        status_value = "completed" if result.returncode == 0 else "failed"
+    except (OSError, subprocess.TimeoutExpired):
+        status_value = "failed"
+    finally:
+        request_path.unlink(missing_ok=True)
+    receipt(request_id, status_value)
+    if status_value != "completed":
+        subprocess.run(
+            [APPCTL, "attention", "A background Agent request failed"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=4,
+            check=False,
+        )
+        raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    main()

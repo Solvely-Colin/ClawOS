@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $EUID -ne 0 ]]; then
+  echo "Run as root: sudo $0" >&2
+  exit 1
+fi
+
+if systemctl list-unit-files 'clawos-session@*.service' --no-legend 2>/dev/null | grep -q enabled; then
+  echo "Refusing removal while a ClawOS session instance is enabled." >&2
+  exit 1
+fi
+
+find /run/systemd/system -maxdepth 1 -name 'clawos-session@*.service' -print -quit 2>/dev/null | grep -q . && {
+  echo "Stop the running ClawOS session before uninstalling." >&2
+  exit 1
+}
+
+rm -f /etc/systemd/system/clawos-session@.service
+rm -f /etc/chromium/policies/managed/clawos.json
+rm -f /usr/lib/clawos/clawos-session /usr/lib/clawos/clawos-browser
+rmdir /usr/lib/clawos 2>/dev/null || true
+echo "Kept /etc/clawos for recovery and local settings. Remove it manually if desired."
+systemctl daemon-reload

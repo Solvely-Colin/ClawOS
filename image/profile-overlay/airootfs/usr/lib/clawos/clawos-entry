@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mode() {
+  /usr/bin/openclaw config get gateway.mode 2>/dev/null || true
+}
+
+security_level() {
+  /usr/bin/jq -r '.securityLevel // "full-root"' /etc/clawos/clawosd.json 2>/dev/null || echo full-root
+}
+
+session_alive() {
+  [[ -n "${SWAYSOCK:-}" && -S "$SWAYSOCK" ]] &&
+    /usr/bin/swaymsg -s "$SWAYSOCK" -t get_version >/dev/null 2>&1
+}
+
+while [[ "$(mode)" != local && "$(mode)" != remote ]]; do
+  if ! /usr/lib/clawos/clawos-onboard-ui; then
+    # The graphical path owns normal first boot. Keep the upstream-compatible
+    # terminal wizard as a recovery fallback if Chromium or the local setup
+    # service cannot start.
+    /usr/bin/foot \
+      --config=/etc/clawos/foot.ini \
+      --fullscreen \
+      --title='ClawOS Setup Recovery' \
+      --app-id=clawos-onboard-recovery \
+      /usr/lib/clawos/clawos-onboard || true
+  fi
+  session_alive || exit 0
+  sleep 1
+done
+
+if [[ "$(security_level)" != user-limited ]]; then
+  case "$(mode)" in
+    local)
+      (/usr/bin/openclaw gateway start >/dev/null 2>&1 || true) &
+      ;;
+    remote) ;;
+  esac
+
+  # Node registration must never hold the desktop hostage. The Agent surface
+  # owns its connecting state while Gateway and node readiness settle.
+  (
+    /usr/lib/clawos/clawos-install-node &&
+      /usr/lib/clawos/clawos-enroll-local-node
+  ) || true &
+fi
+
+while true; do
+  /usr/lib/clawos/clawos-browser || true
+  session_alive || exit 0
+  /usr/bin/sleep 2
+done

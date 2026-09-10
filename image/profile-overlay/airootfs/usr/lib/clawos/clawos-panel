@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+session_alive() {
+  [[ -n "${SWAYSOCK:-}" && -S "$SWAYSOCK" ]] &&
+    /usr/bin/swaymsg -s "$SWAYSOCK" -t get_version >/dev/null 2>&1
+}
+
+while true; do
+  /usr/bin/waybar \
+    --config /etc/clawos/waybar/config.jsonc \
+    --style /etc/clawos/waybar/style.css || true
+  session_alive || exit 0
+  /usr/bin/sleep 2
+done

@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# This is the visible ClawOS palette: work and intent first. The application
+# registry remains available as a secondary escape hatch, not the OS model.
+choices=(
+  "Talk to the agent"
+  "Open a terminal"
+  "Inspect the current build"
+  "Browse the web"
+  "Review Gmail"
+  "Review Outlook"
+  "More applications…"
+)
+
+selection="$({ printf '%s\n' "${choices[@]}"; } | /usr/bin/fuzzel \
+  --config=/etc/clawos/intent-fuzzel.ini \
+  --dmenu --index --only-match --minimal-lines)" || exit 0
+
+case "$selection" in
+  0) exec /usr/lib/clawos/clawos-surface agent ;;
+  1) exec /usr/lib/clawos/clawos-surface terminal ;;
+  2) exec /usr/lib/clawos/clawos-surface build ;;
+  3) exec /usr/lib/clawos/clawos-surface browser ;;
+  4) exec /usr/lib/clawos/clawos-appctl open web:gmail ;;
+  5) exec /usr/lib/clawos/clawos-appctl open web:outlook ;;
+  6) exec /usr/lib/clawos/clawos-app-palette ;;
+  *) exit 0 ;;
+esac

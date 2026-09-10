@@ -1,0 +1,11 @@
+{
+  "BrowserSignin": 0,
+  "DeveloperToolsAvailability": 2,
+  "ExtensionInstallBlocklist": ["*"],
+  "ExtensionInstallAllowlist": [
+    "amhpgjbcfakkmkeojmoaoiochhifohdi",
+    "bgpiichlckmfanooecilcjemknkcpngb",
+    "dedjgknigfeelejglamclffonmophnfl"
+  ],
+  "IncognitoModeAvailability": 1
+}

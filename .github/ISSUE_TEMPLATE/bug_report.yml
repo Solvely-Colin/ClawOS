@@ -1,0 +1,67 @@
+name: Bug report
+description: Report a reproducible ClawOS failure
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: Do not include credentials, private transcripts, disk images or identifying logs. For the outcome of booting an ISO or running the installer, use the install or boot report form instead.
+  - type: input
+    id: revision
+    attributes:
+      label: Commit, ISO checksum or deployment job ID
+    validations:
+      required: true
+  - type: dropdown
+    id: host
+    attributes:
+      label: Host
+      description: Where ClawOS was running when the failure happened.
+      options:
+        - QEMU with Linux KVM
+        - QEMU with Windows WHPX
+        - QEMU with TCG (software emulation)
+        - Physical machine
+        - Not on a ClawOS system (build, test, CI or documentation defect)
+        - Other (describe below)
+    validations:
+      required: true
+  - type: dropdown
+    id: install_mode
+    attributes:
+      label: Install mode
+      options:
+        - Encrypted (LUKS2, the default)
+        - Passwordless (--passwordless, no encryption or screen lock)
+        - Live ISO, not installed
+        - Not applicable
+    validations:
+      required: true
+  - type: dropdown
+    id: security_level
+    attributes:
+      label: Security level chosen at onboarding
+      options:
+        - Full Root (default)
+        - Full Approvals (Full user + approvals)
+        - User Limited
+        - Not applicable or onboarding not reached
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Machine model or VM configuration, firmware mode, disk type, display size and affected component. Omit hardware serial numbers. Physical installation remains experimental.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps, expected result and actual result
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Redacted evidence and recovery attempted

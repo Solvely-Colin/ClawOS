@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+session_alive() {
+  [[ -n "${SWAYSOCK:-}" && -S "$SWAYSOCK" ]] &&
+    /usr/bin/swaymsg -s "$SWAYSOCK" -t get_version >/dev/null 2>&1
+}
+
+while true; do
+  /usr/bin/foot \
+    --config=/etc/clawos/foot.ini \
+    --app-id=clawos-command \
+    --title='ClawOS Command' \
+    /usr/bin/tmux -f /etc/clawos/tmux.conf new-session -A -s command -c "$HOME" || true
+  session_alive || exit 0
+  [[ "${CLAWOS_SURFACE_ONCE:-0}" == 1 ]] && exit 0
+  /usr/bin/sleep 2
+done

@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "securityLevel": "full-root",
+  "approvalExpiresSeconds": 120,
+  "packages": {
+    "allow": ["tree"]
+  },
+  "services": {
+    "allow": [
+      "NetworkManager.service",
+      "sshd.service",
+      "tailscaled.service",
+      "clawos-session@clawos.service"
+    ]
+  },
+  "openclaw": {
+    "ownerUser": "clawos",
+    "agentUser": "claw",
+    "promotedVersion": "2026.8.2"
+  },
+  "agentPolicies": {
+    "coreAgentId": "main",
+    "requireTrustedAttribution": true,
+    "defaultAllow": [],
+    "agents": {
+      "main": ["*"],
+      "onboarding": ["security.level.configure"]
+    }
+  },
+  "taskGrants": {
+    "grantableActions": [
+      "package.install",
+      "service.manage",
+      "system.time.configure"
+    ]
+  }
+}

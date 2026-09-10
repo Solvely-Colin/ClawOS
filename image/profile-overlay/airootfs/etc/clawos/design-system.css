@@ -1,0 +1,37 @@
+/* Carapace dark semantic roles adapted for native GTK surfaces.
+ * Source contract: https://carapace.design/foundations/colors/ */
+@define-color oc_bg_page #101012;
+@define-color oc_bg_surface #19191c;
+@define-color oc_bg_elevated #202024;
+@define-color oc_bg_recessed #0e0e10;
+@define-color oc_text_primary #ededed;
+@define-color oc_text_secondary #d4d4d8;
+@define-color oc_text_muted #a3a3aa;
+@define-color oc_text_inactive #73737b;
+@define-color oc_border_subtle #3f3f46;
+@define-color oc_border_strong rgba(250, 250, 250, 0.32);
+@define-color oc_accent_primary #f5654a;
+@define-color oc_accent_primary_hover #e05540;
+@define-color oc_accent_secondary #4fc8ae;
+@define-color oc_surface_accent_soft rgba(245, 101, 74, 0.14);
+@define-color oc_surface_secondary_soft rgba(79, 200, 174, 0.14);
+@define-color oc_status_success_fg #22c55e;
+@define-color oc_status_warning_fg #fbbf24;
+@define-color oc_status_warning_bg rgba(251, 191, 36, 0.12);
+@define-color oc_status_error_fg #f87171;
+@define-color oc_status_error_bg rgba(248, 113, 113, 0.12);
+
+/* Compatibility aliases for existing native ClawOS consumers. */
+@define-color claw_canvas @oc_bg_page;
+@define-color claw_panel @oc_bg_surface;
+@define-color claw_surface @oc_bg_elevated;
+@define-color claw_raised @oc_bg_elevated;
+@define-color claw_line @oc_border_subtle;
+@define-color claw_line_strong @oc_border_strong;
+@define-color claw_text @oc_text_primary;
+@define-color claw_muted @oc_text_muted;
+@define-color claw_quiet @oc_text_inactive;
+@define-color claw_coral @oc_accent_primary;
+@define-color claw_coral_soft @oc_surface_accent_soft;
+@define-color claw_green @oc_status_success_fg;
+@define-color claw_danger @oc_status_error_fg;

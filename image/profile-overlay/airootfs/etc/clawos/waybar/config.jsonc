@@ -1,0 +1,46 @@
+{
+  "layer": "top",
+  "position": "top",
+  "height": 48,
+  "fixed-center": false,
+  "spacing": 0,
+  "modules-left": ["custom/clawos", "custom/activity"],
+  "modules-center": [],
+  "modules-right": ["custom/gateway", "custom/attention", "custom/clock"],
+  "custom/clawos": {
+    "format": "<span weight='bold' foreground='#ededed'>Claw</span><span weight='bold' foreground='#f5654a'>OS</span>",
+    "escape": false,
+    "tooltip": true,
+    "tooltip-format": "ClawOS system menu · Recovery console Ctrl+Alt+F3",
+    "on-click": "/usr/lib/clawos/clawos-power-menu"
+  },
+  "custom/activity": {
+    "exec": "/usr/lib/clawos/clawos-activity-status",
+    "return-type": "json",
+    "interval": 1,
+    "escape": false,
+    "tooltip": true,
+    "on-click": "/usr/lib/clawos/clawos-activity-action",
+    "on-click-right": "/usr/lib/clawos/clawos-intent-palette"
+  },
+  "custom/gateway": {
+    "exec": "/usr/lib/clawos/clawos-panel-status gateway",
+    "return-type": "json",
+    "interval": 5,
+    "tooltip": true,
+    "on-click": "/usr/lib/clawos/clawos-return-to-setup"
+  },
+  "custom/attention": {
+    "exec": "/usr/lib/clawos/clawos-attention-status",
+    "return-type": "json",
+    "interval": 5,
+    "tooltip": true,
+    "on-click": "/usr/lib/clawos/clawos-approval"
+  },
+  "custom/clock": {
+    "exec": "/usr/lib/clawos/clawos-clock-status",
+    "return-type": "json",
+    "interval": 1,
+    "tooltip": true
+  }
+}

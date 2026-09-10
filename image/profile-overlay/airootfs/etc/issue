@@ -1,0 +1,4 @@
+ClawOS Live (experimental) \r (\l)
+
+Experimental Arch-based live image with the guided ClawOS installer and the
+pinned OpenClaw runtime. Verified only in virtual machines. Recovery TTY: Ctrl+Alt+F3.

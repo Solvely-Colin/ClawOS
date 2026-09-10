@@ -1,0 +1,24 @@
+# Dependabot keeps the pinned actions and the npm manifests current.
+# Workflow actions are pinned to full commit SHAs with a "# vX.Y.Z" comment;
+# Dependabot rewrites both the SHA and the comment when it opens a bump.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /experiments/shell-prototype
+    groups:
+      react-runtime:
+        patterns: [react, react-dom]
+      vite-toolchain:
+        patterns: [vite, '@vitejs/plugin-react']
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    # The plugin declares only an optional peer dependency on openclaw today,
+    # so this entry stays quiet until it gains real dependencies.
+    directory: /integrations/openclaw
+    schedule:
+      interval: weekly

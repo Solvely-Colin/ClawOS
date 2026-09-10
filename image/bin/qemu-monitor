@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
+socket="$repo_root/artifacts/m1/runtime/monitor.sock"
+
+if [[ ! -S "$socket" ]]; then
+  echo "ClawOS QEMU monitor is not running: $socket" >&2
+  exit 1
+fi
+
+if (( $# )); then
+  printf '%s\n' "$*" | socat - "UNIX-CONNECT:$socket"
+else
+  exec socat -,rawer,escape=0x1d "UNIX-CONNECT:$socket"
+fi

@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "$0")/../../.." && pwd)"
+cd "$repo_root"
+
+readme="$repo_root/experiments/host-session/README.md"
+if [[ "${CLAWOS_M0_EXPERIMENT:-}" != "1" ]]; then
+  echo "Refusing to run: this modifies the host it runs on (historical Milestone 0 experiment)." >&2
+  echo "Read $readme, then set CLAWOS_M0_EXPERIMENT=1 to proceed." >&2
+  exit 1
+fi
+
+owner="${1:-${SUDO_USER:-}}"
+if [[ -z "$owner" ]]; then
+  echo "Usage: CLAWOS_M0_EXPERIMENT=1 $0 <owner-user>" >&2
+  echo "The owner user is the account that will run the VT2 session; SUDO_USER is used when no argument is given." >&2
+  exit 1
+fi
+
+echo "ClawOS Milestone 0 host installation"
+echo "This installs Sway packages and the reversible VT2 session for user '$owner'."
+sudo pacman -S --needed sway swaylock swayidle
+sudo CLAWOS_M0_EXPERIMENT=1 ./experiments/host-session/bin/install-m0 "$owner"
+
+echo
+echo "Installation complete. The session is installed but not enabled at boot."
+echo "Verify the installed files; consult experiments/host-session/README.md before running this historical experiment."
+read -r -p "Press Enter to close this installer..."

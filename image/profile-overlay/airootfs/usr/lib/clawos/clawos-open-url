@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+url="${1:-}"
+case "$url" in
+  http://*|https://*) ;;
+  *)
+    printf 'ClawOS only opens HTTP(S) URLs through an attached browser surface.\n' >&2
+    exit 2
+    ;;
+esac
+
+profile_dir="${XDG_STATE_HOME:-$HOME/.local/state}/clawos/browser"
+mkdir -p "$profile_dir"
+
+# xdg-open callers such as OpenClaw expect this command to return promptly.
+# Chromium forwards the URL to the browser surface when it is already running,
+# a single local browser identity and the loopback-only CDP endpoint.
+nohup /usr/lib/chromium/chromium \
+  --ozone-platform=wayland \
+  --enable-features=UseOzonePlatform,WebUIDarkMode \
+  --force-dark-mode \
+  --class=clawos-browse \
+  --no-first-run \
+  --no-default-browser-check \
+  --disable-background-mode \
+  --disable-session-crashed-bubble \
+  --hide-crash-restore-bubble \
+  --remote-debugging-address=127.0.0.1 \
+  --remote-debugging-port=9222 \
+  --user-data-dir="$profile_dir" \
+  "$url" >/dev/null 2>&1 &

@@ -1,0 +1,10 @@
+# ClawOS interactive shell: intentionally small, standard Zsh, no framework.
+setopt prompt_subst autocd interactive_comments
+mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}"
+autoload -Uz compinit && compinit -d "${XDG_CACHE_HOME:-$HOME/.cache}/zcompdump"
+
+PROMPT='%F{#ff684f}clawos%f %F{#747876}›%f '
+RPROMPT='%F{#747876}%~%f'
+
+export EDITOR=vim
+export PAGER=less

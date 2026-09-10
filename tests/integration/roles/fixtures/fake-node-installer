@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+[[ "${CLAWOS_TEST_FAIL_NODE:-0}" != 1 ]]

@@ -1,0 +1,14 @@
+polkit.addRule(function(action, subject) {
+    if (action.id !== "org.freedesktop.policykit.exec" ||
+        subject.user !== "clawos-live" || !subject.local || !subject.active) {
+        return polkit.Result.NOT_HANDLED;
+    }
+
+    var program = action.lookup("program");
+    if (program === "/usr/local/bin/clawos-install-dev" ||
+        program === "/usr/lib/clawos/clawos-live-reboot") {
+        return polkit.Result.YES;
+    }
+
+    return polkit.Result.NOT_HANDLED;
+});

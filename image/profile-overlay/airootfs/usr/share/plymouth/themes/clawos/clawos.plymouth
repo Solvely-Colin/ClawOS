@@ -1,0 +1,10 @@
+[Plymouth Theme]
+Name=ClawOS
+Description=ClawOS encrypted unlock and boot identity
+ModuleName=script
+
+[script]
+Font=Noto Sans 12
+MonospaceFont=Noto Sans Mono 12
+ImageDir=/usr/share/plymouth/themes/clawos
+ScriptFile=/usr/share/plymouth/themes/clawos/clawos.script

@@ -1,0 +1,133 @@
+@import url("../design-system.css");
+
+* {
+  border: none;
+  border-radius: 0;
+  min-height: 0;
+  font-family: "Inter Variable", "Noto Sans", sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+window#waybar {
+  background: @claw_canvas;
+  color: @claw_text;
+  border-bottom: 1px solid @claw_line;
+}
+
+#custom-clawos {
+  min-width: 96px;
+  padding: 0 16px;
+  color: @claw_text;
+  font-family: "Inter Variable", "Noto Sans", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+#custom-activity {
+  min-width: 0;
+  min-height: 32px;
+  margin: 8px 0;
+  padding: 0 12px;
+  color: @oc_text_secondary;
+  font-family: "Inter Variable", "Noto Sans", sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  background: transparent;
+  border-left: 1px solid @oc_border_subtle;
+  border-radius: 0;
+}
+
+#custom-activity:hover {
+  color: @claw_text;
+  background: @oc_bg_elevated;
+  border-radius: 6px;
+}
+
+#custom-activity.surface-return {
+  padding-left: 36px;
+  padding-right: 12px;
+  color: @claw_text;
+  background-color: @oc_bg_surface;
+  background-image: url("/usr/share/clawos/icons/arrow-left.svg");
+  background-repeat: no-repeat;
+  background-position: 13px center;
+  background-size: 15px 15px;
+  border: 1px solid @oc_border_subtle;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+#custom-activity.surface-return:hover {
+  background-color: @claw_raised;
+  border-color: alpha(@claw_coral, 0.72);
+}
+
+#custom-gateway,
+#custom-attention,
+#clock {
+  min-height: 32px;
+  margin: 8px 3px;
+  padding: 0 10px;
+  color: @claw_muted;
+  font-family: "Inter Variable", "Noto Sans", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+#custom-gateway.online {
+  color: @oc_accent_secondary;
+}
+
+#custom-gateway.offline,
+#custom-gateway.error {
+  color: @claw_coral;
+}
+
+#custom-gateway.setup-required {
+  padding: 0 11px;
+  color: @claw_coral;
+  background: alpha(@claw_coral, 0.08);
+  border: 1px solid alpha(@claw_coral, 0.45);
+  border-radius: 6px;
+}
+
+#custom-attention {
+  padding: 0 11px;
+  color: @claw_muted;
+  background: transparent;
+  border: 1px solid @claw_line;
+  border-radius: 6px;
+}
+
+#custom-attention:hover {
+  color: @claw_text;
+  background: @claw_raised;
+}
+
+#custom-attention.attention {
+  color: @oc_status_warning_fg;
+  border-color: alpha(@oc_status_warning_fg, 0.42);
+  background: @oc_status_warning_bg;
+}
+
+#custom-attention.failed {
+  color: @oc_status_error_fg;
+  border-color: alpha(@oc_status_error_fg, 0.42);
+  background: @oc_status_error_bg;
+}
+
+#custom-clawos:hover {
+  color: @claw_text;
+  background: alpha(@claw_text, 0.05);
+}
+
+#clock {
+  min-width: 76px;
+  margin-right: 10px;
+  padding: 0 8px;
+  color: @oc_text_secondary;
+  font-family: "GeistMono Nerd Font", "Noto Sans Mono", monospace;
+  font-size: 11px;
+  font-weight: 500;
+}

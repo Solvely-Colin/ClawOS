@@ -1,0 +1,30 @@
+[Unit]
+Description=ClawOS typed privileged action broker
+After=dbus.service polkit.service local-fs.target
+Requires=dbus.service
+
+[Service]
+Type=dbus
+BusName=org.clawos.System
+ExecStart=/usr/bin/python3 /usr/lib/clawos/clawosd/clawosd_service.py
+User=root
+Group=root
+UMask=0077
+RuntimeDirectory=clawosd
+RuntimeDirectoryMode=0700
+StateDirectory=clawosd
+StateDirectoryMode=0700
+LogsDirectory=clawos
+LogsDirectoryMode=0750
+PrivateTmp=yes
+ProtectHome=read-only
+ProtectSystem=strict
+ReadWritePaths=/var/lib/clawosd /var/lib/pacman /var/log /var/cache/pacman /.snapshots /run/clawosd /etc /usr /opt /boot -/home/clawos/.openclaw -/home/clawos/.local/state/clawos -/var/lib/clawos/agent-home -/run/user -/srv/clawos/shared
+RestrictAddressFamilies=AF_UNIX AF_NETLINK AF_INET AF_INET6
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

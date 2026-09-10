@@ -1,0 +1,27 @@
+{
+  "name": "@clawos/openclaw-system",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "ClawOS machine status, activity projection, and surface bridge for OpenClaw",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.7.1"
+  },
+  "peerDependenciesMeta": {
+    "openclaw": {
+      "optional": true
+    }
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.js"
+    ],
+    "compat": {
+      "pluginApi": ">=2026.7.1",
+      "minGatewayVersion": "2026.7.1"
+    }
+  }
+}

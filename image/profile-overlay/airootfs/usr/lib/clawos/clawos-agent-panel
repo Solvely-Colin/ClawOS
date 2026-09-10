@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+action="${1:-toggle}"
+runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/clawos"
+state_file="$runtime_dir/agent-panel.json"
+panel_mark='clawos-agent-panel'
+
+tree() {
+  /usr/bin/swaymsg -t get_tree -r 2>/dev/null
+}
+
+agent_id() {
+  /usr/lib/clawos/clawos-agent-window id
+}
+
+panel_id() {
+  tree | /usr/bin/jq -r --arg mark "$panel_mark" \
+    '.. | objects | select((.marks // []) | index($mark)) | .id' | /usr/bin/head -n 1
+}
+
+close_panel() {
+  local id previous_id
+  id="$(panel_id)"
+  if [[ "$id" =~ ^[0-9]+$ ]]; then
+    /usr/bin/swaymsg "[con_id=\"$id\"] unmark $panel_mark, floating disable" >/dev/null 2>&1 || true
+  fi
+  previous_id="$(/usr/bin/jq -r '.surfaceId // empty' "$state_file" 2>/dev/null || true)"
+  if [[ "$previous_id" =~ ^[0-9]+$ ]]; then
+    /usr/bin/swaymsg "[con_id=\"$previous_id\"] focus" >/dev/null 2>&1 || true
+  fi
+  /usr/bin/rm -f -- "$state_file"
+}
+
+open_panel() {
+  local id focused_json focused_id focused_name focused_app focused_mark surface_name activity_state dimensions canvas_width canvas_height panel_width panel_height panel_x
+  id="$(agent_id)"
+  [[ "$id" =~ ^[0-9]+$ ]] || exit 1
+
+  focused_json="$(tree | /usr/bin/jq -c '.. | objects | select(.focused? == true) | {id, name, app: (.app_id // .window_properties.class // ""), marks: (.marks // [])}' | /usr/bin/head -n 1)"
+  focused_id="$(printf '%s' "$focused_json" | /usr/bin/jq -r '.id // empty')"
+  focused_name="$(printf '%s' "$focused_json" | /usr/bin/jq -r '.name // "Current surface"')"
+  focused_app="$(printf '%s' "$focused_json" | /usr/bin/jq -r '.app // ""')"
+  focused_mark="$(printf '%s' "$focused_json" | /usr/bin/jq -r '.marks[]? | select(startswith("clawos-app-"))' | /usr/bin/head -n 1)"
+  surface_name="$focused_name"
+  activity_state="$runtime_dir/activity.json"
+  if [[ -n "$focused_mark" && -r "$activity_state" ]]; then
+    surface_name="$(/usr/bin/jq -r --arg mark "$focused_mark" '.apps[]? | select(.mark == $mark) | .name' "$activity_state" | /usr/bin/head -n 1)"
+  fi
+  case "$focused_app" in
+    clawos-command) surface_name='Terminal' ;;
+    clawos-build) surface_name='Build' ;;
+    clawos-browse) surface_name='Browser' ;;
+  esac
+  surface_name="${surface_name:-Current surface}"
+
+  # On the Agent canvas the existing full activity already is the prompt UI.
+  if [[ "$focused_id" == "$id" ]]; then
+    /usr/bin/swaymsg "[con_id=\"$id\"] focus" >/dev/null 2>&1
+    exit 0
+  fi
+
+  dimensions="$(/usr/bin/swaymsg -t get_workspaces -r | /usr/bin/jq -r '.[] | select(.focused == true or .visible == true) | "\(.rect.width) \(.rect.height)"' | /usr/bin/head -n 1)"
+  read -r canvas_width canvas_height <<<"$dimensions"
+  [[ "$canvas_width" =~ ^[0-9]+$ && "$canvas_height" =~ ^[0-9]+$ ]] || exit 1
+  panel_width=$(( canvas_width * 40 / 100 ))
+  (( panel_width < 480 )) && panel_width=480
+  (( panel_width > 620 )) && panel_width=620
+  panel_height=$(( canvas_height - 24 ))
+  panel_x=$(( canvas_width - panel_width - 12 ))
+
+  /usr/bin/install -d -m 0700 "$runtime_dir"
+  /usr/bin/jq -n \
+    --argjson surfaceId "$focused_id" \
+    --arg surfaceName "$surface_name" \
+    --arg surfaceApp "$focused_app" \
+    '{surfaceId: $surfaceId, surfaceName: $surfaceName, surfaceApp: $surfaceApp}' >"$state_file"
+  /usr/bin/chmod 0600 "$state_file"
+
+  /usr/bin/swaymsg "[con_id=\"$id\"] scratchpad show" >/dev/null 2>&1 || true
+  /usr/bin/swaymsg "[con_id=\"$id\"] mark --add $panel_mark, floating enable, resize set width $panel_width px height $panel_height px, move position $panel_x 12, focus" >/dev/null
+}
+
+case "$action" in
+  open) open_panel ;;
+  close) close_panel ;;
+  toggle)
+    if [[ "$(panel_id)" =~ ^[0-9]+$ ]]; then close_panel; else open_panel; fi
+    ;;
+  *) printf 'Usage: clawos-agent-panel {open|close|toggle}\n' >&2; exit 2 ;;
+esac

@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mode="$(/usr/bin/openclaw config get gateway.mode 2>/dev/null || true)"
+case "$mode" in
+  local)
+    port="$(/usr/bin/openclaw config get gateway.port 2>/dev/null || true)"
+    [[ "$port" =~ ^[0-9]+$ ]] || port=18789
+    remote_url="ws://127.0.0.1:$port"
+    ;;
+  remote)
+    remote_url="$(/usr/bin/openclaw config get gateway.remote.url 2>/dev/null || true)"
+    ;;
+  *) exit 0 ;;
+esac
+[[ -n "$remote_url" ]] || exit 0
+
+readarray -t connection < <(/usr/bin/node -e '
+  const value = process.argv[1];
+  const url = new URL(value);
+  if (url.protocol !== "ws:" && url.protocol !== "wss:") process.exit(2);
+  console.log(url.hostname);
+  console.log(url.port || (url.protocol === "wss:" ? "443" : "80"));
+  console.log(url.protocol === "wss:" ? "tls" : "plain");
+  console.log(url.pathname === "/" ? "" : url.pathname);
+' "$remote_url")
+
+args=(node install --force --host "${connection[0]}" --port "${connection[1]}")
+[[ "${connection[2]}" == tls ]] && args+=(--tls)
+[[ -n "${connection[3]}" ]] && args+=(--context-path "${connection[3]}")
+
+/usr/bin/openclaw "${args[@]}" >/dev/null
+/usr/bin/openclaw node start >/dev/null
+status="$(/usr/bin/openclaw node status --json)"
+printf '%s' "$status" | /usr/bin/jq -e '.service.loaded == true' >/dev/null
+test -s "${OPENCLAW_STATE_DIR:-$HOME/.openclaw}/identity/device.json"

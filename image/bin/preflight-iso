@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
+
+cd "$repo_root"
+
+# Fail fast with one clear message instead of a mid-run "command not found".
+# Every name below is executed somewhere in this gate: git diff --check and the
+# index scans in tools/check-tree.sh; node --check/--test; python3 for unittest
+# and AST checks; jq assertions; flock/install in clawos-role; /usr/bin/hostname
+# (inetutils) in clawos-enroll-local-node; /usr/bin/curl in
+# clawos-gateway-watchdog; shellcheck in tools/check-shell.sh; and the absolute
+# /usr/bin paths hard-coded by the m4 and enrollment fixtures.
+missing=()
+for required in bash git node python3 jq flock install mktemp find xargs hostname curl shellcheck; do
+  command -v "$required" >/dev/null 2>&1 || missing+=("$required")
+done
+for required_path in /usr/bin/bash /usr/bin/jq /usr/bin/hostname /usr/bin/curl /usr/bin/sleep /usr/bin/true; do
+  [[ -x "$required_path" ]] || missing+=("$required_path")
+done
+if (( ${#missing[@]} )); then
+  printf 'preflight-iso: required tool not found: %s\n' "${missing[@]}" >&2
+  echo 'On Arch run ./image/bin/install-build-deps (git nodejs python jq inetutils shellcheck).' >&2
+  echo 'On other hosts install the equivalents.' >&2
+  exit 1
+fi
+node_major="$(node -p 'process.versions.node.split(".")[0]')"
+if (( node_major < 24 )); then
+  echo "preflight-iso: Node.js 24 or newer is required; found $(node --version)." >&2
+  exit 1
+fi
+python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 12) else 1)' || {
+  echo "preflight-iso: Python 3.12 or newer is required; found $(python3 --version)." >&2
+  exit 1
+}
+
+python3 -m unittest discover -s image/tests -p 'test_*.py'
+
+echo "[1/9] Clean Arch profile and static integration"
+./image/tests/check-distribution-boundary.sh ./image/profile-overlay/airootfs
+./image/tests/validate-profile.sh
+
+echo "[2/9] Historical host-session recovery contract"
+./experiments/host-session/tests/static-check.sh
+
+echo "[3/9] First-boot, UI lifecycle, and local enrollment"
+./image/tests/onboarding-static.sh
+
+echo "[4/9] Privileged broker"
+python3 -m unittest discover -s services/clawosd/tests -p 'test_*.py'
+
+echo "[5/9] OpenClaw plugin"
+node --test integrations/openclaw/test/*.test.js
+
+echo "[6/9] Standalone/Node transaction"
+./tests/integration/roles/role-switch.sh
+
+echo "[7/9] Patch hygiene"
+git diff --check
+
+echo "[8/9] Tracked tree hygiene: size cap, forbidden paths, home paths, credential prefixes"
+./tools/check-tree.sh
+
+echo "[9/9] Shell static analysis; image/profile-overlay scripts deferred (bash -n only, in [1/9]) until their ShellCheck findings are triaged"
+./tools/check-shell.sh
+
+echo "ClawOS pre-ISO source gate passed."
+echo "Next: sudo ./image/bin/build-iso"

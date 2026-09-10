@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+json() {
+  /usr/bin/jq --compact-output --null-input \
+    --arg text "$1" --arg tooltip "$2" --arg class "$3" \
+    '{text: $text, tooltip: $tooltip, class: ($class | split(" "))}'
+}
+
+pango_escape() {
+  printf '%s' "$1" | /usr/bin/sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'
+}
+
+# Milestone 1 has one durable activity. OpenClaw remains its source of truth;
+# Sway only tells the panel which attached surface currently has focus. A later
+# Gateway adapter will replace the default name with the active OpenClaw task.
+state_file="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/clawos/activity.json"
+activity_name="${CLAWOS_ACTIVITY_NAME:-Main}"
+activity_state="idle"
+if [[ -r "$state_file" ]]; then
+  activity_name="$(/usr/bin/jq -r '.activity.title // "Main"' "$state_file")"
+  activity_state="$(/usr/bin/jq -r '.activity.state // "idle"' "$state_file")"
+fi
+focused_json="$(/usr/bin/swaymsg -t get_tree -r 2>/dev/null | /usr/bin/jq -c '
+  .. | objects | select(.focused? == true) |
+  {app: (.app_id // .window_properties.class // ""), marks: (.marks // [])}
+' 2>/dev/null | /usr/bin/head -n 1 || true)"
+focused_app="$(printf '%s' "$focused_json" | /usr/bin/jq -r '.app // ""' 2>/dev/null || true)"
+focused_mark="$(printf '%s' "$focused_json" | /usr/bin/jq -r '.marks[]? | select(startswith("clawos-app-"))' 2>/dev/null | /usr/bin/head -n 1 || true)"
+panel_mark="$(printf '%s' "$focused_json" | /usr/bin/jq -r '.marks[]? | select(. == "clawos-agent-panel")' 2>/dev/null | /usr/bin/head -n 1 || true)"
+panel_state="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/clawos/agent-panel.json"
+
+if [[ -n "$panel_mark" && -r "$panel_state" ]]; then
+  surface="$(/usr/bin/jq -r '.surfaceName // "Current surface"' "$panel_state" 2>/dev/null || true)"
+  surface="${surface:-Current surface}"
+  class='agent-panel'
+elif [[ -n "$focused_mark" && -r "$state_file" ]]; then
+  surface="$(/usr/bin/jq -r --arg mark "$focused_mark" '.apps[]? | select(.mark == $mark) | .name' "$state_file" | /usr/bin/head -n 1)"
+  surface="${surface:-Application}"
+  class='application'
+else
+  case "$focused_app" in
+    clawos-command) surface='Terminal' ; class='terminal' ;;
+    clawos-build) surface='Build' ; class='build' ;;
+    clawos-browse) surface='Browser' ; class='browser' ;;
+    *) surface='Agent' ; class='agent' ;;
+  esac
+fi
+
+activity_markup="$(pango_escape "$activity_name")"
+case "$activity_state" in
+  running) state_label='Working' ;;
+  waiting) state_label='Waiting' ;;
+  needs-approval) state_label='Approval needed' ;;
+  needs-attention) state_label='Attention needed' ;;
+  failed) state_label='Failed' ;;
+  idle|complete) state_label='Ready' ;;
+  *) state_label='Ready' ;;
+esac
+state_markup="$(pango_escape "$state_label")"
+
+if [[ "$surface" == Agent ]]; then
+  class="activity $class"
+  text="<span weight='600'>$activity_markup</span>  <span foreground='#73737b'>/</span>  <span foreground='#a3a3aa'>$state_markup</span>"
+  tooltip="Current activity: $activity_name · $state_label · click for actions"
+else
+  surface_markup="$(pango_escape "$surface")"
+  class="surface-return $class"
+  text="$activity_markup  <span foreground='#73737b'>/</span>  $surface_markup"
+  tooltip="Current surface: $surface · click to return to the $activity_name Agent canvas · Alt+A"
+fi
+
+json "$text" "$tooltip" "$class-$activity_state"

@@ -1,0 +1,133 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# The password-bullet loop below is adapted from Plymouth's example theme
+# themes/script/script.script (GPL-2.0-or-later); the remainder is by ClawOS.
+# ClawOS boot and encrypted-root unlock surface.
+
+Window.SetBackgroundTopColor(0.031, 0.035, 0.035);
+Window.SetBackgroundBottomColor(0.031, 0.035, 0.035);
+
+screen.width = Window.GetWidth();
+screen.height = Window.GetHeight();
+
+background.source = Image("background.png");
+background.width = screen.width;
+background.height = background.source.GetHeight() * screen.width / background.source.GetWidth();
+if (background.height < screen.height)
+  {
+    background.height = screen.height;
+    background.width = background.source.GetWidth() * screen.height / background.source.GetHeight();
+  }
+background.image = background.source.Scale(background.width, background.height);
+background.sprite = Sprite(background.image);
+background.sprite.SetPosition((screen.width - background.width) / 2,
+                              (screen.height - background.height) / 2,
+                              -100);
+
+fun center_image(image, y, z)
+  {
+    local.sprite = Sprite(image);
+    sprite.SetPosition((screen.width - image.GetWidth()) / 2, y, z);
+    return sprite;
+  }
+
+eyebrow.image = Image.Text("OPENCLAW AGENT OS", 1.0, 0.408, 0.31, 1.0,
+                           "Noto Sans Mono 12", "center");
+eyebrow.sprite = center_image(eyebrow.image, screen.height * 0.34, 10);
+
+title.claw = Image.Text("Claw", 0.953, 0.945, 0.933, 1.0,
+                        "Noto Sans 42", "left");
+title.os = Image.Text("OS", 1.0, 0.408, 0.31, 1.0,
+                      "Noto Sans 42", "left");
+title.width = title.claw.GetWidth() + title.os.GetWidth();
+title.x = (screen.width - title.width) / 2;
+title.y = screen.height * 0.39;
+title.claw_sprite = Sprite(title.claw);
+title.os_sprite = Sprite(title.os);
+title.claw_sprite.SetPosition(title.x, title.y, 10);
+title.os_sprite.SetPosition(title.x + title.claw.GetWidth(), title.y, 10);
+
+mode = Plymouth.GetMode();
+state.text = "Starting the agent system";
+if (mode == "reboot")
+  state.text = "Restarting ClawOS";
+if (mode == "shutdown")
+  state.text = "Powering off safely";
+if (mode == "updates")
+  state.text = "Applying system updates";
+
+state.image = Image.Text(state.text, 0.647, 0.631, 0.624, 1.0,
+                         "Noto Sans 15", "center");
+state.sprite = center_image(state.image, screen.height * 0.51, 10);
+
+hint.image = Image.Text("Esc  Boot details", 0.50, 0.49, 0.48, 1.0,
+                        "Noto Sans Mono 11", "center");
+hint.sprite = center_image(hint.image, screen.height - 48, 10);
+
+password.prompt_sprite = Sprite();
+password.prompt_sprite.SetPosition(0, 0, 20);
+password.bullet_sprites = [];
+message.sprite = Sprite();
+message.sprite.SetPosition(0, 0, 30);
+
+fun hide_password()
+  {
+    password.prompt_sprite.SetOpacity(0);
+    for (index = 0; password.bullet_sprites[index]; index++)
+      password.bullet_sprites[index].SetOpacity(0);
+  }
+
+fun display_normal_callback()
+  {
+    hide_password();
+    state.sprite.SetOpacity(1);
+  }
+
+fun display_password_callback(prompt, bullets)
+  {
+    state.sprite.SetOpacity(0);
+
+    password.prompt_image = Image.Text("Unlock ClawOS", 0.953, 0.945, 0.933, 1.0,
+                                       "Noto Sans 16", "center");
+    password.prompt_sprite.SetImage(password.prompt_image);
+    password.prompt_sprite.SetPosition((screen.width - password.prompt_image.GetWidth()) / 2,
+                                       screen.height * 0.52, 20);
+    password.prompt_sprite.SetOpacity(1);
+
+    for (index = 0; password.bullet_sprites[index] || index < bullets; index++)
+      {
+        if (!password.bullet_sprites[index])
+          {
+            password.bullet_image = Image.Text("*", 1.0, 0.408, 0.31, 1.0,
+                                               "Noto Sans 16", "center");
+            password.bullet_sprites[index] = Sprite(password.bullet_image);
+          }
+        password.bullet_sprites[index].SetPosition(
+          screen.width / 2 - (bullets * 12) / 2 + index * 12,
+          screen.height * 0.59,
+          20);
+        if (index < bullets)
+          password.bullet_sprites[index].SetOpacity(1);
+        else
+          password.bullet_sprites[index].SetOpacity(0);
+      }
+  }
+
+fun display_message_callback(text)
+  {
+    message.image = Image.Text(text, 1.0, 0.408, 0.31, 1.0,
+                               "Noto Sans 12", "center");
+    message.sprite.SetImage(message.image);
+    message.sprite.SetPosition((screen.width - message.image.GetWidth()) / 2,
+                               screen.height * 0.66, 30);
+    message.sprite.SetOpacity(1);
+  }
+
+fun hide_message_callback(text)
+  {
+    message.sprite.SetOpacity(0);
+  }
+
+Plymouth.SetDisplayNormalFunction(display_normal_callback);
+Plymouth.SetDisplayPasswordFunction(display_password_callback);
+Plymouth.SetDisplayMessageFunction(display_message_callback);
+Plymouth.SetHideMessageFunction(hide_message_callback);

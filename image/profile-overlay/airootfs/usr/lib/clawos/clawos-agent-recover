@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+sleep 3
+payload="$(/usr/bin/timeout 5 /usr/lib/clawos/clawos-agent-request list 2>/dev/null || true)"
+count="$(printf '%s' "$payload" | /usr/bin/jq -r '.requests | length' 2>/dev/null || echo 0)"
+[[ "$count" =~ ^[0-9]+$ ]] || count=0
+if (( count > 0 )); then
+  /usr/lib/clawos/clawos-appctl attention \
+    "$count interrupted Agent request(s) need review" >/dev/null 2>&1 || true
+fi

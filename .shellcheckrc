@@ -1,0 +1,9 @@
+# ShellCheck settings for tools/check-shell.sh and editors.
+
+# "# shellcheck source=" directives resolve relative to the script's own
+# directory, so scripts that source ../config/versions.env check from any cwd.
+source-path=SCRIPTDIR
+
+# SC1091: a sourced file that is not in the checkout, such as the installed
+# /etc/clawos/versions.env. The include is deliberate; nothing to fix.
+disable=SC1091

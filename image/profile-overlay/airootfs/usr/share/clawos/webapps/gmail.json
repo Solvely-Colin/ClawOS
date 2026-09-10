@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "id": "gmail",
+  "name": "Gmail",
+  "url": "https://mail.google.com/",
+  "scope": "https://mail.google.com/",
+  "profile": "gmail-default",
+  "cdpPort": 9223,
+  "browserProfile": "clawos-gmail",
+  "agentCapability": "google-mail"
+}

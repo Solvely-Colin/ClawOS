@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=ClawOS Terminal
+Comment=Inspect the durable terminal attached to this activity
+Exec=/usr/lib/clawos/clawos-surface terminal
+Icon=utilities-terminal-symbolic
+Terminal=false
+Categories=ClawOS;System;TerminalEmulator;
+X-ClawOS-AppId=surface:terminal
+X-ClawOS-Kind=surface
+X-ClawOS-Surface=terminal

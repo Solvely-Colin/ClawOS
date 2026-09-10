@@ -1,0 +1,21 @@
+name: Feature proposal
+description: Propose a focused improvement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What user problem does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: approach
+    attributes:
+      label: Proposed behavior and alternatives
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance checks, scope and safety considerations
+    validations:
+      required: true

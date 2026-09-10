@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Explicit per-machine opt-in. The live ISO never ships it; the installer
+# writes it only for a --passwordless installation the user asked for.
+# Keep account/Polkit authentication intact while allowing passwordless entry.
+development_entry=/etc/clawos-passwordless-entry
+if [[ -f "$development_entry" && ! -L "$development_entry" ]] &&
+  [[ "$(/usr/bin/stat -c '%u:%a' "$development_entry")" == 0:644 ]] &&
+  /usr/bin/grep -qx enabled "$development_entry"; then
+  /usr/bin/logger -t clawos-lock 'Screen locking disabled by passwordless development entry policy.'
+  exit 0
+fi
+
+password_state="$(/usr/bin/passwd --status "${USER:-clawos}" 2>/dev/null | /usr/bin/awk '{print $2}' || true)"
+if [[ "$password_state" != P && "$password_state" != PS ]]; then
+  /usr/bin/swaynag \
+    --type warning \
+    --message 'Device unlock is not configured on this development installation.' \
+    --dismiss-button 'Return to ClawOS' \
+    --font 'Inter Variable 12' \
+    --background 101312 \
+    --border ff684f \
+    --border-bottom ff684f \
+    --text f3f1ee \
+    --button-background 202121 \
+    --button-text f3f1ee
+  exit 1
+fi
+
+exec /usr/bin/gtklock --daemonize --config /etc/clawos/gtklock/config.ini

@@ -1,0 +1,31 @@
+[Unit]
+Description=ClawOS agent session for %i
+After=systemd-user-sessions.service plymouth-quit-wait.service
+Conflicts=getty@tty2.service
+After=getty@tty2.service
+
+[Service]
+Type=simple
+User=%i
+PAMName=login
+TTYPath=/dev/tty2
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+StandardInput=tty-force
+StandardOutput=journal
+StandardError=journal
+UtmpIdentifier=tty2
+UtmpMode=user
+Environment=XDG_SESSION_TYPE=wayland
+Environment=XDG_CURRENT_DESKTOP=sway
+Environment=XDG_SESSION_DESKTOP=clawos
+Environment=NO_AT_BRIDGE=0
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%U/bus
+ExecStartPre=+/usr/bin/chvt 2
+ExecStart=/usr/lib/clawos/clawos-session
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,57 @@
+@import url("design-system.css");
+
+window#agent-shelf-window { background: transparent; }
+#agent-shelf {
+  min-height: 76px;
+  color: @oc_text_primary;
+  background: alpha(@oc_bg_surface, 0.98);
+  border: 1px solid @oc_border_subtle;
+  border-radius: 14px;
+  box-shadow: 0 16px 36px alpha(black, 0.30);
+  font-family: "Inter Variable", "Noto Sans", sans-serif;
+}
+#composer-row {
+  min-height: 44px;
+  padding: 0 4px 0 12px;
+  background: @oc_bg_elevated;
+  border: 1px solid @oc_border_subtle;
+  border-radius: 12px;
+}
+#agent-entry {
+  min-height: 40px;
+  padding: 0;
+  color: @oc_text_primary;
+  caret-color: @oc_accent_primary;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  font-size: 14px;
+}
+#agent-entry:focus { box-shadow: none; }
+#send-button {
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0;
+  color: @oc_bg_page;
+  background: @oc_text_primary;
+  border: none;
+  border-radius: 17px;
+}
+#send-button:hover { background: @oc_text_secondary; }
+#send-button:disabled { color: @oc_text_inactive; background: @oc_border_subtle; }
+#composer-controls { min-height: 24px; padding: 0 4px; }
+#context-chip, #shelf-button {
+  min-height: 24px;
+  padding: 0 6px;
+  color: @oc_text_secondary;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+}
+#context-chip { font-size: 12px; font-weight: 600; }
+#shelf-button { min-width: 28px; padding: 0; color: @oc_text_muted; }
+#context-chip:hover, #shelf-button:hover { color: @oc_text_primary; background: @oc_bg_elevated; }
+#agent-status { color: @oc_text_muted; font-size: 11px; }
+popover { color: @oc_text_primary; background: @oc_bg_elevated; border: 1px solid @oc_border_strong; border-radius: 10px; }
+popover button { min-width: 210px; min-height: 38px; color: @oc_text_primary; background: transparent; border: none; border-radius: 6px; }
+popover button:hover { background: @oc_bg_surface; }

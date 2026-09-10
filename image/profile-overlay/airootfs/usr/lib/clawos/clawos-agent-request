@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+import json
+import os
+import pathlib
+import re
+import stat
+import subprocess
+import sys
+from datetime import datetime, timezone
+
+
+SYSTEMD_RUN = os.environ.get("CLAWOS_SYSTEMD_RUN", "/usr/bin/systemd-run")
+SYSTEMCTL = os.environ.get("CLAWOS_SYSTEMCTL", "/usr/bin/systemctl")
+RUNNER = os.environ.get("CLAWOS_AGENT_RUNNER", "/usr/lib/clawos/clawos-agent-run")
+STATE_HOME = pathlib.Path(
+    os.environ.get("XDG_STATE_HOME", os.path.join(os.path.expanduser("~"), ".local", "state"))
+)
+QUEUE = (STATE_HOME / "clawos" / "agent-requests").resolve()
+RECEIPTS = STATE_HOME / "clawos" / "agent-receipts"
+SAFE_ID = re.compile(r"^[0-9a-f]{32}$")
+
+
+def validated(request_id):
+    if not SAFE_ID.fullmatch(request_id):
+        return None
+    candidate = QUEUE / f"{request_id}.txt"
+    try:
+        metadata = candidate.lstat()
+        resolved = candidate.resolve(strict=True)
+    except OSError:
+        return None
+    if resolved.parent != QUEUE or stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
+        return None
+    if metadata.st_uid != os.getuid() or stat.S_IMODE(metadata.st_mode) != 0o600:
+        return None
+    return resolved
+
+
+def active(request_id):
+    try:
+        result = subprocess.run(
+            [SYSTEMCTL, "--user", "is-active", f"clawos-agent-request-{request_id}.service"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=3,
+            check=False,
+        )
+        return result.returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
+def list_interrupted():
+    items = []
+    if QUEUE.is_dir():
+        candidates = []
+        for candidate in QUEUE.glob("*.txt"):
+            request_id = candidate.stem
+            request = validated(request_id)
+            if not request or active(request_id):
+                continue
+            try:
+                candidates.append((request.stat().st_mtime, request_id, request))
+            except OSError:
+                continue
+        for _modified, request_id, request in sorted(candidates):
+            try:
+                summary = " ".join(request.read_text(encoding="utf-8").split())[:180]
+                queued_at = datetime.fromtimestamp(request.stat().st_mtime, timezone.utc).isoformat()
+            except (OSError, UnicodeError):
+                continue
+            items.append({"requestId": request_id, "summary": summary or "Agent request", "queuedAt": queued_at})
+    print(json.dumps({"version": 1, "requests": items}, separators=(",", ":")))
+
+
+def resume(request_id):
+    request = validated(request_id)
+    if not request or active(request_id):
+        raise SystemExit(65)
+    result = subprocess.run(
+        [
+            SYSTEMD_RUN,
+            "--user",
+            "--collect",
+            f"--unit=clawos-agent-request-{request_id}",
+            "--property=Type=exec",
+            "--property=StandardOutput=null",
+            "--property=StandardError=null",
+            "--",
+            RUNNER,
+            str(request),
+        ],
+        text=True,
+        capture_output=True,
+        timeout=10,
+        check=False,
+    )
+    if result.returncode:
+        print(result.stderr.strip() or "could not resume request", file=sys.stderr)
+        raise SystemExit(1)
+    print(json.dumps({"ok": True, "requestId": request_id, "state": "resumed"}, separators=(",", ":")))
+
+
+def discard(request_id):
+    request = validated(request_id)
+    if not request or active(request_id):
+        raise SystemExit(65)
+    request.unlink()
+    RECEIPTS.mkdir(mode=0o700, parents=True, exist_ok=True)
+    os.chmod(RECEIPTS, 0o700)
+    destination = RECEIPTS / f"{request_id}.json"
+    temporary = RECEIPTS / f".{request_id}.{os.getpid()}.tmp"
+    with open(temporary, "w", encoding="utf-8") as target:
+        json.dump(
+            {
+                "version": 1,
+                "requestId": request_id,
+                "status": "discarded",
+                "finishedAt": datetime.now(timezone.utc).isoformat(),
+            },
+            target,
+            separators=(",", ":"),
+        )
+        target.write("\n")
+    os.chmod(temporary, 0o600)
+    os.replace(temporary, destination)
+    print(json.dumps({"ok": True, "requestId": request_id, "state": "discarded"}, separators=(",", ":")))
+
+
+def main():
+    if len(sys.argv) == 2 and sys.argv[1] == "list":
+        list_interrupted()
+        return
+    if len(sys.argv) != 3 or sys.argv[1] not in {"resume", "discard"}:
+        raise SystemExit(64)
+    (resume if sys.argv[1] == "resume" else discard)(sys.argv[2])
+
+
+if __name__ == "__main__":
+    main()

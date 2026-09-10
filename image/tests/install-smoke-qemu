@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+# Destructive installation is restricted to a newly created, disposable QCOW2.
+set -euo pipefail
+repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
+if [[ ${1:-} == --help ]]; then
+  echo 'Usage: install-smoke-qemu ISO (KVM; new CLAWOS_INSTALL_RUNTIME optional; test-only serial root autologin)'
+  exit 0
+fi
+(( $# == 1 )) && [[ -f $1 ]] || { echo 'Pass one built ISO.' >&2; exit 2; }
+[[ -c /dev/kvm && -r /dev/kvm && -w /dev/kvm ]] || { echo 'Readable/writable KVM required.' >&2; exit 1; }
+iso=$(realpath "$1")
+ovmf_code=${CLAWOS_OVMF_CODE:-/usr/share/edk2/x64/OVMF_CODE.4m.fd}
+if [[ ! -f $ovmf_code && -z ${CLAWOS_OVMF_CODE:-} ]]; then
+  ovmf_code=/usr/share/edk2/x64/OVMF_CODE.fd
+fi
+ovmf_vars=${CLAWOS_OVMF_VARS:-${ovmf_code/OVMF_CODE/OVMF_VARS}}
+[[ -f $ovmf_code && -f $ovmf_vars && $ovmf_code != "$ovmf_vars" ]] || {
+  echo 'Matching OVMF code and variable templates required.' >&2; exit 1;
+}
+mkdir -p "$repo_root/artifacts/m1"
+if [[ -n ${CLAWOS_INSTALL_RUNTIME:-} ]]; then
+  runtime=$CLAWOS_INSTALL_RUNTIME
+  mkdir "$runtime" # Existing directories/disks are never accepted.
+else
+  runtime=$(mktemp -d "$repo_root/artifacts/m1/install-smoke.XXXXXX")
+fi
+runtime=$(realpath "$runtime")
+cp "$ovmf_vars" "$runtime/vars.fd"
+disk="$runtime/install.qcow2"
+qemu-img create -f qcow2 "$disk" 32G
+qemu_pid=
+qmp_socket=
+logs=()
+
+shutdown_guest() {
+  [[ -n $qemu_pid ]] || return 0
+  if ! kill -0 "$qemu_pid" 2>/dev/null; then
+    wait "$qemu_pid" 2>/dev/null || true
+    qemu_pid=
+    echo 'QEMU exited before the required ACPI shutdown request.' >&2
+    return 1
+  fi
+  python3 "$repo_root/tools/ci/qemu_io.py" powerdown "$qmp_socket" || return 1
+  local deadline=$((SECONDS + 60))
+  while kill -0 "$qemu_pid" 2>/dev/null; do
+    (( SECONDS < deadline )) || { echo 'ACPI timed out; QEMU was NOT terminated.' >&2; return 1; }
+    sleep 1
+  done
+  wait "$qemu_pid" || return 1
+  qemu_pid=
+}
+finish() {
+  local status=$?
+  trap - EXIT INT TERM
+  shutdown_guest || status=1
+  if (( status != 0 )); then
+    printf 'Passwordless install smoke: FAILED\n' >"$runtime/result.txt"
+    if (( ${#logs[@]} )) && "$repo_root/image/tests/scan-log-secrets.sh" "${logs[@]}"; then
+      tail -n 40 "${logs[@]}" >&2
+    fi
+  fi
+  exit "$status"
+}
+trap finish EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+start_guest() {
+  local phase=$1
+  shift
+  serial_socket="$runtime/$phase-serial.sock"
+  serial_log="$runtime/$phase-serial.log"
+  transcript="$runtime/$phase-transcript.log"
+  qmp_socket="$runtime/$phase-qmp.sock"
+  local qemu_log="$runtime/$phase-qemu.log"
+  touch "$serial_log" "$transcript" "$qemu_log"
+  logs+=("$serial_log" "$transcript" "$qemu_log")
+  qemu-system-x86_64 -enable-kvm -machine q35,accel=kvm -cpu host -m 8192 -smp 2 \
+    -drive "if=pflash,format=raw,readonly=on,file=$ovmf_code" \
+    -drive "if=pflash,format=raw,file=$runtime/vars.fd" \
+    -drive "if=none,id=install,format=qcow2,file=$disk" \
+    -device virtio-blk-pci,drive=install,serial=CLAWOS-SMOKE-DISK \
+    -device virtio-vga,xres=1440,yres=900 -display none \
+    -chardev "socket,id=serial,path=$serial_socket,server=on,wait=off,logfile=$serial_log" \
+    -serial chardev:serial -monitor none -qmp "unix:$qmp_socket,server=on,wait=off" \
+    -nic user,model=virtio-net-pci -no-reboot "$@" >"$qemu_log" 2>&1 &
+  qemu_pid=$!
+  local deadline=$((SECONDS + 240))
+  until [[ -S $serial_socket ]] && python3 "$repo_root/tools/ci/qemu_io.py" ready "$serial_log" --hostname "clawos-$phase"; do
+    kill -0 "$qemu_pid" 2>/dev/null || { echo 'QEMU exited before console readiness.' >&2; exit 1; }
+    (( SECONDS < deadline )) || { echo 'Console readiness timed out.' >&2; exit 1; }
+    sleep 1
+  done
+}
+
+start_guest live -cdrom "$iso" -boot d
+# Run a single bash command so shell errors cannot fall through to a success
+# marker. The marker prefix is constructed by the guest, not echoed literally.
+commands=$(cat <<'COMMANDS'
+
+bash -c 'set -euo pipefail; P=PASS:; test "$(findmnt -no FSTYPE /)" = overlay; test "$(cat /sys/block/vda/serial)" = CLAWOS-SMOKE-DISK; disk_id=$(python3 /usr/lib/clawos/clawos_install_targets.py list | jq -er "[.[] | select(.path==\"/dev/vda\" and .serial==\"CLAWOS-SMOKE-DISK\")] | if length==1 then .[0].diskId else error(\"unexpected target\") end"); clawos-install-dev --vm-test --passwordless --target /dev/vda --disk-id "$disk_id" --confirm ERASE-/dev/vda; echo "${P}INSTALL_OK"'
+COMMANDS
+)
+# Completion is separate from success: a rejected installer fails promptly,
+# instead of waiting 45 minutes for a PASS line that will never be emitted.
+commands+=$'\nD=DONE:; echo "${D}INSTALL"\n'
+printf '%s\n' "$commands" | python3 "$repo_root/tools/ci/qemu_io.py" capture "$serial_socket" "$transcript" 2700 --until DONE:INSTALL
+tr -d '\r' <"$transcript" >"$runtime/live-markers.log"
+grep -Fxq 'PASS:INSTALL_OK' "$runtime/live-markers.log"
+shutdown_guest
+
+# Same disk and firmware variables, with NO ISO attached. This is not a second
+# live-ISO boot masquerading as installed-system evidence.
+start_guest installed -boot c
+commands=$(cat <<'COMMANDS'
+
+bash -c 'set -euo pipefail; P=PASS:; source /etc/os-release; test "$ID" = clawos; test "$(findmnt -no FSTYPE /)" = btrfs; test "$(findmnt -no SOURCE /)" = "/dev/vda2[/@]"; echo "${P}INSTALLED_ROOT_OK"; timeout 120 systemctl is-system-running --wait; test -z "$(systemctl --failed --no-legend --no-pager)"; for unit in clawos-session@clawos clawosd sshd NetworkManager; do systemctl is-active --quiet "$unit"; done; echo "${P}SERVICES_OK"; sshd -T >/tmp/sshd-effective.conf; for line in "passwordauthentication no" "kbdinteractiveauthentication no" "permitrootlogin no"; do grep -Fqxi "$line" /tmp/sshd-effective.conf; done; echo "${P}SSHD_KEYONLY_OK"; source /etc/clawos/versions.env; openclaw --version | grep -F "$OPENCLAW_VERSION"; echo "${P}OPENCLAW_VERSION_OK"; test "$(cat /etc/clawos-passwordless-entry)" = enabled; echo "${P}PASSWORDLESS_OK"; echo "${P}INSTALLED_OK"'
+COMMANDS
+)
+commands+=$'\nbash -c \'set -e; P=PASS:; test -x /usr/lib/clawos/clawos-deploy; /usr/lib/clawos/clawos-deploy --help >/dev/null; test -f /etc/systemd/system/clawos-deploy-delivery.service; systemctl is-enabled --quiet clawos-deploy-delivery.timer; echo "${P}DEPLOY_READY_OK"\'\n'
+commands+=$'\nD=DONE:; echo "${D}INSTALLED"\n'
+printf '%s\n' "$commands" | python3 "$repo_root/tools/ci/qemu_io.py" capture "$serial_socket" "$transcript" 180 --until DONE:INSTALLED
+tr -d '\r' <"$transcript" >"$runtime/installed-markers.log"
+for marker in INSTALLED_ROOT_OK SERVICES_OK SSHD_KEYONLY_OK OPENCLAW_VERSION_OK PASSWORDLESS_OK INSTALLED_OK DEPLOY_READY_OK; do
+  grep -Fxq "PASS:$marker" "$runtime/installed-markers.log"
+done
+# No credentials are supplied in this fresh, network-unenrolled test guest.
+python3 "$repo_root/tools/ci/qemu_io.py" screendump "$qmp_socket" "$runtime/installed.ppm"
+test -s "$runtime/installed.ppm"
+shutdown_guest
+qemu-img check "$disk" >"$runtime/disk-check.log"
+logs+=("$runtime/disk-check.log")
+"$repo_root/image/tests/scan-log-secrets.sh" "${logs[@]}" "$runtime/installed.ppm"
+printf 'Passwordless install smoke: PASS (KVM)\nDisk-only installed boot: PASS\nGraceful ACPI shutdowns: PASS (live and installed)\nConsole: test-only serial root autologin (--vm-test)\nISO SHA256: %s\n' \
+  "$(sha256sum "$iso" | cut -d' ' -f1)" >"$runtime/result.txt"
+echo "Passwordless install smoke passed. Evidence: $runtime"

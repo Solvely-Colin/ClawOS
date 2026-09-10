@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+gateway_url="${CLAWOS_GATEWAY_URL:-http://127.0.0.1:18789/}"
+profile_dir="${XDG_STATE_HOME:-$HOME/.local/state}/clawos/chromium"
+mkdir -p "$profile_dir"
+
+# Wait briefly for the Gateway. Chromium's managed policy still limits the
+# profile if the endpoint remains unavailable.
+for _ in $(seq 1 60); do
+  if /usr/bin/curl --fail --silent --show-error --max-time 1 "$gateway_url" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+
+exec /usr/lib/chromium/chromium \
+  --ozone-platform=wayland \
+  --enable-features=UseOzonePlatform \
+  --kiosk \
+  --no-first-run \
+  --no-default-browser-check \
+  --disable-session-crashed-bubble \
+  --user-data-dir="$profile_dir" \
+  "$gateway_url"

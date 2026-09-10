@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Serial console for the live ISO. The unauthenticated root autologin exists
+# for the QEMU harness only; on any other machine (a server with serial-over-
+# LAN, a workstation with a real COM port) the console asks for credentials.
+set -euo pipefail
+
+autologin=()
+if [[ "$(systemd-detect-virt --vm 2>/dev/null || true)" == kvm &&
+      "$(cat /sys/class/dmi/id/product_name 2>/dev/null || true)" == 'Standard PC (Q35 + ICH9, 2009)' ]]; then
+  autologin=(--autologin root)
+fi
+exec /usr/bin/agetty --noreset --noclear "${autologin[@]}" 115200,57600,38400,9600 "$@"

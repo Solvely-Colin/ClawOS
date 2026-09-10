@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+import json
+import os
+import pathlib
+import secrets
+import subprocess
+import sys
+
+
+SYSTEMD_RUN = os.environ.get("CLAWOS_SYSTEMD_RUN", "/usr/bin/systemd-run")
+RUNNER = os.environ.get("CLAWOS_AGENT_RUNNER", "/usr/lib/clawos/clawos-agent-run")
+STATE_HOME = pathlib.Path(
+    os.environ.get("XDG_STATE_HOME", os.path.join(os.path.expanduser("~"), ".local", "state"))
+)
+QUEUE = STATE_HOME / "clawos" / "agent-requests"
+
+
+def fail(message):
+    print(f"clawos-agent-submit: {message}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def main():
+    prompt = sys.stdin.read(4 * 1024 * 1024 + 1)
+    if not prompt.strip():
+        fail("a request is required on standard input")
+    if len(prompt.encode("utf-8")) > 4 * 1024 * 1024:
+        fail("request exceeds OpenClaw's 4 MiB message-file limit")
+
+    QUEUE.mkdir(mode=0o700, parents=True, exist_ok=True)
+    os.chmod(QUEUE, 0o700)
+    request_id = secrets.token_hex(16)
+    request_path = QUEUE / f"{request_id}.txt"
+    descriptor = os.open(request_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as target:
+            target.write(prompt)
+            target.flush()
+            os.fsync(target.fileno())
+        result = subprocess.run(
+            [
+                SYSTEMD_RUN,
+                "--user",
+                "--collect",
+                f"--unit=clawos-agent-request-{request_id}",
+                "--property=Type=exec",
+                "--property=StandardOutput=null",
+                "--property=StandardError=null",
+                "--",
+                RUNNER,
+                str(request_path),
+            ],
+            text=True,
+            capture_output=True,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        request_path.unlink(missing_ok=True)
+        fail(str(error))
+    if result.returncode:
+        request_path.unlink(missing_ok=True)
+        fail(result.stderr.strip() or "could not queue the Agent request")
+    print(json.dumps({"ok": True, "requestId": request_id}, separators=(",", ":")))
+
+
+if __name__ == "__main__":
+    main()

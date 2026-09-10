@@ -1,0 +1,10 @@
+[Unit]
+Description=Retry pending ClawOS deployment receipt delivery
+
+[Timer]
+OnBootSec=30
+OnUnitInactiveSec=15
+AccuracySec=1
+
+[Install]
+WantedBy=timers.target

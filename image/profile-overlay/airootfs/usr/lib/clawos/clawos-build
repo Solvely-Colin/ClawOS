@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+session_alive() {
+  [[ -n "${SWAYSOCK:-}" && -S "$SWAYSOCK" ]] &&
+    /usr/bin/swaymsg -s "$SWAYSOCK" -t get_version >/dev/null 2>&1
+}
+
+while true; do
+  if ! /usr/bin/tmux has-session -t build 2>/dev/null; then
+    /usr/bin/tmux -f /etc/clawos/tmux.conf new-session -d -s build -n workspace -c "$HOME"
+    /usr/bin/tmux -f /etc/clawos/tmux.conf split-window -h -p 38 -t build:0 -c "$HOME" /usr/lib/clawos/clawos-build-activity
+    /usr/bin/tmux -f /etc/clawos/tmux.conf select-pane -t build:0.0
+  fi
+  /usr/bin/foot \
+    --config=/etc/clawos/foot.ini \
+    --app-id=clawos-build \
+    --title='ClawOS Build' \
+    /usr/bin/tmux -f /etc/clawos/tmux.conf attach-session -t build || true
+  session_alive || exit 0
+  [[ "${CLAWOS_SURFACE_ONCE:-0}" == 1 ]] && exit 0
+  /usr/bin/sleep 2
+done

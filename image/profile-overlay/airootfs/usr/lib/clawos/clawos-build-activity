@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+clear
+printf '\033[38;2;255;104;79mBUILD WORKSPACE\033[0m\n\n'
+printf '\033[1mAgent activity\033[0m\n'
+printf '\033[38;2;165;161;159mThis pane follows the local OpenClaw Gateway.\033[0m\n\n'
+
+while true; do
+  mode="$(openclaw config get gateway.mode 2>/dev/null || true)"
+  if [[ "$mode" == local ]] && systemctl --user is-active --quiet openclaw-gateway.service; then
+    printf '\033[38;2;53;206;120m● Gateway online\033[0m\n'
+    printf '\033[38;2;165;161;159mLive service log · Ctrl+b then arrow to change panes\033[0m\n\n'
+    exec journalctl --user -fu openclaw-gateway.service --no-hostname -n 18
+  fi
+  if [[ "$mode" == remote ]]; then
+    printf '\033[38;2;53;206;120m● Remote controller configured\033[0m\n'
+    printf '\033[38;2;165;161;159mUse Agent for sessions and this pane for local build commands.\033[0m\n'
+    exec zsh
+  fi
+  printf '\r\033[38;2;165;161;159mWaiting for Agent setup…\033[0m'
+  sleep 2
+done

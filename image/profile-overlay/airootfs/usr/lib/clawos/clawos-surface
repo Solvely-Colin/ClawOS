@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+surface="${1:-terminal}"
+
+container_id() {
+  local app_id="$1"
+  /usr/bin/swaymsg -t get_tree -r 2>/dev/null | /usr/bin/jq -r \
+    --arg app_id "$app_id" \
+    '.. | objects | select(.app_id? == $app_id) | .id' | /usr/bin/head -n 1
+}
+
+fit_container() {
+  local id="$1"
+  local dimensions width height
+  dimensions="$(/usr/bin/swaymsg -t get_workspaces -r 2>/dev/null | /usr/bin/jq -r \
+    '.[] | select(.focused == true or .visible == true) | "\(.rect.width) \(.rect.height)"' | /usr/bin/head -n 1)"
+  read -r width height <<<"$dimensions"
+  [[ "$width" =~ ^[0-9]+$ && "$height" =~ ^[0-9]+$ ]] || return 1
+  /usr/bin/swaymsg "[con_id=\"$id\"] floating enable, resize set width $width px height $height px, move position 0 0, focus" >/dev/null 2>&1
+}
+
+focus_existing() {
+  local app_id="$1"
+  local id scratchpad_state
+  id="$(container_id "$app_id")"
+  [[ "$id" =~ ^[0-9]+$ ]] || return 1
+  scratchpad_state="$(/usr/bin/swaymsg -t get_tree -r 2>/dev/null | /usr/bin/jq -r \
+    --argjson id "$id" \
+    '.. | objects | select(.id? == $id) | .scratchpad_state' | /usr/bin/head -n 1)"
+  if [[ -n "$scratchpad_state" && "$scratchpad_state" != none ]]; then
+    /usr/bin/swaymsg "[con_id=\"$id\"] scratchpad show" >/dev/null 2>&1
+  fi
+  fit_container "$id"
+}
+
+launch_once() {
+  CLAWOS_SURFACE_ONCE=1 /usr/bin/setsid --fork "$@" >/dev/null 2>&1
+}
+
+launch_and_fit() {
+  local app_id="$1"
+  shift
+  launch_once "$@"
+  for _ in {1..50}; do
+    if focus_existing "$app_id"; then
+      return 0
+    fi
+    /usr/bin/sleep 0.1
+  done
+  return 1
+}
+
+case "$surface" in
+  agent)
+    /usr/lib/clawos/clawos-agent-panel close >/dev/null 2>&1 || true
+    /usr/bin/swaymsg '[con_mark="^clawos-app-"] move scratchpad' >/dev/null 2>&1 || true
+    /usr/bin/swaymsg '[app_id="clawos-command"] move scratchpad' >/dev/null 2>&1 || true
+    /usr/bin/swaymsg '[app_id="clawos-build"] move scratchpad' >/dev/null 2>&1 || true
+    /usr/bin/swaymsg '[app_id="clawos-browse"] move scratchpad' >/dev/null 2>&1 || true
+    /usr/lib/clawos/clawos-agent-window focus >/dev/null
+    ;;
+  terminal)
+    /usr/lib/clawos/clawos-agent-panel close >/dev/null 2>&1 || true
+    focus_existing clawos-command || launch_and_fit clawos-command /usr/lib/clawos/clawos-command
+    ;;
+  build)
+    /usr/lib/clawos/clawos-agent-panel close >/dev/null 2>&1 || true
+    focus_existing clawos-build || launch_and_fit clawos-build /usr/lib/clawos/clawos-build
+    ;;
+  browser)
+    /usr/lib/clawos/clawos-agent-panel close >/dev/null 2>&1 || true
+    focus_existing clawos-browse || launch_and_fit clawos-browse /usr/lib/clawos/clawos-browse
+    ;;
+  *)
+    printf 'Usage: clawos-surface {agent|terminal|build|browser}\n' >&2
+    exit 2
+    ;;
+esac

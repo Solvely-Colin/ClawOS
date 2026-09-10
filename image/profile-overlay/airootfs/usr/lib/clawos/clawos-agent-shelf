@@ -1,0 +1,247 @@
+#!/usr/bin/env python3
+import json
+import os
+import subprocess
+import threading
+import time
+from clawos_windows import is_agent_window
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("GtkLayerShell", "0.1")
+from gi.repository import GLib, Gtk, GtkLayerShell  # noqa: E402
+
+
+RUNTIME = os.path.join(os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}"), "clawos")
+STATE = os.path.join(RUNTIME, "activity.json")
+
+
+def application_name_for_marks(marks):
+    app_mark = next((mark for mark in marks if mark.startswith("clawos-app-")), "")
+    if not app_mark:
+        return ""
+    try:
+        with open(STATE, encoding="utf-8") as source:
+            applications = json.load(source).get("apps", {})
+        records = applications.values() if isinstance(applications, dict) else applications
+        return next(
+            (record.get("name", "") for record in records if record.get("mark") == app_mark),
+            "",
+        )
+    except Exception:
+        return ""
+
+
+def focused_surface():
+    try:
+        tree = json.loads(subprocess.check_output(["/usr/bin/swaymsg", "-t", "get_tree", "-r"], text=True))
+    except Exception:
+        return "Machine"
+
+    def visit(node):
+        if node.get("focused"):
+            return node
+        for child in node.get("nodes", []) + node.get("floating_nodes", []):
+            match = visit(child)
+            if match:
+                return match
+        return None
+
+    node = visit(tree) or {}
+    app = node.get("app_id") or node.get("window_properties", {}).get("class") or ""
+    title = node.get("name") or ""
+    marks = node.get("marks") or []
+    if is_agent_window(node):
+        return "Agent"
+    if title == "ClawOS Setup":
+        return "Setup"
+    if app.startswith("clawos-web-gmail"):
+        return "Gmail"
+    if app.startswith("clawos-web-outlook"):
+        return "Outlook"
+    if app == "clawos-command":
+        return "Terminal"
+    if app == "clawos-build":
+        return "Build"
+    if app == "clawos-browse":
+        return "Browser"
+    registered_name = application_name_for_marks(marks)
+    if registered_name:
+        return registered_name
+    if any(mark.startswith("clawos-app-") for mark in marks):
+        return node.get("name") or "Application"
+    return "Machine"
+
+
+def projected_status():
+    try:
+        with open(STATE, encoding="utf-8") as source:
+            state = json.load(source).get("activity", {}).get("state", "idle")
+    except Exception:
+        state = "idle"
+    return {
+        "running": ("Working", "OpenClaw is working in the background."),
+        "waiting": ("Waiting", "Background work is waiting."),
+        "needs-approval": ("Needs you", "A decision is waiting in ClawOS Center."),
+        "needs-attention": ("Needs you", "Work needs attention in ClawOS Center."),
+        "failed": ("Attention", "Background work did not complete."),
+    }.get(state, ("Ready", "The Agent is ready."))
+
+
+class AgentShelf(Gtk.Window):
+    def __init__(self):
+        super().__init__(title="ClawOS Agent Shelf")
+        self.set_name("agent-shelf-window")
+        screen_width = self.get_screen().get_width()
+        self.set_default_size(max(520, min(720, screen_width - 48)), 96)
+        self.set_resizable(False)
+        GtkLayerShell.init_for_window(self)
+        GtkLayerShell.set_layer(self, GtkLayerShell.Layer.OVERLAY)
+        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.BOTTOM, True)
+        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.BOTTOM, 20)
+        GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.ON_DEMAND)
+        GtkLayerShell.set_namespace(self, "clawos-agent-shelf")
+
+        provider = Gtk.CssProvider()
+        provider.load_from_path("/etc/clawos/agent-shelf.css")
+        Gtk.StyleContext.add_provider_for_screen(self.get_screen(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
+        self.surface = focused_surface()
+        self.shelf_visible = True
+        self.queued_until = 0.0
+        frame = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        frame.set_name("agent-shelf")
+        frame.set_border_width(10)
+        self.add(frame)
+
+        composer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        composer.set_name("composer-row")
+        frame.pack_start(composer, True, True, 0)
+
+        self.entry = Gtk.Entry()
+        self.entry.set_name("agent-entry")
+        self.entry.set_placeholder_text(f"Ask Agent about {self.surface}…")
+        self.entry.set_activates_default(True)
+        self.entry.connect("activate", self.submit)
+        composer.pack_start(self.entry, True, True, 0)
+
+        self.send = Gtk.Button()
+        self.send.add(Gtk.Image.new_from_icon_name("go-up-symbolic", Gtk.IconSize.MENU))
+        self.send.set_name("send-button")
+        self.send.set_tooltip_text("Send to Agent")
+        self.send.get_accessible().set_name("Send to Agent")
+        self.send.connect("clicked", self.submit)
+        composer.pack_end(self.send, False, False, 0)
+
+        controls = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        controls.set_name("composer-controls")
+        frame.pack_end(controls, False, False, 0)
+
+        self.context_button = Gtk.Button(label=self.surface)
+        self.context_button.set_name("context-chip")
+        self.context_button.connect("clicked", self.open_context)
+        controls.pack_start(self.context_button, False, False, 0)
+
+        self.status = Gtk.Label(label="Ready")
+        self.status.set_name("agent-status")
+        controls.pack_start(self.status, False, False, 0)
+
+        actions = Gtk.Button()
+        actions.add(Gtk.Image.new_from_icon_name("view-more-symbolic", Gtk.IconSize.MENU))
+        actions.set_name("shelf-button")
+        actions.set_tooltip_text("Open Agent actions")
+        actions.get_accessible().set_name("Open Agent actions")
+        actions.connect("clicked", self.open_actions)
+        controls.pack_end(actions, False, False, 0)
+
+        GLib.timeout_add(1000, self.refresh_context)
+
+    def refresh_context(self):
+        surface = focused_surface()
+        if surface != self.surface:
+            self.surface = surface
+            self.context_button.set_label(surface)
+            self.entry.set_placeholder_text(f"Ask Agent about {surface}…")
+        # Carapace terminal anatomy gives the TUI exclusive ownership of text
+        # entry. Never layer a browser-style composer over Terminal or Build.
+        should_show = surface not in {"Agent", "Setup", "Machine", "Terminal", "Build"}
+        if should_show and not self.shelf_visible:
+            self.show_all()
+            self.shelf_visible = True
+        elif not should_show and self.shelf_visible:
+            self.hide()
+            self.shelf_visible = False
+        if time.monotonic() >= self.queued_until:
+            label, tooltip = projected_status()
+            self.status.set_text(label)
+            self.status.set_tooltip_text(tooltip)
+        return True
+
+    def submit(self, *_args):
+        prompt = self.entry.get_text().strip()
+        if not prompt:
+            self.entry.grab_focus()
+            return
+        self.entry.set_text("")
+        self.entry.set_sensitive(False)
+        self.send.set_sensitive(False)
+        self.status.set_text("Queuing")
+        contextual = f"The user is currently working in {self.surface}. {prompt}"
+        threading.Thread(target=self.queue_agent, args=(contextual,), daemon=True).start()
+
+    def queue_agent(self, prompt):
+        try:
+            result = subprocess.run(
+                ["/usr/lib/clawos/clawos-agent-submit"],
+                input=prompt, text=True, capture_output=True, timeout=12, check=False,
+            )
+            if result.returncode == 0:
+                GLib.idle_add(self.finish, "Queued", "OpenClaw is tracking this request in the background.")
+            else:
+                GLib.idle_add(self.finish, "Attention", "ClawOS could not queue the request.")
+        except Exception:
+            GLib.idle_add(self.finish, "Offline", "The background Agent service is unavailable.")
+
+    def finish(self, state, tooltip):
+        self.status.set_text(state)
+        self.status.set_tooltip_text(tooltip)
+        if state == "Queued":
+            self.queued_until = time.monotonic() + 4
+        self.entry.set_sensitive(True)
+        self.send.set_sensitive(True)
+        return False
+
+    def open_context(self, button):
+        menu = Gtk.Popover.new(button)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        box.set_border_width(7)
+        for label, command in (("Open conversation", ["/usr/lib/clawos/clawos-agent-panel", "open"]), ("Return to Main", ["/usr/lib/clawos/clawos-surface", "agent"])):
+            item = Gtk.Button(label=label)
+            item.connect("clicked", lambda _button, cmd=command: subprocess.Popen(cmd))
+            box.pack_start(item, False, False, 0)
+        menu.add(box)
+        menu.show_all()
+
+    def open_actions(self, button):
+        menu = Gtk.Popover.new(button)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        box.set_border_width(7)
+        actions = (
+            ("Open conversation", ["/usr/lib/clawos/clawos-agent-panel", "open"]),
+            ("Review approvals", ["/usr/lib/clawos/clawos-approval"]),
+            ("Machine actions", ["/usr/lib/clawos/clawos-actions-menu"]),
+        )
+        for label, command in actions:
+            item = Gtk.Button(label=label)
+            item.connect("clicked", lambda _button, cmd=command: subprocess.Popen(cmd))
+            box.pack_start(item, False, False, 0)
+        menu.add(box)
+        menu.show_all()
+
+
+window = AgentShelf()
+window.connect("destroy", Gtk.main_quit)
+window.show_all()
+window.refresh_context()
+Gtk.main()

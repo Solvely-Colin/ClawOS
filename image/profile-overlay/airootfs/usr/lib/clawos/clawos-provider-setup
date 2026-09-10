@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# Use the upstream provider/auth/model workflow rather than a ClawOS catalog.
+# Credentials stay in OpenClaw's native store and never cross the setup HTTP API.
+trap '/usr/bin/swaymsg '\''[title="^ClawOS Setup$"] fullscreen enable, focus'\'' >/dev/null 2>&1 || true' EXIT
+/usr/bin/foot --config=/etc/clawos/foot.ini --fullscreen --app-id=clawos-provider-setup \
+  --title='OpenClaw provider and model setup' \
+  /usr/bin/openclaw configure --section model

@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>ClawOS Setup</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="setup-shell">
+      <nav class="progress-rail" aria-label="Setup progress">
+        <button data-step-target="welcome" class="active"><span>1</span>Start</button>
+        <i></i>
+        <button data-step-target="gateway"><span>2</span>Gateway</button>
+        <i></i>
+        <button data-step-target="agent"><span>3</span>Agent</button>
+        <i></i>
+        <button data-step-target="access"><span>4</span>Access</button>
+        <i></i>
+        <button data-step-target="install"><span>5</span>Ready</button>
+      </nav>
+
+      <section class="setup-stage" aria-live="polite">
+        <article class="step active" data-step="welcome">
+          <span class="eyebrow">FIRST BOOT</span>
+          <h1>Make this machine<br />an agent workspace.</h1>
+          <p class="lead">ClawOS connects OpenClaw to the whole machine while Linux recovery stays one key chord away.</p>
+          <div class="status-strip">
+            <span><b class="status-dot online"></b>Arch system ready</span>
+            <span><b class="status-dot online"></b>Recovery available</span>
+            <span><b class="status-dot" data-network-dot></b><span data-network-label>Network check</span></span>
+          </div>
+          <button class="primary large" data-next="gateway">Set up ClawOS</button>
+          <p class="recovery-note">Recovery console is always available with <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>F3</kbd>.</p>
+        </article>
+
+        <article class="step" data-step="gateway">
+          <span class="eyebrow">GATEWAY</span>
+          <h1>Where should OpenClaw run?</h1>
+          <p class="lead compact">Choose the machine that owns the agent, sessions, and Control UI.</p>
+          <p class="step-readiness"><b class="status-dot" data-network-dot></b><span data-network-label>Checking network</span><span class="readiness-detail">Required to configure either Gateway path</span></p>
+          <div class="choice-grid two">
+            <button class="choice selected" data-mode="local">
+              <span class="choice-top"><b>This machine</b><em>Recommended</em></span>
+              <p>Run the agent, Gateway, Control UI, and machine tools as one ClawOS system.</p>
+              <small>LOCAL · LOOPBACK</small>
+            </button>
+            <button class="choice" data-mode="remote">
+              <span class="choice-top"><b>Existing Gateway</b><em>Remote</em></span>
+              <p>Connect this machine as a node to a Gateway over a private network.</p>
+              <small>TAILSCALE RECOMMENDED</small>
+            </button>
+          </div>
+          <div class="actions"><button class="quiet" data-back="welcome">Back</button><button class="primary" data-next="agent">Continue</button></div>
+        </article>
+
+        <article class="step" data-step="agent">
+          <span class="eyebrow">AGENT</span>
+          <div id="local-agent-fields">
+            <h1>Set up OpenClaw.</h1>
+            <p class="lead compact">After preparing this machine, choose your provider, sign in, and select a model in OpenClaw’s own setup wizard. ClawOS does not choose a model for you.</p>
+            <p class="step-readiness"><b class="status-dot" data-network-dot></b><span data-network-label>Checking network</span><span class="readiness-detail">Required to verify the provider</span></p>
+            <p class="recovery-note">OpenClaw supplies the available providers and authentication methods. Existing credentials and model selections are preserved.</p>
+            <label class="checkbox"><input id="configure-later" type="checkbox" /><span>Prepare the machine now; choose a model later</span></label>
+          </div>
+          <div id="remote-agent-fields" hidden>
+            <h1>Connect the Gateway.</h1>
+            <p class="lead compact">Use a private Tailscale address when the Gateway is on another machine.</p>
+            <label class="field"><span>WebSocket URL</span><input id="remote-url" inputmode="url" placeholder="wss://gateway.example.ts.net" /></label>
+            <label class="field"><span>Gateway token</span><input id="remote-token" type="password" autocomplete="off" placeholder="Optional for password or paired access" /></label>
+          </div>
+          <p class="form-error" id="agent-error" role="alert"></p>
+          <div class="actions"><button class="quiet" data-back="gateway">Back</button><button class="primary" data-next="access">Continue</button></div>
+        </article>
+
+        <article class="step" data-step="access">
+          <span class="eyebrow">MACHINE ACCESS</span>
+          <h1>How independently can the agent work?</h1>
+          <p class="lead compact">This policy is changeable later. Full Root removes routine approval stops; recovery and audit remain active.</p>
+          <div class="choice-grid three">
+            <button class="choice selected" data-access="full-root"><span class="choice-top"><b>Full root</b><em>Default</em></span><p>The agent user gets passwordless sudo and may administer the complete system. Rollback, power, role and policy changes still ask.</p></button>
+            <button class="choice" data-access="full-approvals"><span class="choice-top"><b>Full user + approvals</b></span><p>Work freely as the ClawOS user; ask before guarded system changes.</p></button>
+            <button class="choice" data-access="user-limited"><span class="choice-top"><b>User limited</b><em>Restricted</em></span><p>Keep the agent inside user-owned files and explicitly allowed tools.</p></button>
+          </div>
+          <div class="guardrail"><span class="status-dot online"></span><div><b>Audited system actions</b><p>Typed system actions are audited; package installs and OpenClaw updates take a read-only root snapshot first; whole-system rollback is not yet proven.</p></div></div>
+          <div class="actions"><button class="quiet" data-back="agent">Back</button><button class="primary" id="install-button">Install configuration</button></div>
+        </article>
+
+        <article class="step" data-step="install">
+          <div class="install-state" id="install-progress">
+            <div class="spinner" aria-hidden="true"></div>
+            <span class="eyebrow">CONFIGURING CLAWOS</span>
+            <h1>Bringing the system online.</h1>
+            <p class="lead compact" id="install-message">Securing Gateway credentials…</p>
+            <div class="install-track"><i id="install-track-fill"></i></div>
+            <div class="install-list">
+              <span class="active">Configure OpenClaw</span><span>Install Gateway service</span><span>Prepare Agent workspace</span><span>Verify recovery</span>
+            </div>
+          </div>
+          <div class="ready-state" id="ready-state" hidden>
+            <span class="eyebrow">MACHINE CONFIGURED</span>
+            <h1>Continue with OpenClaw.</h1>
+            <p class="lead compact" id="provider-description">Choose your provider and model in the native OpenClaw wizard, then return here. No provider credentials are collected by this page.</p>
+            <p id="model-status" role="status">Checking your model selection…</p>
+            <button class="primary large" id="provider-setup-button">Choose provider and model</button>
+            <button class="quiet" id="provider-later-button">Choose a model later</button>
+            <p class="form-error" id="provider-error" role="alert"></p>
+            <div class="status-strip centered"><span><b class="status-dot online"></b>Machine configured</span><span>Provider readiness is verified in OpenClaw</span></div>
+            <button class="primary large" id="launch-button">Enter Agent workspace</button>
+          </div>
+          <div class="failed-state" id="failed-state" hidden>
+            <span class="eyebrow danger">SETUP NEEDS ATTENTION</span>
+            <h1>ClawOS could not finish setup.</h1>
+            <p class="lead compact" id="failure-message">OpenClaw setup failed.</p>
+            <div class="actions centered"><button class="quiet" data-back="agent">Review settings</button><button class="primary" id="retry-button">Retry</button></div>
+            <p class="recovery-note">The Linux recovery console remains available with <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>F3</kbd>.</p>
+          </div>
+        </article>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

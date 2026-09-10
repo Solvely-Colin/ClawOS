@@ -1,0 +1,147 @@
+name: Experimental ISO build
+on:
+  workflow_dispatch:
+    inputs:
+      retain_iso:
+        description: 'Upload the experimental ISO for repository readers (separate from publishing a release)'
+        type: boolean
+        default: false
+  push:
+    tags:
+      - 'v*'
+permissions:
+  contents: read
+concurrency:
+  group: iso-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.repository == 'Solvely-Colin/ClawOS'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Probe KVM before building
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${RUNNER_ENVIRONMENT:-}" == github-hosted ]] || { echo 'Hosted runner required'; exit 1; }
+          fail_kvm() { echo 'KVM unavailable: run ./image/tests/boot-smoke-qemu on a KVM host. No boot gate will be skipped.'; exit 1; }
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules || fail_kvm
+          sudo udevadm trigger --name-match=kvm || { ls -l /dev/kvm || true; fail_kvm; }
+          sudo udevadm settle || fail_kvm
+          ls -l /dev/kvm || true
+          test -c /dev/kvm && test -r /dev/kvm && test -w /dev/kvm || fail_kvm
+          python3 -c 'import fcntl, os; k=os.open("/dev/kvm", os.O_RDWR); assert fcntl.ioctl(k, 0xAE00, 0)==12; vm=fcntl.ioctl(k, 0xAE01, 0); os.close(vm); os.close(k); print("KVM VM creation probe passed")' || fail_kvm
+      - name: Reclaim unused SDK space on disposable hosted runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${RUNNER_ENVIRONMENT:-}" == github-hosted ]] || { echo 'Refusing SDK cleanup outside a hosted runner'; exit 1; }
+          for sdk in /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup; do
+            if [[ -d "$sdk" ]]; then
+              [[ ! -L "$sdk" && "$(readlink -f "$sdk")" == "$sdk" ]] || { echo "Unexpected SDK target: $sdk"; exit 1; }
+              du -sh "$sdk"
+              sudo find "$sdk" -xdev -depth -delete
+            fi
+          done
+      - name: Check workspace capacity
+        shell: bash
+        run: |
+          available=$(df -Pk "$GITHUB_WORKSPACE" | awk 'NR==2 {print $4}')
+          echo "Available workspace KiB: $available"
+          test "$available" -ge 20000000 || { echo 'At least 20 GB free is required for this experimental build.'; exit 1; }
+      - name: Build in disposable Arch container
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull archlinux:base-devel
+          docker image inspect archlinux:base-devel --format '{{json .RepoDigests}}' > build-container-digest.txt
+          docker run --rm --privileged --device /dev/kvm \
+            -e GITHUB_ACTIONS=true -e GITHUB_SHA -e GITHUB_RUN_ID \
+            -v "$GITHUB_WORKSPACE:/src" -w /src \
+            archlinux:base-devel bash tools/ci/build-release.sh
+          # The container wrote artifacts/m1/out as root and artifacts/m1 as
+          # its build user; hand the tree back to the runner account before
+          # the host touches it (cp here, upload-artifact next).
+          sudo chown -R "$(id -u):$(id -g)" artifacts
+          cp build-container-digest.txt artifacts/m1/out/BUILD-CONTAINER.txt
+      - name: Prepare scanned boot and install evidence (including failed runs)
+        id: evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d artifacts/m1/out/boot-smoke || exit 0
+          sudo chown -R "$(id -u):$(id -g)" artifacts/m1/out
+          logs=(artifacts/m1/out/boot-smoke/serial.log artifacts/m1/out/boot-smoke/transcript.log artifacts/m1/out/boot-smoke/qemu.log)
+          ./image/tests/scan-log-secrets.sh "${logs[@]}" artifacts/m1/out/BUILD-METADATA.txt
+          mkdir -p artifacts/boot-evidence
+          cp "${logs[@]}" artifacts/m1/out/BUILD-METADATA.txt artifacts/m1/out/SHA256SUMS artifacts/boot-evidence/
+          if test -f artifacts/m1/out/boot-smoke/result.txt; then
+            ./image/tests/scan-log-secrets.sh artifacts/m1/out/boot-smoke/result.txt
+            cp artifacts/m1/out/boot-smoke/result.txt artifacts/boot-evidence/
+          fi
+          if test -d artifacts/m1/out/install-smoke; then
+            mkdir -p artifacts/boot-evidence/install
+            # Explicit whitelist: never retain disks, firmware variables or sockets.
+            for name in live-serial.log live-transcript.log live-qemu.log installed-serial.log installed-transcript.log installed-qemu.log disk-check.log result.txt installed.ppm; do
+              source="artifacts/m1/out/install-smoke/$name"
+              if test -f "$source"; then
+                ./image/tests/scan-log-secrets.sh "$source"
+                cp "$source" artifacts/boot-evidence/install/
+              fi
+            done
+          fi
+          echo 'safe=true' >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always() && steps.evidence.outputs.safe == 'true'
+        with:
+          name: clawos-boot-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: artifacts/boot-evidence/*
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: success() && (startsWith(github.ref, 'refs/tags/v') || inputs.retain_iso)
+        with:
+          name: clawos-iso-${{ github.sha }}
+          path: |
+            artifacts/m1/out/*.iso
+            artifacts/m1/out/*.sha256
+            artifacts/m1/out/SHA256SUMS
+            artifacts/m1/out/BUILD-*.txt
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+  draft-prerelease:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: clawos-iso-${{ github.sha }}
+          path: release
+      - name: Create a draft for maintainer review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          SOURCE_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo 'Use a version tag such as v0.1.0-alpha.1'; exit 1; }
+          printf '%s\n' \
+            "Experimental ClawOS build from $SOURCE_SHA." \
+            'The experimental installer accepts eligible blank x86_64 UEFI disks.' \
+            'Boot media, mounted/in-use disks and nonblank disks are protected. Physical hardware is not yet verified.' \
+            'Source preflight, ISO structure, live KVM boot and passwordless disk-only install smoke passed; onboarding/encrypted-install/hardware acceptance is separate.' \
+            'This draft is not a supported or stable release. Review BUILD-METADATA.txt and verify SHA256SUMS.' > notes.md
+          gh release create "$RELEASE_TAG" --verify-tag --draft --prerelease \
+            --title "ClawOS $RELEASE_TAG — experimental" --notes-file notes.md ./release/*
