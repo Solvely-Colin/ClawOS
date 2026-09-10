@@ -76,7 +76,12 @@ git history. Where the repository holds no record, this file says so.
   in `docs/assets/HEADER.md`. It is branding artwork, not a screenshot.
 - `docs/assets/hardware-installer-preview.png` (1440x900) is a screenshot of
   the ClawOS GTK installer preview with synthetic disk data, added 2026-09-06.
-  The capture tool is unrecorded.
+  The capture tool is unrecorded. The source-publication review on 2026-09-10
+  retained this explicit unknown: the visible content is the project's installer
+  with a disk labelled "Synthetic NVMe disk", not evidence of a physical install.
+  No third-party photograph or desktop application content is visible. The
+  background and Radix-derived mark are covered above; the missing capture-tool
+  name does not establish an additional artwork source.
 - Design mock-ups referenced in `design-qa.md` and
   `shell-prototype/design-qa.md` as "source visual truth" were AI-generated
   images stored outside this repository; they are not included.
@@ -182,6 +187,30 @@ hotlink Google's Gmail logo and favicon from ssl.gstatic.com for a mock Gmail
 surface; those assets are Google's and are not redistributed here. Mock
 message content uses fictional text and mentions third-party product names
 only as placeholder content.
+
+The development/test dependency `@playwright/test` and its `playwright` and
+`playwright-core` dependencies are Apache-2.0 (Microsoft;
+https://github.com/microsoft/playwright/blob/main/LICENSE). Downloaded Chromium
+test binaries are not tracked or shipped in the ClawOS source repository.
+
+The pinned prototype lockfile also records these non-MIT transitive packages:
+`detect-libc` (Apache-2.0), `lightningcss` and its platform binaries (MPL-2.0),
+`picocolors` (ISC), and `source-map-js` (BSD-3-Clause). These are installed with
+npm, not copied into this source tree. Vite's MIT license does not relicense
+its dependencies. Preserve the installed package license/notice files when
+redistributing a dependency tree; a prototype bundle or ISO distribution needs
+its own artifact-level review.
+
+## Source-publication review boundary (2026-09-10)
+
+The tracked source inventory was checked against the copied-file headers,
+shipped license texts, nine tracked image/icon files, and the prototype
+lockfile. No font binaries or vendored npm tree are tracked. The three wallpaper
+paths have the same Git blob; source/header records for the generated artwork
+and the explicitly unknown screenshot capture tool are retained above. This
+records the source inventory and known provenance, not a legal certification
+or a claim to have verified every package inside an ISO. The OpenClaw license
+manifest/SBOM and artifact-level distribution review remain release follow-ups.
 
 ## Trademarks
 

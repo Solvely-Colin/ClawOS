@@ -33,3 +33,6 @@ Thumbs.db
 *.sfs
 audit.jsonl
 *.jsonl.gz
+out/
+out-fast/
+*.vars
