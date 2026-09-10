@@ -10,15 +10,20 @@
       GitHub private vulnerability reporting when available.
 - [ ] Repeat a redacted secret scan of source and all history at the publication SHA.
 - [ ] Confirm no VM images, firmware variables, auth stores or personal paths/evidence are tracked.
-- [ ] README, FEATURES, ROADMAP, NOTICE, m1/README, /etc/issue, os-release and loader titles say
-      "experimental, VM-verified only, no releases"; one repository URL everywhere.
-- [ ] Historical files carry the frozen-record banner.
-- [ ] A clean checkout passes CI (`ci.yml`) and the full Arch preflight.
+- [x] README, FEATURES, ROADMAP, NOTICE, m1/README, /etc/issue, os-release and loader titles say
+      "experimental, VM-verified only, no releases"; one repository URL everywhere
+      (image files pinned by the identity block at the end of `m1/tests/validate-profile.sh`;
+      the Markdown files checked by hand on 2026-09-08).
+- [x] Historical files carry the frozen-record banner
+      (`git grep -l '^> \*\*Historical record\.\*\*'` lists 14 files; 2026-09-08).
+- [x] A clean checkout passes CI (`ci.yml`) and the full Arch preflight
+      (both jobs green on `main` at `00f81c5`; preflight passed in the builder VM on the same commit).
 - [ ] Owner explicitly approves public visibility.
 
 # Before the first prerelease
 
-- [ ] `release.yml` completes once on a manual run; retain its artifact and hashes.
+- [x] `release.yml` completes once on a manual run; retain its artifact and hashes
+      (run 34270708295 on `main` at `00f81c5`, 2026-09-08; row in EVIDENCE.md).
 - [ ] Build an ISO from the tagged source, pass `validate-iso.sh`, and run a fresh
       disposable-disk install and first boot (encrypted and passwordless).
 - [ ] Verify a real agent request, live update, rollback and completion delivery.

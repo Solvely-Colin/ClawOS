@@ -29,18 +29,27 @@
   sshd refuses password, keyboard-interactive and root login
   (`/etc/ssh/sshd_config.d/00-clawos.conf`) and nothing installs an authorized
   key, so SSH is unusable until one is added locally; Tailscale is enabled but
-  not enrolled.
+  not enrolled. The live ISO also runs sshd on port 22 with the same key-only
+  policy and a passwordless root account (observed on a CI-built image,
+  2026-09-08).
 - **Credentials:** in encrypted installs the LUKS passphrase is also the `root`
   and `clawos` account password (Polkit prompts, session unlock). Passwordless
   installs leave both accounts with empty passwords, no encryption and no
   screen lock.
-- **Releases:** no tags exist and the release workflow has never completed;
-  there is no downloadable ISO. Build locally with `sudo ./m1/bin/build-iso`.
+- **Releases:** no tags exist and there is no downloadable release. `release.yml`
+  went green for the first time on `main` on 2026-09-08 (run 34270708295; an
+  earlier branch run is in the ledger). The workflow validates the ISO but does
+  not boot it; that artifact was booted live by hand on 2026-09-08, not installed
+  from, and is kept for 14 days. Build locally with `sudo ./m1/bin/build-iso`, or
+  see [the evidence ledger](EVIDENCE.md).
 - **Compatibility:** the version-checked OpenClaw delivery adapter needs review
   when upgrading that dependency.
 - **Design/docs:** plans and prototype guidance include superseded layouts.
   Consolidate the current Carapace adapter and acceptance checklist.
 - **Omarchy:** targeted source/runtime checks found no active dependency, but
   do not certify every asset and package's provenance.
-- **Public release:** license choice, complete attribution, release artifacts
-  and a fresh publication-time credential review remain open.
+- **Public release:** the license (MIT) and NOTICE.md are in place. Still open
+  before the source goes public: the reporting-mailbox check, the secret scan at
+  the publication commit, and the owner's approval. See the
+  [public-release checklist](PUBLIC-RELEASE-CHECKLIST.md) and the `flip-gate`
+  issues.
