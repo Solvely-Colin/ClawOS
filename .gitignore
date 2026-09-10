@@ -1,3 +1,52 @@
+# Shared local-state rules: do not rely on a developer's .git/info/exclude.
+/.claude/
+/.codex/worktrees/
+/transfer/
+/.vscode/
+/.idea/
+*.swp
+*.swo
+*~
+*.bak
+
+# Generated caches and language/build environments.
+.venv/
+venv/
+.tox/
+.nox/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.coverage
+.coverage.*
+htmlcov/
+*.tsbuildinfo
+*.lcov
+
+# Additional VM disks, saved state and distribution archives.
+*.qcow
+*.vdi
+*.vhd
+*.vhdx
+*.vmdk
+*.sav
+*.zip
+*.tar
+*.tar.xz
+*.tar.zst
+
+# Local credential stores and database sidecars (not source configuration).
+id_rsa
+id_ed25519
+*.p12
+*.pfx
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-wal
+*.db-shm
+
 *.log
 *.tmp
 .cache/
