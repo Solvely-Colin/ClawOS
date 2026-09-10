@@ -3,8 +3,8 @@
 `shell-prototype/` is a frozen Vite/React visual prototype of the ClawOS
 desktop: a top system bar with a system menu, a full-canvas mock Gmail
 surface, the centered bottom command shelf with an agent status strip, and an
-on-demand OpenClaw conversation panel. Its last design QA is
-[`design-qa.md`](design-qa.md), dated 2026-08-28, and it has not been
+on-demand OpenClaw conversation panel. Its last design QA was
+dated 2026-08-28; operator screenshots and QA notes remain local. It has not been
 developed since beyond dependency maintenance. It is not the installed OS
 runtime. The `prototype` CI job now installs its locked dependencies, builds,
 runs the retained Sites tests, and checks development/production rendering,
@@ -19,7 +19,7 @@ The installed shell that grew out of these ideas lives under
 | Top system bar and system menu | `etc/clawos/waybar/config.jsonc`, `etc/clawos/waybar/style.css`, `usr/lib/clawos/clawos-system-menu`, `etc/clawos/system-menu.css` |
 | Bottom command shelf and status strip | `usr/lib/clawos/clawos-agent-shelf`, `etc/clawos/agent-shelf.css` |
 | On-demand OpenClaw conversation | `usr/lib/clawos/clawos-agent-window` |
-| Full-canvas application surfaces (the Gmail mock) | `usr/share/applications/clawos-gmail.desktop` and the other launchers there; `usr/lib/clawos/clawos-browse`, `clawos-command`, `clawos-build`; see [`m2/APPLICATION-SURFACES.md`](../m2/APPLICATION-SURFACES.md) |
+| Full-canvas application surfaces (the Gmail mock) | `usr/share/applications/clawos-gmail.desktop` and the other launchers there; `usr/lib/clawos/clawos-browse`, `clawos-command`, `clawos-build`; see [architecture](../docs/ARCHITECTURE.md) |
 | Graphite and coral tokens | `etc/clawos/design-system.css`; rationale in [`m2/DESIGN-SYSTEM.md`](../m2/DESIGN-SYSTEM.md) |
 | Workspaces and window management | `etc/clawos/sway.conf` |
 

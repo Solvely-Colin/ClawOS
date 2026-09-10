@@ -87,5 +87,5 @@
 - **Public release:** source became public on 2026-09-10 after owner approval,
   final history scanning, attribution review and artifact cleanup. The MIT
   license and NOTICE.md are in place; no supported or downloadable release
-  was published. See the [launch record](PUBLIC-SOURCE-READINESS.md) and
+  was published. See the [evidence ledger](EVIDENCE.md) and
   [remaining prerelease gates](PUBLIC-RELEASE-CHECKLIST.md).

@@ -57,9 +57,10 @@ profile validation and the installed-system test check its presence.
 
 ## Artwork and images
 
-Origins recorded below come from embedded C2PA manifests,
-`docs/assets/HEADER.md`, `docs/history/design-qa.md`, `shell-prototype/design-qa.md` and
-git history. Where the repository holds no record, this file says so.
+Origins recorded below come from embedded C2PA manifests, retained generation
+and design records, and Git history. Working prompts and screenshot QA diaries
+are kept locally; the public provenance conclusions remain here. Where no
+record exists, this file says so.
 
 - `m1/profile-overlay/airootfs/usr/share/clawos/theme/background.png`,
   `m1/profile-overlay/airootfs/usr/share/plymouth/themes/clawos/background.png`
@@ -73,7 +74,7 @@ git history. Where the repository holds no record, this file says so.
   raster and the prototype background.
 - `docs/assets/clawos-header.png` (2172x724) was generated on 2026-09-06 with
   the same OpenAI image model (C2PA manifest present); the prompt is recorded
-  in `docs/assets/HEADER.md`. It is branding artwork, not a screenshot.
+  in a retained local generation record. It is branding artwork, not a screenshot.
 - `docs/assets/hardware-installer-preview.png` (1440x900) is a screenshot of
   the ClawOS GTK installer preview with synthetic disk data, added 2026-09-06.
   The capture tool is unrecorded. The source-publication review on 2026-09-10
@@ -82,8 +83,8 @@ git history. Where the repository holds no record, this file says so.
   No third-party photograph or desktop application content is visible. The
   background and Radix-derived mark are covered above; the missing capture-tool
   name does not establish an additional artwork source.
-- Design mock-ups referenced in `docs/history/design-qa.md` and
-  `shell-prototype/design-qa.md` as "source visual truth" were AI-generated
+- Design mock-ups referenced in retained local design QA as
+  "source visual truth" were AI-generated
   images stored outside this repository; they are not included.
 
 Copyright in AI-generated images is uncertain in many jurisdictions. ClawOS
