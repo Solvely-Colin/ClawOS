@@ -103,6 +103,23 @@ if [[ -f "$installer" ]]; then
   ! grep -Fq 'arch-chroot "$mount_root" bootctl' "$installer"
   grep -Fq -- '--passwordless) passwordless=true' "$installer"
   grep -Fq 'clawos-passwordless-entry' "$installer"
+  # A passwordless install must announce itself on the installed machine, and
+  # only there: the login-prompt and MOTD drop-ins have to sit inside the
+  # passwordless account block, after the clawos-lock opt-in file and before
+  # that block's else branch.
+  passwordless_block="$(grep -A20 -F 'chmod 0644 "$mount_root/etc/clawos-passwordless-entry"' "$installer" | sed -n '1,/^else$/p')"
+  grep -Fq 'install -d -m 0755 "$mount_root/etc/issue.d" "$mount_root/etc/motd.d"' <<<"$passwordless_block"
+  grep -Fq '"$mount_root/etc/issue.d/clawos-passwordless.issue"' <<<"$passwordless_block"
+  grep -Fq '"$mount_root/etc/motd.d/clawos-passwordless"' <<<"$passwordless_block"
+  notice="$(sed -n "/clawos-passwordless.issue\" <<'EOF'\$/,/^EOF\$/p" <<<"$passwordless_block")"
+  grep -Fqx 'Passwordless ClawOS install: no disk encryption, empty account passwords, no screen lock.' <<<"$notice"
+  grep -Fqx 'Anyone with access to this machine can use it and read its data.' <<<"$notice"
+  # agetty expands backslashes in issue files; the notice must stay literal.
+  # A negated command never trips set -e or the ERR trap, so test explicitly.
+  if grep -Fq '\' <<<"$notice"; then
+    echo "Passwordless notice must not contain backslashes; agetty expands them." >&2
+    exit 1
+  fi
   # Remote password login must be off in both install modes: the account
   # password is the LUKS passphrase or empty.
   sshd_dropin="$profile/airootfs/etc/ssh/sshd_config.d/00-clawos.conf"
