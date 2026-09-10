@@ -29,6 +29,12 @@ These scripts are not a turnkey Windows installer.
 
 ## Getting a CI-built ISO for acceptance runs
 
+This is a maintainer acceptance workflow, not the public quick start. No CI
+ISO is retained from the 2026-09-10 source launch; the example historical run
+below no longer has a downloadable ISO. Use a newly approved build with an
+available artifact, or [build locally](../../docs/GETTING-STARTED.md) for
+development. CodeQL `sarif-artifact-*` downloads are not OS images.
+
 Acceptance runs (the WHPX install and boot proofs recorded in
 `docs/HARDWARE-INSTALLER-VALIDATION.md` and the evidence ledger) use ISOs built
 by the **Experimental ISO build** workflow (`.github/workflows/release.yml`)

@@ -7,7 +7,7 @@ ArchISO, installer and native shell under [`m1/`](../m1/README.md). Nothing
 here ships in the image; `STATUS.md` is a historical record.
 
 The directory stays because `tests/static-check.sh` is a live negative test:
-`m1/bin/preflight-iso` runs it as stage 2/7 against `bin/`, `config/` and
+`m1/bin/preflight-iso` runs it as stage 2/9 against `bin/`, `config/` and
 `systemd/`, so those files cannot be removed without weakening the gate.
 
 Do not run `bin/*` on a machine you use. `complete-host-install` installs

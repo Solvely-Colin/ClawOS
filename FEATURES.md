@@ -26,7 +26,8 @@ install and boot proof is from QEMU (Linux KVM or Windows WHPX).
 | Windows VM lifecycle | Scheduled Task, SSH/ACPI shutdown, absolute tablet and protected unlock |
 | Remote-node roles | Implementation and isolated tests; broader live acceptance remains |
 | Physical hardware installation | Eligible blank SATA/NVMe/eMMC disks accepted; verified only in QEMU/WHPX, no physical machine installed yet; not "any Arch hardware" |
-| CI-built ISO | `release.yml` went green twice on 2026-09-08 (first on `main`: run 34270708295); the workflow validates but does not boot, and that image was booted live by hand, not installed from; artifacts expire after 14 days and there is no downloadable release |
+| Graphical install and first setup | Encrypted GTK install, disk-only boot and local/model-later/Full Root onboarding verified on 2026-09-10 at `de19c1b` in WHPX; provider inference, passwordless GTK and non-default policy are separate gates |
+| CI-built ISO | Run 34432248984 produced the image used for that manual install proof. CI validates image structure but does not automatically boot/install. Historical ISO artifacts were removed for source-first publication; build locally, with no downloadable release promised ([evidence](docs/EVIDENCE.md)) |
 
 ## Not implemented or by design
 

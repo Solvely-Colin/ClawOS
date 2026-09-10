@@ -1,6 +1,6 @@
 # Roadmap
 
-The detailed PLAN.md retains the original long-term vision. This page is the
+The [archived plan](docs/history/PLAN.md) retains the original long-term vision. This page is the
 current contributor work queue; checkboxes are acceptance criteria, not promises.
 Each section maps to a GitHub milestone; issues carry the detail.
 

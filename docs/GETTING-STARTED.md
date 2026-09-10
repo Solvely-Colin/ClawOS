@@ -32,7 +32,7 @@ The markers distinguish source descriptions from the exact paths exercised.
 
 ## Requirements
 
-Build host (path B only):
+Build host:
 
 - Arch Linux in a disposable VM. `install-build-deps` calls `sudo pacman`, and
   `build-iso` runs `mkarchiso` as root.
@@ -44,7 +44,7 @@ Build host (path B only):
   to `registry.npmjs.org`, from which `build-iso` installs
   `openclaw@$OPENCLAW_VERSION` into the image.
 
-Guest (both paths):
+Guest:
 
 - x86_64 with UEFI firmware (OVMF) and Secure Boot off. Legacy BIOS is not
   supported.
@@ -72,31 +72,27 @@ Accelerators:
 
 ## Get an ISO
 
-### A. Download a CI-built ISO
+### Build on Arch
 
-There are no releases and no tags. The **Experimental ISO build** workflow
-([release.yml](../.github/workflows/release.yml)) runs on manual dispatch,
-only in the `Solvely-Colin/ClawOS` repository, and uploads an Actions artifact
-named `clawos-iso-<commit sha>` that expires after 14 days.
+**Build-it-yourself is the current path.** No release ISO is available. The
+four retained CI ISO artifacts were removed before the 2026-09-10 source
+launch; their verification records remain in [EVIDENCE.md](EVIDENCE.md).
+Artifacts named `sarif-artifact-*` are CodeQL analysis reports, not bootable
+images. Do not expect a green historical run to have a downloadable ISO.
 
-1. Open the repository's Actions tab, select **Experimental ISO build** and a
-   green run, and download its `clawos-iso-<sha>` artifact. It holds
-   `clawos-*.iso`, `SHA256SUMS`, `clawos-*.iso.sha256`, `BUILD-METADATA.txt`,
-   `BUILD-PACKAGES.txt` and `BUILD-CONTAINER.txt`. `NOT YET VERIFIED` as a
-   walkthrough step; the workflow has completed once (run 34270708295 on
-   `00f81c5`) and that artifact was booted live, not installed from, on
-   2026-09-08 ([KNOWN-ISSUES.md](KNOWN-ISSUES.md)).
-2. Verify the checksum in the unpacked directory, then read
-   `BUILD-METADATA.txt`; it records the source commit and states that boot,
-   install and hardware acceptance were not run by the workflow.
-   `verified 2026-09-08 against the run 34270708295 artifact` (ledger row in
-   [EVIDENCE.md](EVIDENCE.md)).
+In your disposable Arch build VM, install Git if needed (`sudo pacman -S git`),
+then get the source:
 
-   ```sh
-   sha256sum -c SHA256SUMS
-   ```
+```sh
+git clone https://github.com/Solvely-Colin/ClawOS.git
+cd ClawOS
+git rev-parse HEAD
+```
 
-### B. Build on Arch
+Keep that revision with your build/install report. Maintainer-triggered future
+CI builds are described in [RELEASING.md](RELEASING.md); they are not a promise
+of public binary availability. When an ISO bundle is explicitly offered,
+verify its `SHA256SUMS` and source metadata before using it.
 
 1. Install the build tooling. The script says what it is about to do, then
    runs `sudo pacman -S` for `base-devel`, `git`, `inetutils`, `archiso`,
@@ -121,7 +117,7 @@ named `clawos-iso-<commit sha>` that expires after 14 days.
    [ci.yml](../.github/workflows/ci.yml) runs it on every push).
 3. Build the fast ISO. `--fast` compresses with zstd, writes
    `clawos-fast-<date>-x86_64.iso` and its `.sha256` to
-   `artifacts/m1/out-fast/`, and deletes the previous fast output. It
+   `artifacts/m1/out-fast/`, and archives the previous fast output. It
    rematerializes the profile from source, installs the pinned OpenClaw from
    npm into the image and runs `m1/tests/validate-iso.sh` on the result.
 
@@ -138,8 +134,10 @@ named `clawos-iso-<commit sha>` that expires after 14 days.
    sudo ./m1/bin/build-iso
    ```
 
-   `NOT YET VERIFIED` (release mode has only run in the CI helper, run
-   34270708295).
+   `NOT YET VERIFIED` as this exact local walkthrough command. Release mode
+   ran in CI, including run 34432248984; that image completed the encrypted
+   GTK/default-onboarding proof on 2026-09-10. This is not proof that a new
+   contributor has followed the walkthrough end to end.
 5. Create the disposable installer disk. The runner only accepts qcow2 images
    under `artifacts/m1/disks/` and refuses to overwrite an existing one:
 

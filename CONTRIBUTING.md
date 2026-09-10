@@ -14,6 +14,15 @@ best-effort by one maintainer with no promised response time, the same no-SLA te
 
 ## Finding work
 
+Discussions and blank issues are disabled for the source-first launch. Use the
+bug/install/feature templates for focused reports and proposals; discuss an
+existing task in its issue. This keeps one searchable queue for a single
+maintainer. Security reports still use the private routes in SECURITY.md.
+These launch defaults can be revisited through a feature proposal.
+
+Read the [contributor map](docs/CONTRIBUTOR-MAP.md) to find the actual runtime,
+tests and build entry points without learning the old milestone numbering.
+
 The pinned [Start here issue](https://github.com/Solvely-Colin/ClawOS/issues/86)
 collects newcomer entry points and source-only launch expectations.
 

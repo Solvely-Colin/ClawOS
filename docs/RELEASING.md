@@ -23,6 +23,12 @@ its digest recorded; this is not a claim of bit-for-bit reproducibility.
 
 ## What success does not mean
 
+The 2026-09-10 public launch is source-only. Its four historical ISO artifacts
+were removed after private backup verification; CodeQL SARIF artifacts are not
+ISOs. New manual or tag builds can expose binaries to repository readers, so
+review artifact distribution before dispatching them. The public entry point
+is [building locally](GETTING-STARTED.md), not downloading an old CI run.
+
 The workflow does not boot the image, install a fresh disk, run a model request,
 test physical hardware, or prove full-system rollback. It must not be described
 as a verified stable release. See [hardware restrictions](HARDWARE.md) and the
@@ -41,5 +47,8 @@ container does not expose. Diagnose those failures rather than skipping gates.
 The first green run on `main` was 34270708295 on 2026-09-08 (source commit
 `00f81c5`, ISO SHA-256 beginning `9442e105`); a branch run had succeeded earlier
 that day. The workflow validates but does not boot; that artifact was booted
-live by hand (EVIDENCE.md). Do not create a release tag just to make the
+live by hand (EVIDENCE.md). Later run 34432248984 at `de19c1b` completed a
+manual encrypted GTK install and default onboarding under WHPX on 2026-09-10;
+provider inference and full update/recovery were not part of that proof.
+Do not create a release tag just to make the
 workflow look complete.

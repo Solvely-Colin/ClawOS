@@ -13,6 +13,7 @@ been inside a virtual machine. What is and is not in scope is summarized in
 [docs/SCOPE.md](docs/SCOPE.md).
 
 [Features](FEATURES.md) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md) ·
+[Code map](docs/CONTRIBUTOR-MAP.md) ·
 [Hardware support](docs/HARDWARE.md) · [Release builds](docs/RELEASING.md)
 
 **Installer boundary:** the experimental installer accepts eligible blank SATA,
@@ -91,7 +92,7 @@ Source gates reject known Omarchy dependencies. Historical references and
 negative tests remain intentionally; removing those words would weaken checks.
 This is not a complete package/asset provenance certification.
 
-`PLAN.md` and milestone `STATUS.md` files include superseded designs. Treat
+[Archived plans](docs/history/README.md) and milestone `STATUS.md` files include superseded designs. Treat
 current code and executable tests as evidence, not every historical "proven"
 statement as current release acceptance.
 
