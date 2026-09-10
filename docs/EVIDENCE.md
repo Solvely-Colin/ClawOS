@@ -22,6 +22,25 @@ instead of prose.
 Full hashes are in the private copies and in the run artifacts; the ledger
 shows the first and last characters so a row can be matched to a file.
 
+## Automated live boot gate
+
+On 2026-09-10, [run 34505506520](https://github.com/Solvely-Colin/ClawOS/actions/runs/34505506520)
+at `0b2f80b9899067a20f0e17fba5e6efb310978b7d` built
+`clawos-2026.09.10-x86_64.iso`, SHA-256
+`ebf236162e3bb0362918a7ca62d9579dbd8da3a7ce33fc4547519935a231b3d6`,
+and booted that exact image in the Arch build container using hosted-runner KVM.
+The KVM device/API/VM-creation probe passed. Executed serial markers confirmed
+ClawOS identity, systemd health, QEMU DHCP address, overlay root and key-only SSH
+configuration; QEMU exited normally after guest poweroff. Result metadata says
+`Live boot smoke: RUN (KVM, run 34505506520)` and `Graceful shutdown: PASS`.
+
+Only the scanned `clawos-boot-evidence-*` artifact was uploaded (serial,
+transcript, QEMU log, metadata, result and checksum). Its logs were scanned
+again after download. ISO retention was disabled; the release job was skipped.
+This proves live boot, not installation, onboarding, inference or hardware.
+Follow-up commits tighten the optional ISO upload allowlist and record failed
+attempts explicitly; they do not change the tested boot harness or image content.
+
 ## Component-layout runtime verification
 
 Compared with pre-migration source `7233f4d`, assembled profile and runtime

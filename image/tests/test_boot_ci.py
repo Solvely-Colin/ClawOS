@@ -1,6 +1,9 @@
 import importlib.util
 import json
+import os
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -88,6 +91,31 @@ class BootCI(unittest.TestCase):
         self.assertLess(helper.index('./image/tests/boot-smoke-qemu'), helper.index('Live boot smoke: RUN (KVM'))
         self.assertIn('Install/onboarding/hardware acceptance: NOT RUN', helper)
         self.assertIn('Live boot smoke: FAILED (KVM', helper)
+
+    @unittest.skipUnless(sys.platform == 'linux', 'Shell contract runs on Linux CI')
+    def test_metadata_records_success_and_failure_without_masking_exit(self):
+        helper = (ROOT / 'tools/ci/build-release.sh').read_text()
+        fragment = helper[helper.index('# Same freshly built ISO'):]
+        for status in (0, 23):
+            with self.subTest(status=status), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                smoke = root / 'image/tests/boot-smoke-qemu'
+                smoke.parent.mkdir(parents=True)
+                smoke.write_text('#!/usr/bin/env bash\nexit "$SMOKE_EXIT"\n')
+                smoke.chmod(0o755)
+                out = root / 'out'
+                out.mkdir()
+                (out / 'fixture.iso').write_bytes(b'fixture')
+                metadata = out / 'BUILD-METADATA.txt'
+                metadata.write_text('Live boot smoke: NOT RUN\nInstall acceptance: NOT RUN\n')
+                result = subprocess.run(['bash', '-c', 'set -euo pipefail\nout="$CASE_OUT"\n' + fragment],
+                                        cwd=root, env={**os.environ, 'CASE_OUT': str(out),
+                                        'GITHUB_RUN_ID': '42', 'SMOKE_EXIT': str(status)},
+                                        capture_output=True, text=True)
+                self.assertEqual(result.returncode, status, result.stderr)
+                outcome = 'RUN' if status == 0 else 'FAILED'
+                self.assertEqual(metadata.read_text(),
+                                 f'Live boot smoke: {outcome} (KVM, run 42)\nInstall acceptance: NOT RUN\n')
 
     def test_smoke_has_no_process_termination_and_uses_exact_markers(self):
         source = (ROOT / 'image/tests/boot-smoke-qemu').read_text()
