@@ -47,6 +47,10 @@ On Arch Linux, review and install build dependencies, then run the source gate:
 ./m1/bin/preflight-iso
 ```
 
+Without Arch, run the same gate in the `archlinux:base-devel` container CI
+uses, with Docker or Podman: `tools/dev/preflight-in-container.sh` (see
+[CONTRIBUTING.md](CONTRIBUTING.md#running-the-source-gate-without-arch)).
+
 For non-privileged unit checks on Linux with Python 3.12+ and Node 24+:
 
 ```sh
