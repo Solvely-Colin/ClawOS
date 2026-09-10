@@ -128,3 +128,58 @@ SHA-256 `9442e105d287c300e08b8ce9821859fa684067d761afd3b69491552a956816fd`,
 
 This replaces the 2026-09-07 note that the live-side fix had not been rebuilt
 into an ISO. It is the first observation of a CI-built image. Ledger row added.
+
+## 2026-09-10: graphical encrypted install and default onboarding on the CI ISO
+
+Source `de19c1bccc839a47696afd4c7009f6717c43d934`, `release.yml` run
+[34432248984](https://github.com/Solvely-Colin/ClawOS/actions/runs/34432248984),
+ISO SHA-256 `119768a247fd5e76f15a0df1914f554cc9bd2f5f4a53db3c810d68693a5ede32`.
+Get-CiIso verified workflow identity, source metadata and checksum. Windows
+QEMU 11.1/WHPX with OVMF, 8 GiB RAM, a fresh 40 GiB NVMe qcow2 disk and fresh
+firmware variables; 1440x900 display. No `--vm-test`, source patch or provider
+credential was used. The existing public SSH key was added locally only for
+inspection; SSH policy was not changed.
+
+- Unmodified image: Welcome, Inspect system and graphical Install worked.
+  No disk was selected by default. Back/Erase remained visible with the layout
+  fix included in the ISO. Selected the only blank disk, entered a synthetic
+  passphrase twice and its exact `ERASE-/dev/nvme0n1` confirmation.
+- `pkexec` launched the installer without a dialog. Archive and capacity checks
+  passed (1130 MiB download; 3955 MiB temporary capacity). Archive connection
+  resets caused retries; attempt 3 completed using cached downloads. Package
+  integrity checking preceded `CLAWOS_INSTALL_DISK_WRITE_STARTED` and partitioning.
+- GTK reported Installation complete. Clicking Restart into ClawOS requested a
+  normal guest reboot. The host's `-no-reboot` setting let QEMU exit normally
+  (task result 0); an offline image check and checkpoint were taken, then the
+  disk was launched without ISO media. QMP confirmed the CD device was empty.
+- The installed boot entry loaded, the typed LUKS passphrase unlocked the disk,
+  and setup appeared without a second graphical login. Recovery tty3 login as
+  `clawos` with the same password worked.
+- Graphical onboarding: This machine, choose a model later, default Full Root.
+  No policy dialog required input. The live `/api/status` response changed from
+  `setupComplete: false`, `stage: start` to `setupComplete: true`, `stage: complete`,
+  `mode: local`, `access: full-root`, `selectedModel: null`. Captured before
+  closing setup; its temporary server exits after workspace entry.
+- Enter Agent workspace opened the real OpenClaw 2026.8.2 Control UI at model
+  setup, as expected with provider configuration deferred. This is not inference proof.
+- Both live and installed `sshd -T`: PermitRootLogin, PasswordAuthentication,
+  KbdInteractiveAuthentication and PermitEmptyPasswords all `no`. Installed
+  drop-ins: `00-clawos.conf`, `20-systemd-userdb.conf`, `99-archlinux.conf`.
+  Successful public-key SSH was observed. Host forwarding intermittently timed
+  out during bootstrap/downloads; the recovery console remained usable. The
+  final SSH read used `IPQoS=none`; a causal fix for those timeouts is not proven.
+- Installed `clawosd`, `sshd`, NetworkManager, tailscaled, clawos-session@clawos,
+  and the user openclaw-gateway service were active; no failed system-unit rows.
+  Broker level was full-root. Root was Btrfs `@` over the LUKS mapper.
+- Before any `tailscale up`, Tailscale 1.102.3 reported NeedsLogin with no tailnet
+  or assigned Tailscale IP. It nevertheless listened on UDP 41641 on IPv4/IPv6.
+  SSH listened on TCP 22 on both families; after onboarding Gateway listened on
+  loopback TCP 18789. The setup server had used loopback TCP 19401 and then exited.
+- Shutdown through SSH `sudo systemctl poweroff` completed normally. Final image
+  check passed and a separate configured disk/firmware checkpoint was retained.
+
+ISO, manifests, build logs, screenshots, API output and listener observations
+are retained privately. This supersedes the default encrypted GTK/onboarding
+gaps above, not the historical results. Passwordless GTK, non-default policy
+dialogs, remote Gateway, provider login/inference, live-update/rollback, KVM/TCG
+and physical hardware are not established by this run.

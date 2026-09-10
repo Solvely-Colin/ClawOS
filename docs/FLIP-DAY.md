@@ -22,6 +22,12 @@ Conventions:
 
 ## Before the sitting (T-1 day)
 
+Review retained Actions artifacts as well as Git history. Public read access
+also allows signed-in readers to download workflow artifacts, including ISO
+images that are not GitHub Releases. Resolve their distribution/retention
+disposition before the flip; preserve private evidence and obtain approval
+before deleting artifacts. See [the current inventory](PUBLIC-SOURCE-READINESS.md#actions-artifacts-are-part-of-the-visibility-review).
+
 1. Dry-run the protections script against the still-private repository and
    file the output. It prints every API call and the current state; nothing is
    changed.

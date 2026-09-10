@@ -8,7 +8,13 @@ machine has been installed.
 
 ## Markers
 
-Every step below ends with one of two markers.
+The markers distinguish source descriptions from the exact paths exercised.
+
+- `verified 2026-09-10 at de19c1b, CI ISO/WHPX`: the default encrypted graphical
+  path, local Gateway, model deferred and Full Root were exercised from CI run
+  34432248984 on a fresh 40 GiB NVMe disk with 8 GiB RAM at 1440x900. See
+  [the full record](HARDWARE-INSTALLER-VALIDATION.md#2026-09-10-graphical-encrypted-install-and-default-onboarding-on-the-ci-iso).
+  This does not cover passwordless GTK, remote Gateway or non-default policy.
 
 - `verified 2026-09-07 at ee2f4f1 (fast ISO built in the builder VM), WHPX`:
   the step is backed by the "2026-09-07: sshd policy and both install modes
@@ -20,8 +26,8 @@ Every step below ends with one of two markers.
   encrypted and the passwordless mode, and checked first boot, LUKS unlock and
   key-only `sshd` on the installed systems.
 - `NOT YET VERIFIED`: the step is described from the source at HEAD and was
-  not exercised in that run. The GTK installer, onboarding past its first
-  screen, the Polkit prompt and the Control UI are all in this state. Read
+  not exercised by the cited record. Provider login, remote Gateway and
+  non-default Polkit behavior remain unverified. Read
   those steps as a description of the code, not of an observed run.
 
 ## Requirements
@@ -180,24 +186,25 @@ recovery console (`Ctrl+Alt+F3`).
 
 ### Graphical installer
 
-None of these screens were used on 2026-09-07; every step in this section is
-`NOT YET VERIFIED`. The copy is read from
+The encrypted path through these screens is `verified 2026-09-10 at de19c1b, CI ISO/WHPX`.
+Passwordless GTK and the remote/non-default onboarding alternatives are not
+covered. The copy is read from
 `m1/profile-overlay/airootfs/usr/lib/clawos/clawos-live-welcome`.
 
 1. **Welcome screen.** A window titled "ClawOS Setup" opens with the headline
    "Your machine, ready to work with you." and two buttons, **Install ClawOS**
    and **Inspect system**. Inspect system shows live-system facts (network,
-   target disk, recovery) and writes nothing. `NOT YET VERIFIED`.
+   target disk, recovery) and writes nothing. Verified in the 2026-09-10 run.
 2. **Install.** Install ClawOS opens "Create the agent system.", which says the
    install is for a blank disk on an experimental x86_64 UEFI system and is
-   encrypted with LUKS2 by default. `NOT YET VERIFIED`.
+   encrypted with LUKS2 by default. Verified in the 2026-09-10 run.
 3. **Disk selection.** The selector starts at "Select a blank disk — no default
    target" and lists eligible blank whole disks of at least 32 GiB with path,
    capacity, model and an identity hint. In a `run-qemu` guest the disk is
    `/dev/vda`. If nothing qualifies the screen says "No eligible blank disk of
-   at least 32 GiB found." `NOT YET VERIFIED` (the eligibility rules are the
-   ones unit-tested in `m1/tests/test_install_targets.py` and the ones the
-   `tty1` installs went through).
+   at least 32 GiB found." No-default selection and the eligible NVMe choice
+   were verified on 2026-09-10; the no-eligible-disk UI was not. Eligibility
+   rules are unit-tested in `m1/tests/test_install_targets.py`.
 4. **Passphrase, or the passwordless checkbox.** "Disk unlock and session-lock
    passphrase": at least 10 characters, typed twice. The screen says one
    passphrase unlocks the encrypted disk and is also the `root` and `clawos`
@@ -209,11 +216,14 @@ None of these screens were used on 2026-09-07; every step in this section is
    `clawos-install-dev --passwordless`: plain Btrfs with no LUKS layer, empty
    `root` and `clawos` passwords, and `/etc/clawos-passwordless-entry`, which
    disables the screen lock. There is no in-place switch between the two
-   modes; reinstall to change. `NOT YET VERIFIED`.
+   modes; reinstall to change. The encrypted choice was verified on 2026-09-10;
+   the passwordless GTK path remains unverified by that run.
 5. **Confirmation.** Type `ERASE-` followed by the exact selected disk path,
    for example `ERASE-/dev/vda`, into the confirmation field. **Erase disk and
    install** enables only when that token matches, a disk is selected and the
-   passphrases are valid (or passwordless is ticked). `NOT YET VERIFIED`.
+   passphrases are valid (or passwordless is ticked). The encrypted path was
+   verified on 2026-09-10. Form options scroll on smaller displays while the
+   Back and Erase actions stay visible.
 6. **Progress.** "Building the encrypted agent system…" (or "…passwordless…")
    with a scrolling installer log. The installer first downloads and verifies
    every package after archive-reachability and temporary-storage checks.
@@ -222,10 +232,13 @@ None of these screens were used on 2026-09-07; every step in this section is
    It then prints
    `CLAWOS_INSTALL_DISK_WRITE_STARTED` and partitions the disk. A failure
    before that line ends with "The target disk was not changed."; a failure
-   after it with "The target may be partially installed." `NOT YET VERIFIED`.
+   after it with "The target may be partially installed." The successful path
+   and reset retries were observed on 2026-09-10; these failure-result screens
+   were not exercised by that run.
 7. **Restart into ClawOS.** "Installation complete." with the button **Restart
    into ClawOS**, which runs `/usr/lib/clawos/clawos-live-reboot` through
-   `pkexec`. Detach the ISO before the guest comes back up. `NOT YET VERIFIED`.
+   `pkexec`. Detach the ISO before the guest comes back up. Verified on
+   2026-09-10: the host exited QEMU on guest reboot and relaunched without media.
 
 ### From the live tty1 shell
 
@@ -297,8 +310,9 @@ Q35 KVM and `/dev/vda` only) and the 2026-09-07 runs omitted it.
 4. **Console login.** On `tty3` (`Ctrl+Alt+F3`), `root` and `clawos` log in
    with the disk passphrase on an encrypted system and with no password on a
    passwordless one.
-   `verified 2026-09-07 at ee2f4f1 (fast ISO built in the builder VM), WHPX` for `root` in both modes; the `clawos` login and the exact tty are
-   `NOT YET VERIFIED`.
+   `verified 2026-09-07 at ee2f4f1 (fast ISO built in the builder VM), WHPX` for
+   `root` in both modes. Login as `clawos` on tty3 was verified in the encrypted
+   2026-09-10 run.
 
 ### OpenClaw onboarding
 
@@ -309,6 +323,11 @@ titled "ClawOS Setup". If Chromium or that service cannot start, the fullscreen
 terminal wizard `clawos-onboard` is the fallback. The progress rail reads
 **1 Start · 2 Gateway · 3 Agent · 4 Access · 5 Ready**.
 
+The local Gateway / model-later / Full Root path and Control UI entry are
+`verified 2026-09-10 at de19c1b, CI ISO/WHPX`. No provider credential or inference
+was used. The terminal fallback, remote Gateway and non-default access modes
+still need their own tests.
+
 1. **Start.** "FIRST BOOT / Make this machine an agent workspace." with a
    network indicator and the button **Set up ClawOS**.
    `verified 2026-09-07 on the 8826f15d fast ISO, WHPX` (the "Download-failure
@@ -318,16 +337,18 @@ terminal wizard `clawos-onboard` is the fallback. The progress rail reads
 2. **Gateway.** "Where should OpenClaw run?" Choose **This machine** (local,
    recommended) or **Existing Gateway** (connect this machine as a node to a
    Gateway over a private network; a `ws://` or `wss://` URL and an optional
-   Gateway token). `NOT YET VERIFIED`.
+   Gateway token). Local choice verified on 2026-09-10; remote not verified.
 3. **Agent.** For a local Gateway, "Set up OpenClaw." explains that provider,
    sign-in and model are chosen later in OpenClaw's own wizard and that ClawOS
    does not choose a model for you; the checkbox "Prepare the machine now;
    choose a model later" lets you defer that. For a remote Gateway, "Connect
-   the Gateway." takes the WebSocket URL and token. `NOT YET VERIFIED`.
+   the Gateway." takes the WebSocket URL and token. Local deferral verified
+   on 2026-09-10; remote not verified.
 4. **Access.** "How independently can the agent work?" Choose **Full root**
    (default: the agent user gets passwordless sudo; rollback, power, role and
    policy changes still ask), **Full user + approvals** or **User limited**,
-   then press **Install configuration**. `NOT YET VERIFIED`.
+   then press **Install configuration**. Default Full Root verified on
+   2026-09-10; the other choices are not covered.
 5. **Configuring.** The page shows "Bringing the system online." and cycles
    through "Securing Gateway credentials…", "Installing the OpenClaw
    service…", "Preparing the Agent workspace…" and "Checking the machine
@@ -337,7 +358,9 @@ terminal wizard `clawos-onboard` is the fallback. The progress rail reads
    and records the checkpoints `start`, `base`, `plugin`, `tools`, `profile`,
    `machine-policy` and `complete` in `~/.local/state/clawos/onboarding.json`;
    a retry resumes from the first incomplete stage. Local mode generates a
-   Gateway token into `~/.openclaw/.env`. `NOT YET VERIFIED`.
+   Gateway token into `~/.openclaw/.env`. Completion was verified on 2026-09-10
+   through the saved checkpoint and `/api/status` with `setupComplete: true`;
+   interrupted-stage resume was not tested by that run.
 6. **Polkit prompt.** The `machine-policy` stage applies the chosen access
    level through `clawosctl` and `security.level.configure`, a high-impact
    action gated by Polkit (`org.clawos.system.commit`, `auth_admin`; the
@@ -348,13 +371,15 @@ terminal wizard `clawos-onboard` is the fallback. The progress rail reads
    encrypted system, empty on a passwordless one ([HARDWARE.md](HARDWARE.md),
    [SECURITY.md](../SECURITY.md)). SECURITY.md records that which identity
    actually satisfies the `auth_admin` prompt has not been observed.
-   `NOT YET VERIFIED`.
+   The default skip was verified on 2026-09-10; the non-default prompt and its
+   accepted identity remain unverified.
 7. **Ready.** "MACHINE CONFIGURED / Continue with OpenClaw." **Choose provider
    and model** opens `openclaw configure --section model` in a fullscreen
    terminal; ClawOS has no provider catalog and collects no credentials on
    this page. **Choose a model later** ticks the defer checkbox instead.
    **Enter Agent workspace** enables once a model is selected or you chose to
-   configure later, and closes the setup window. `NOT YET VERIFIED`.
+   configure later, and closes the setup window. Deferred-provider entry was
+   verified on 2026-09-10; the provider wizard itself was not exercised.
 
 ### Afterwards
 
@@ -363,17 +388,22 @@ terminal wizard `clawos-onboard` is the fallback. The progress rail reads
   the background, and then keeps `clawos-browser` running: Chromium in app
   mode on the Gateway's Control UI, receiving its token through a mode-0600
   bootstrap file in `$XDG_RUNTIME_DIR` rather than on the command line.
-  `NOT YET VERIFIED`.
+  Control UI entry was verified on 2026-09-10 at the model-setup screen. Node
+  enrollment and real inference were not separately verified by that run.
 - **SSH.** `sshd` is enabled but refuses password, keyboard-interactive and
   root login (`/etc/ssh/sshd_config.d/00-clawos.conf`), and nothing installs
   an authorized key. Add one for the `clawos` account from the console before
   relying on remote access.
   `verified 2026-09-07 at ee2f4f1 (fast ISO built in the builder VM), WHPX`
-  for the policy (`sshd -T` on both installed systems).
+  for the policy (`sshd -T` on both installed systems). The encrypted CI image
+  on 2026-09-10 also passed policy checks and public-key SSH after local key
+  installation. Host-forwarded SSH intermittently timed out during bootstrap;
+  keep the recovery console available.
 - **Tailscale.** `tailscaled` is enabled and running; nothing in the
   repository runs `tailscale up` or supplies an auth key.
   `verified 2026-09-07 at ee2f4f1 (fast ISO built in the builder VM), WHPX`
-  (`tailscale status` logged out).
+  (`tailscale status` logged out). On 2026-09-10, NeedsLogin/no tailnet was
+  observed alongside UDP 41641 listeners on IPv4/IPv6 before enrollment.
 - **Full Root.** The `clawos` account has passwordless sudo
   (`/etc/sudoers.d/90-clawos-full-root`) until the level is changed. This is
   a trusted-agent mode, not containment; see [SECURITY.md](../SECURITY.md).

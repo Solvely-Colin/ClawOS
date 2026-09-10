@@ -1,7 +1,9 @@
 # Current development boundaries
 
 - **Fullscreen/layout:** Windows QEMU has an absolute tablet, but setup-window
-  offset/clipping remains under investigation. Scaling is not fully solved.
+  offset/scaling is not fully solved. The GTK installer's clipped Back/Erase
+  actions were fixed in #81 and verified in CI ISO run 34432248984 at 1440x900;
+  that does not establish all QEMU fullscreen/pointer behavior (#54).
 - **Task context:** supporting-surface prompts can still target the fixed main
   session instead of the conversation owning the terminal/browser/build.
 - **Startup:** configuration presence, onboarding completion, model readiness,
@@ -23,6 +25,9 @@
   The hardware-capable installer is blank-disk-only. Fresh QEMU/WHPX passwordless
   and encrypted installs passed on 2026-09-06/07; physical-machine acceptance is
   still missing. Existing partitions are intentionally refused.
+  The encrypted graphical CI-ISO path through default onboarding was verified
+  on 2026-09-10; provider inference and the complete update/recovery loop remain
+  separate gates. See [the exact proof](HARDWARE-INSTALLER-VALIDATION.md).
 - **Verification scope:** every install and boot proof is from QEMU (Linux KVM
   or Windows WHPX). No physical machine has been installed.
 - **Remote access:** installed systems enable `sshd` and `tailscaled` at boot.
@@ -32,6 +37,11 @@
   not enrolled. The live ISO also runs sshd on port 22 with the same key-only
   policy and a passwordless root account (observed on a CI-built image,
   2026-09-08).
+  On the 2026-09-10 installed CI image, un-enrolled Tailscale reported NeedsLogin
+  but listened on UDP 41641 on IPv4/IPv6. Do not equate no tailnet with no
+  listener; the default-service decision remains #42. Host-forwarded SSH
+  intermittently timed out during bootstrap/downloads; successful key login
+  and a usable recovery console were also observed.
 - **Credentials:** in encrypted installs the LUKS passphrase is also the `root`
   and `clawos` account password (Polkit prompts, session unlock). Passwordless
   installs leave both accounts with empty passwords, no encryption and no
@@ -39,8 +49,9 @@
 - **Releases:** no tags exist and there is no downloadable release. `release.yml`
   went green for the first time on `main` on 2026-09-08 (run 34270708295; an
   earlier branch run is in the ledger). The workflow validates the ISO but does
-  not boot it; that artifact was booted live by hand on 2026-09-08, not installed
-  from, and is kept for 14 days. Build locally with `sudo ./m1/bin/build-iso`, or
+  not boot it automatically. Run 34432248984 was manually verified through an
+  encrypted graphical install and default onboarding on 2026-09-10. Artifacts
+  are kept for 14 days and are not supported releases. Build locally with `sudo ./m1/bin/build-iso`, or
   see [the evidence ledger](EVIDENCE.md).
 - **Compatibility:** the version-checked OpenClaw delivery adapter needs review
   when upgrading that dependency.
@@ -50,6 +61,7 @@
   do not certify every asset and package's provenance.
 - **Public release:** the license (MIT) and NOTICE.md are in place. Still open
   before the source goes public: the reporting-mailbox check, the secret scan at
-  the publication commit, and the owner's approval. See the
+  the publication commit, historical-path and Actions-artifact disposition,
+  and the owner's approval. See the
   [public-release checklist](PUBLIC-RELEASE-CHECKLIST.md) and the `flip-gate`
   issues.

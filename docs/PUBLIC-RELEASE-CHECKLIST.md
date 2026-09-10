@@ -11,8 +11,14 @@
 - [x] Add SECURITY.md with the maintainer-designated email reporting route.
 - [ ] Verify mailbox delivery before publication; optionally enable and verify
       GitHub private vulnerability reporting when available.
-- [ ] Repeat a redacted secret scan of source and all history at the publication SHA.
-- [ ] Confirm no VM images, firmware variables, auth stores or personal paths/evidence are tracked.
+- [x] Scan the preparation candidate and all local refs/history, including the
+      five recovered commits, with gitleaks 8.30.1 and full redaction. Exact
+      candidate SHA, command and result are recorded in #15/private evidence.
+      Repeat at the actual visibility SHA if any commit changes after that scan.
+- [x] Audit the current tracked tree for VM images, firmware, auth stores and
+      personal paths/evidence. Private VM evidence remains outside Git.
+- [ ] Resolve owner disposition of historical developer paths/session identifiers
+      and retained Actions ISO artifacts before changing visibility (#15).
 - [x] README, FEATURES, ROADMAP, NOTICE, m1/README, /etc/issue, os-release and loader titles say
       "experimental, VM-verified only, no releases"; one repository URL everywhere
       (image files pinned by the identity block at the end of `m1/tests/validate-profile.sh`;
