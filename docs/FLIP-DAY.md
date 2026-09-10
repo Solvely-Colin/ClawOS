@@ -115,8 +115,9 @@ not skip a step silently.
 What the rulesets do from this moment:
 
 - `main`: no force-push, no deletion, changes arrive by pull request with zero
-  required approvals (CODEOWNERS stays informational), `unit-tests` and
-  `arch-preflight` from `.github/workflows/ci.yml` must pass, and only the
+  required approvals (CODEOWNERS stays informational), all four checks from
+  `.github/workflows/ci.yml` (`unit-tests`, `arch-preflight`, `container-wrapper`,
+  `prototype`) must pass, and only the
   configured merge method is offered. The repository admin (the owner) is in
   bypass. Use pull requests anyway so CI runs on every change; bypass is for
   emergencies.
@@ -162,7 +163,8 @@ The date of this check is the date that goes into SECURITY.md below.
   `$EVIDENCE/codeql-first-run-$(date -u +%Y%m%d).txt`.
 - `gh api repos/Solvely-Colin/ClawOS/rulesets > "$EVIDENCE/rulesets-$(date -u +%Y%m%d).json"`.
   The `main` branch page shows the rules indicator; the #17 pull request below
-  will show `unit-tests` and `arch-preflight` as required.
+  will show `unit-tests`, `arch-preflight`, `container-wrapper` and `prototype`
+  as required.
 - Settings, Actions, General: "Allow Solvely-Colin, and select non-Solvely-Colin,
   actions and reusable workflows" with GitHub-owned and verified creators
   ticked; "Require actions to be pinned to a full-length commit SHA" on; fork
@@ -171,7 +173,8 @@ The date of this check is the date that goes into SECURITY.md below.
 ## T+0:45 Follow-through pull request (#17 and the #16 CONTRIBUTING note)
 
 Push `flip-day/follow-through` and open a pull request. The ruleset now
-requires `unit-tests` and `arch-preflight` to pass; merge with the configured
+requires `unit-tests`, `arch-preflight`, `container-wrapper` and `prototype`
+to pass; merge with the configured
 method. Line numbers below are as of commit `00f81c5`; grep for the quoted
 text if they have moved.
 
