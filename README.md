@@ -37,7 +37,10 @@ This proves the tested runtime-file loop, not arbitrary OS recovery, hardware
 compatibility or containment of an untrusted agent. Startup and UX rough edges
 remain in [known issues](docs/KNOWN-ISSUES.md).
 
-**Installer boundary:** the experimental installer accepts eligible blank SATA,
+**Installer boundary:** the experimental installer defaults to VM-only; its
+graphical path refuses physical/unidentified environments. Unsupported physical
+installation requires the CLI `--experimental-hardware` option. The disk policy
+accepts eligible blank SATA,
 NVMe, virtio and eMMC disks on x86_64 UEFI systems and refuses boot media,
 mounted/in-use disks and nonblank disks. It has only ever run in virtual
 machines: a full `--passwordless` install plus reboot and an encrypted install

@@ -1,9 +1,21 @@
-# Experimental hardware installation
+# Experimental bare-metal path (unsupported in v0.1.0-alpha)
 
-The installer no longer requires a VM. It accepts eligible **blank SATA, NVMe,
+The prerelease installer defaults to **VM-only**. Its graphical path refuses
+physical or unidentified environments. The command-line installer requires
+`--experimental-hardware` to opt into an unsupported physical installation;
+that option does not waive live-media, disk identity, blank-disk or erase
+confirmation checks. Failed or ambiguous VM detection refuses even with the option.
+
+The underlying disk policy accepts eligible **blank SATA, NVMe,
 virtio and eMMC whole disks** of at least 32 GiB on **x86_64 UEFI** systems.
 This is code-level eligibility, not a tested-device compatibility guarantee.
 Physical-hardware acceptance has not yet been completed.
+
+`python3 /usr/lib/clawos/clawos_install_targets.py environment` reports the
+read-only VM observation. Successful validation includes it in the plan JSON.
+On a deliberately chosen unsupported spare physical machine, the explicit
+option is required on target discovery (`list --experimental-hardware`), plan
+validation and `clawos-install-dev`. It is intentionally absent from the GUI.
 
 ## Safety boundary
 

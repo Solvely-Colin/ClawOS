@@ -10,7 +10,7 @@ import threading
 import sys
 
 sys.path.insert(0, '/usr/lib/clawos')
-from clawos_install_targets import confirmation_token, describe, list_targets
+from clawos_install_targets import confirmation_token, describe, list_targets, virtualization
 
 import gi
 
@@ -264,6 +264,8 @@ class Welcome(Gtk.ApplicationWindow):
 
     @staticmethod
     def _disks():
+        if virtualization()['kind'] != 'vm':
+            return []
         return list_targets()
 
     def _disk_summary(self):
@@ -385,6 +387,11 @@ class Welcome(Gtk.ApplicationWindow):
         self.current_view = "install"
         self._clear()
         content = self._classes(Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14), "content")
+        self.install_environment = virtualization()
+        if self.install_environment['kind'] != 'vm':
+            content.pack_start(self._screen_header(
+                "INSTALLATION UNAVAILABLE", "This release is VM-only.",
+                "Physical hardware is unverified. Erase is disabled unless a virtual machine can be identified. You can still inspect the live system."), False, False, 0)
         content.pack_start(self._screen_header(
             "INSTALL CLAWOS", "Create the agent system.",
             "Choose a blank disk for this experimental x86_64 UEFI installation. By default it is encrypted with LUKS2 and prepared for OpenClaw."), False, False, 0)
@@ -547,11 +554,16 @@ class Welcome(Gtk.ApplicationWindow):
             return
         problem = self._passphrase_problem()
         confirmed = bool(self.target) and self.erase_confirmation.get_text() == confirmation_token(self.target)
-        self.install_button.set_sensitive(confirmed and not problem and not self.installing)
+        environment_ok = getattr(self, 'install_environment', {}).get('kind') == 'vm'
+        self.install_button.set_sensitive(environment_ok and confirmed and not problem and not self.installing)
         self.error.set_text("" if problem == "incomplete" else problem)
 
     def start_install(self, *_args):
         if self.installing:
+            return
+        if virtualization()['kind'] != 'vm':
+            self.error.set_text('This release is VM-only. Installation is unavailable on this machine.')
+            self.install_button.set_sensitive(False)
             return
         if not self.target or not self.disk_id or self.erase_confirmation.get_text() != confirmation_token(self.target):
             self.error.set_text('Select a disk and type its exact erase confirmation.')

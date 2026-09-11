@@ -14,6 +14,9 @@ spec.loader.exec_module(targets)
 
 class InstallerTargets(unittest.TestCase):
     def setUp(self):
+        vm = patch.object(targets, 'virtualization', return_value={'kind': 'vm', 'type': 'kvm'})
+        vm.start()
+        self.addCleanup(vm.stop)
         self.disk = {'path':'/dev/nvme0n1','type':'disk','size':64*1024**3,'ro':False,
                      'model':'Test disk','serial':'test-serial','wwn':'test-wwn','maj:min':'259:0',
                      'mountpoints':[None],'holders':[],'fstype':None,'pttype':None,'diskseq':'11'}
@@ -93,6 +96,27 @@ class InstallerTargets(unittest.TestCase):
         plan = self.validate()
         self.assertEqual(plan['esp'],'/dev/nvme0n1p1')
         self.assertEqual(plan['diskId'],targets.identity(self.disk))
+        self.assertEqual(plan['virtualization'], {'kind': 'vm', 'type': 'kvm', 'experimentalHardware': False})
+
+    def test_physical_machine_is_refused_before_inventory_even_for_valid_disk(self):
+        with patch.object(targets, 'virtualization', return_value={'kind': 'physical', 'type': 'none'}), \
+             patch.object(targets, 'inventory') as inventory:
+            with self.assertRaisesRegex(ValueError, 'VM-only'):
+                targets.validate(self.disk['path'], targets.identity(self.disk), targets.confirmation_token(self.disk['path']))
+            inventory.assert_not_called()
+
+    def test_hardware_opt_in_keeps_blank_disk_identity_and_confirmation_checks(self):
+        with patch.object(targets, 'virtualization', return_value={'kind': 'physical', 'type': 'none'}), \
+             patch.object(targets, 'inventory', return_value=([self.disk], self.boot)), \
+             patch.object(targets.os.path, 'realpath', side_effect=lambda p: p), \
+             patch.object(targets.os, 'stat', return_value=SimpleNamespace(st_mode=stat.S_IFBLK)), \
+             patch.object(targets, 'run', return_value='{"signatures":[]}'):
+            plan = targets.validate(self.disk['path'], targets.identity(self.disk), targets.confirmation_token(self.disk['path']), True)
+            self.assertTrue(plan['virtualization']['experimentalHardware'])
+            with self.assertRaisesRegex(ValueError, 'confirmation'):
+                targets.validate(self.disk['path'], targets.identity(self.disk), 'wrong', True)
+            with self.assertRaisesRegex(ValueError, 'identity changed'):
+                targets.validate(self.disk['path'], 'stale', targets.confirmation_token(self.disk['path']), True)
 
     def test_stale_identity_and_wrong_confirmation_are_rejected(self):
         with self.assertRaisesRegex(ValueError,'identity changed since selection'): self.validate(disk_id='stale')

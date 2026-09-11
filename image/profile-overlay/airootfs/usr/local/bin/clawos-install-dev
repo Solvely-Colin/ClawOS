@@ -11,6 +11,7 @@ disk_id=
 dry_run=false
 vm_test=false
 passwordless=false
+environment_args=()
 install_files=()
 
 while (( $# )); do
@@ -19,6 +20,7 @@ while (( $# )); do
     --dry-run) dry_run=true; shift ;;
     --vm-test) vm_test=true; shift ;;
     --passwordless) passwordless=true; shift ;;
+    --experimental-hardware) environment_args+=(--experimental-hardware); shift ;;
     --target)
       target="${2:-}"
       shift 2
@@ -42,7 +44,7 @@ done
 # list, the pre-erase gate and the mid-install rechecks cannot drift apart.
 recheck() {
   python3 /usr/lib/clawos/clawos_install_targets.py "$1" \
-    --target "$target" --disk-id "$disk_id" "${@:2}"
+    --target "$target" --disk-id "$disk_id" "${environment_args[@]}" "${@:2}"
 }
 
 [[ $EUID == 0 ]] || { echo 'Run installer validation through sudo or the live installer.' >&2; exit 1; }

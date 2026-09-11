@@ -75,6 +75,32 @@ def run(args):
     return subprocess.check_output(args, text=True, stderr=subprocess.DEVNULL, timeout=15).strip()
 
 
+def virtualization():
+    """Observe VM status without treating a failed detector as bare metal."""
+    try:
+        result = subprocess.run(
+            ['/usr/bin/systemd-detect-virt', '--vm'], capture_output=True,
+            text=True, timeout=3, check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return {'kind': 'unknown', 'type': None}
+    value = result.stdout.strip()
+    if result.returncode == 1 and value == 'none':
+        return {'kind': 'physical', 'type': 'none'}
+    if result.returncode == 0 and value != 'none' and re.fullmatch(r'[a-z][a-z0-9-]{0,31}', value):
+        return {'kind': 'vm', 'type': value}
+    return {'kind': 'unknown', 'type': None}
+
+
+def require_install_environment(experimental_hardware=False):
+    observed = virtualization()
+    if observed['kind'] == 'unknown':
+        raise ValueError('Cannot verify virtualization; disk unchanged')
+    if observed['kind'] == 'physical' and not experimental_hardware:
+        raise ValueError('This release is VM-only; unsupported bare-metal installation requires --experimental-hardware; disk unchanged')
+    return {**observed, 'experimentalHardware': observed['kind'] == 'physical'}
+
+
 def inventory():
     if platform.machine() != 'x86_64' or not Path('/sys/firmware/efi').is_dir():
         raise ValueError('Boot ClawOS in x86_64 UEFI mode')
@@ -106,7 +132,8 @@ def inventory():
     return disks, boot_devices
 
 
-def list_targets():
+def list_targets(experimental_hardware=False):
+    require_install_environment(experimental_hardware)
     disks, boot = inventory()
     return [
         {**disk, 'diskId': identity(disk), 'label': describe(disk)}
@@ -126,7 +153,8 @@ def check_identity(target, disk_id, disks=None, when='during installation; stopp
     return matches[0]
 
 
-def validate(target, disk_id, confirmation):
+def validate(target, disk_id, confirmation, experimental_hardware=False):
+    environment = require_install_environment(experimental_hardware)
     disks, boot = inventory()
     disk = check_identity(target, disk_id, disks, when='since selection; inspect and select again')
     reason = eligibility(disk, boot)
@@ -140,24 +168,29 @@ def validate(target, disk_id, confirmation):
     if signatures:
         raise ValueError('Disk has existing signatures; use a blank spare disk')
     esp, root = partitions(target)
-    return {'target': target, 'diskId': disk_id, 'esp': esp, 'systemPartition': root}
+    return {'target': target, 'diskId': disk_id, 'esp': esp, 'systemPartition': root,
+            'virtualization': environment}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=['list', 'validate', 'check-identity', 'token'])
+    parser.add_argument('command', choices=['list', 'validate', 'check-identity', 'token', 'environment'])
+    parser.add_argument('--experimental-hardware', action='store_true')
     parser.add_argument('--target')
     parser.add_argument('--disk-id')
     parser.add_argument('--confirm')
     args = parser.parse_args()
     if args.command == 'list':
-        print(json.dumps(list_targets()))
+        print(json.dumps(list_targets(args.experimental_hardware)))
+    elif args.command == 'environment':
+        print(json.dumps(virtualization()))
     elif args.command == 'token':
         print(confirmation_token(args.target or ''))
     elif args.command == 'check-identity':
+        require_install_environment(args.experimental_hardware)
         check_identity(args.target, args.disk_id)
     else:
-        print(json.dumps(validate(args.target, args.disk_id, args.confirm)))
+        print(json.dumps(validate(args.target, args.disk_id, args.confirm, args.experimental_hardware)))
 
 
 if __name__ == '__main__':
