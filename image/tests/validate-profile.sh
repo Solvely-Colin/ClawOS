@@ -142,6 +142,12 @@ if [[ -f "$installer" ]]; then
   grep -Fq 'networkmanager openssh sudo zsh tmux curl jq' "$packages"
   grep -Fq 'nodejs npm polkit lxqt-policykit plymouth tailscale' "$packages"
   grep -Fq 'prepare_install_packages "$download_root"' "$installer"
+  grep -Fq -- '--experimental-hardware) environment_args+=(--experimental-hardware)' "$installer"
+  python3 - "$installer" <<'PY'
+import pathlib, sys
+source = pathlib.Path(sys.argv[1]).read_text()
+assert source.index('plan=$(recheck validate --confirm "$confirmation")') < source.index('prepare_install_packages "$download_root"')
+PY
   grep -Fq 'pacstrap -K -U -C "$download_root/local.conf"' "$installer"
   grep -Fq 'LocalFileSigLevel = Required' "$packages"
   grep -Fq 'cp -a /usr/lib/node_modules/openclaw' "$installer"

@@ -25,7 +25,7 @@ install and boot proof is from QEMU (Linux KVM or Windows WHPX).
 | Terminal/browser/build surfaces | Available; task association and fullscreen layout need work |
 | Windows VM lifecycle | Scheduled Task, SSH/ACPI shutdown, absolute tablet and protected unlock |
 | Remote-node roles | Implementation and isolated tests; broader live acceptance remains |
-| Physical hardware installation | Eligible blank SATA/NVMe/eMMC disks accepted; verified only in QEMU/WHPX, no physical machine installed yet; not "any Arch hardware" |
+| Physical hardware installation | VM-only by default; unsupported physical installation requires explicit CLI opt-in. Blank SATA/NVMe/eMMC eligibility checks remain; no physical machine installed or supported |
 | Graphical install and first setup | Encrypted GTK install, disk-only boot and local/model-later/Full Root onboarding verified on 2026-09-10 at `de19c1b` in WHPX; passwordless GTK and non-default policy remain separate from the newer CLI/agent-loop proof |
 | CI-built ISO | Workflow gates include image validation, live KVM boot, passwordless install and disk-only/updater-readiness checks. Run 34522981039 also supplied the unmodified ISO for the fresh WHPX agent loop. Its authorized temporary ISO artifact was removed after private verification; no downloadable release promised ([evidence](docs/EVIDENCE.md)) |
 

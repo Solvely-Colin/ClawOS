@@ -15,6 +15,11 @@ for daily-driver machines. Steps are in [GETTING-STARTED.md](GETTING-STARTED.md)
 QEMU/WHPX) with OVMF firmware, 4 GiB RAM, a blank disk of at least 32 GiB, and
 network to the pinned Arch archive snapshot (`image/config/versions.env`) and npm.
 
+The installer enforces a VM-only default. Its GUI cannot opt into physical
+installation; the CLI requires `--experimental-hardware` for that unsupported
+path, preserving all blank-disk/live-media safeguards. Unknown virtualization
+is refused, not interpreted as a virtual machine. See [HARDWARE.md](HARDWARE.md).
+
 | Bucket | Capability | Evidence |
 | --- | --- | --- |
 | Supported in VM | Live ISO boots under UEFI/OVMF; installed system boots without the ISO through its systemd-boot entry; LUKS unlock with the typed passphrase | WHPX: [HARDWARE-INSTALLER-VALIDATION.md](HARDWARE-INSTALLER-VALIDATION.md) "2026-09-07: sshd policy and both install modes re-verified". The ISO workflow requires `image/tests/boot-smoke-qemu` and passwordless `image/tests/install-smoke-qemu`; the legacy `image/tests/m2-e2e-qemu` remains separate. ISO structure: `image/tests/validate-iso.sh`, run by `build-iso` |
