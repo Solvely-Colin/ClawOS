@@ -148,6 +148,28 @@ class BrokerTests(unittest.TestCase):
     def tearDown(self):
         self.temporary.cleanup()
 
+    def test_status_does_not_infer_machine_readiness_from_broker_availability(self):
+        self.runner.commands.clear()
+        status = self.broker.status()
+        self.assertEqual(status["state"], "unknown")
+        self.assertEqual(status["brokerState"], "ready")
+        self.assertEqual(status["readiness"], {
+            "setup": "unverified", "desktop": "unverified",
+            "lock": "unverified", "gateway": "unverified",
+            "model": "unverified",
+        })
+        self.assertEqual(self.runner.commands, [])
+        self.assertEqual(status["pendingCount"], 0)
+        self.assertEqual(status["activeGrantCount"], 0)
+        self.assertIn("system.time.configure", status["capabilities"])
+
+    def test_status_remains_unverified_for_every_security_level(self):
+        for level in ("full-root", "full-user-approvals", "user-limited"):
+            with self.subTest(level=level):
+                self.broker.config["securityLevel"] = level
+                self.assertEqual(self.broker.status()["state"], "unknown")
+                self.assertEqual(self.broker.status()["readiness"]["model"], "unverified")
+
     def gateway_peer(self, uid=1000, pid=4242, unit="openclaw-gateway.service"):
         self.broker.proc_root = Path(self.temporary.name) / "proc"
         directory = self.broker.proc_root / str(pid)

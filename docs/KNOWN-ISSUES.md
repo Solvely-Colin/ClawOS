@@ -26,6 +26,11 @@
   desktop readiness and repair state need a coherent model. Gateway reachability
   is not proof of successful model inference
   ([#53](https://github.com/Solvely-Colin/ClawOS/issues/53)).
+  Broker status now distinguishes broker availability from unknown machine
+  readiness and explicitly labels setup/desktop/lock/Gateway/model checks as
+  unverified. Gateway/controller tooltips also leave model readiness unverified.
+  The unified state collector, consumer migration and cold-boot acceptance are
+  still outstanding; this does not fix the underlying first-request failure.
   In the corrected-CI-image test, the first request after credential/model setup
   returned `missing-provider-auth` despite a listed auth profile; a later retry
   after setup finished succeeded with the same credential/model. Cause unproven.
