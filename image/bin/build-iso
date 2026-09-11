@@ -89,11 +89,19 @@ sed -i -e 's/^ParallelDownloads[[:space:]]*=.*/ParallelDownloads = 1/' \
 
 # Ship the pinned runtime as an ISO build input. Target installation copies
 # this clean package tree, never the builder's personal/global installation.
+runtime_input=$(mktemp -d /var/tmp/clawos-openclaw-input.XXXXXX)
+# Packing must not execute unverified lifecycle code. The root-owned temporary
+# directory holds only this download; install reads the verified local tarball.
+npm pack "openclaw@$OPENCLAW_VERSION" --ignore-scripts --json \
+  --pack-destination "$runtime_input" >"$runtime_input/pack.json"
+runtime_archive="$runtime_input/openclaw-$OPENCLAW_VERSION.tgz"
+python3 "$repo_root/image/bin/verify-openclaw-archive" \
+  "$runtime_archive" "$OPENCLAW_INTEGRITY" "$OPENCLAW_VERSION" "$OPENCLAW_COMMIT"
 for attempt in 1 2 3; do
   if timeout --kill-after=10s 15m npm install --global \
     --prefix "$profile/airootfs/usr" --no-audit --no-fund \
     --allow-scripts='openclaw,@google/genai,tree-sitter-bash,protobufjs' \
-    "openclaw@$OPENCLAW_VERSION"; then
+    "$runtime_archive"; then
     break
   fi
   (( attempt < 3 )) || { echo 'Pinned OpenClaw ISO preparation failed.' >&2; exit 1; }

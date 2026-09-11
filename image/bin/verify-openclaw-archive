@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+"""Verify a promoted npm archive before any package lifecycle script runs."""
+import argparse
+import base64
+import hashlib
+import hmac
+import json
+import re
+import tarfile
+
+
+def verify(path, integrity, version, commit):
+    if not re.fullmatch(r'sha512-[A-Za-z0-9+/]{86}==', integrity):
+        raise ValueError('Expected one SHA-512 integrity pin')
+    digest = base64.b64decode(integrity[7:], validate=True)
+    if not re.fullmatch(r'[0-9a-f]{7,40}', commit):
+        raise ValueError('Invalid promoted commit')
+    with open(path, 'rb') as source:
+        actual = hashlib.file_digest(source, 'sha512').digest()
+    if not hmac.compare_digest(actual, digest):
+        raise ValueError('OpenClaw archive integrity mismatch; nothing installed')
+    metadata = {}
+    wanted = {'package/package.json', 'package/dist/build-info.json'}
+    # Hash verification precedes parsing. Never extract the archive to disk.
+    with tarfile.open(path, 'r:gz') as archive:
+        for member in archive:
+            if member.name not in wanted:
+                continue
+            if member.name in metadata or not member.isfile() or member.size > 1024 * 1024:
+                raise ValueError('Invalid or duplicate OpenClaw package metadata')
+            with archive.extractfile(member) as source:
+                metadata[member.name] = json.load(source)
+    if metadata.keys() != wanted:
+        raise ValueError('OpenClaw version or build metadata missing')
+    package = metadata['package/package.json']
+    build = metadata['package/dist/build-info.json']
+    if not isinstance(package, dict) or not isinstance(build, dict):
+        raise ValueError('Invalid OpenClaw metadata shape')
+    if package.get('name') != 'openclaw' or package.get('version') != version or build.get('version') != version:
+        raise ValueError('OpenClaw package version differs from the lock')
+    actual_commit = build.get('commit', '')
+    if not isinstance(actual_commit, str) or not re.fullmatch(r'[0-9a-f]{40}', actual_commit) or not actual_commit.startswith(commit):
+        raise ValueError('OpenClaw build commit differs from the lock')
+    return actual_commit
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('archive')
+    parser.add_argument('integrity')
+    parser.add_argument('version')
+    parser.add_argument('commit')
+    args = parser.parse_args()
+    try:
+        verified = verify(args.archive, args.integrity, args.version, args.commit)
+    except (OSError, ValueError, tarfile.TarError, EOFError) as error:
+        raise SystemExit(f'OpenClaw input refused: {error}')
+    print(f'OpenClaw archive and build commit verified: {verified}')

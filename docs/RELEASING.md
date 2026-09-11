@@ -66,6 +66,15 @@ failure records `FAILED`. Encrypted install and full onboarding remain separate.
 
 ## What success does not mean
 
+The ISO build packs OpenClaw with lifecycle scripts disabled, verifies the
+top-level tarball against `OPENCLAW_INTEGRITY` and its embedded build commit
+against `OPENCLAW_COMMIT`, then installs from that verified local archive.
+Image validation checks the shipped build metadata too. The pin was verified
+against the published package bytes, not merely copied from registry metadata.
+This is not a publisher signature or a locked transitive dependency tree.
+Runtime `openclaw.update` does not yet use this verifier; that part of #29
+remains a release gate. Do not describe the runtime updater as integrity-pinned.
+
 The 2026-09-10 public launch is source-only. Its four historical ISO artifacts
 were removed after private backup verification; CodeQL SARIF artifacts are not
 ISOs. New manual or tag builds can expose binaries to repository readers, so
