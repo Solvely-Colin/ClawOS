@@ -132,12 +132,22 @@ unsquashfs -no-progress -d "$tmpdir/runtime-check" "$squashfs" \
   usr/bin/openclaw usr/lib/node_modules/openclaw/openclaw.mjs >/dev/null
 test -x "$tmpdir/runtime-check/usr/bin/openclaw"
 unsquashfs -cat "$squashfs" usr/lib/node_modules/openclaw/package.json >"$tmpdir/openclaw-package.json"
+unsquashfs -cat "$squashfs" usr/lib/node_modules/openclaw/dist/build-info.json >"$tmpdir/openclaw-build.json"
 # shellcheck source=../config/versions.env
 source "$(dirname "$0")/../config/versions.env"
-python3 - "$tmpdir/openclaw-package.json" "$OPENCLAW_VERSION" <<'PY'
-import json, sys
+python3 - "$tmpdir/openclaw-package.json" "$OPENCLAW_VERSION" "$tmpdir/openclaw-build.json" "$OPENCLAW_COMMIT" <<'PY'
+import json, re, sys
 with open(sys.argv[1]) as package:
     assert json.load(package)['version'] == sys.argv[2], 'ISO OpenClaw version differs from the lock'
+with open(sys.argv[3]) as source:
+    build = json.load(source)
+if build.get('version') != sys.argv[2]:
+    raise SystemExit('ISO build metadata version differs from the lock')
+commit = build.get('commit', '')
+if not isinstance(commit, str) or not re.fullmatch(r'[0-9a-f]{40}', commit):
+    raise SystemExit('ISO OpenClaw commit is invalid')
+if not commit.startswith(sys.argv[4]):
+    raise SystemExit('ISO OpenClaw build commit differs from the lock')
 PY
 
 # The sshd posture is otherwise asserted only at source level

@@ -81,6 +81,14 @@ class OpenClawVersionPin(unittest.TestCase):
             f"{VERSIONS_ENV} pins OPENCLAW_VERSION={self.pin!r}",
         )
 
+    def test_build_input_integrity_and_commit_are_pinned_and_consumed(self):
+        self.assertRegex(self.lock.get('OPENCLAW_INTEGRITY', ''), r'^sha512-[A-Za-z0-9+/]{86}==$')
+        self.assertRegex(self.lock.get('OPENCLAW_COMMIT', ''), r'^[0-9a-f]{7,40}$')
+        build = read('image/bin/build-iso')
+        self.assertIn('"$OPENCLAW_INTEGRITY"', build)
+        self.assertIn('"$OPENCLAW_COMMIT"', build)
+        self.assertIn('"$OPENCLAW_COMMIT"', read('image/tests/validate-iso.sh'))
+
     def test_delivery_adapter_guards_the_locked_version(self):
         source = DELIVERY_ADAPTER.read_text(encoding="utf-8")
         guards = GUARD.findall(source)
