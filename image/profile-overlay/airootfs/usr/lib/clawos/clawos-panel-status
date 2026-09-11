@@ -26,7 +26,7 @@ case "${1:-}" in
       port="$(/usr/bin/openclaw config get gateway.port 2>/dev/null || true)"
       [[ "$port" =~ ^[0-9]+$ ]] || port=18789
       if /usr/bin/curl --fail --silent --max-time 1 "http://127.0.0.1:$port/health" >/dev/null 2>&1; then
-        json 'Gateway online' 'Local OpenClaw Gateway is online' online
+        json 'Gateway online' 'Gateway reachable · model unverified' online
       else
         json 'Gateway offline' 'OpenClaw Gateway is unavailable' offline
       fi
@@ -39,7 +39,7 @@ case "${1:-}" in
       esac
       if [[ -n "$controller_url" ]] &&
          /usr/bin/curl --fail --silent --max-time 2 "$controller_url" >/dev/null 2>&1; then
-        json 'Controller online' 'Remote OpenClaw controller is reachable' online
+        json 'Controller online' 'Controller reachable · model unverified' online
       else
         json 'Controller offline' 'Remote OpenClaw controller is unavailable' offline
       fi

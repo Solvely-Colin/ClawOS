@@ -297,7 +297,19 @@ class Broker:
         return {
             "apiVersion": API_VERSION,
             "securityLevel": self.config["securityLevel"],
-            "state": "ready",
+            # Answering D-Bus proves only broker availability. It does not
+            # establish completed setup, an unlocked desktop, Gateway health,
+            # or successful inference. Keep those observations explicit until
+            # the shared startup-state collector supplies them.
+            "state": "unknown",
+            "brokerState": "ready",
+            "readiness": {
+                "setup": "unverified",
+                "desktop": "unverified",
+                "lock": "unverified",
+                "gateway": "unverified",
+                "model": "unverified",
+            },
             "pendingCount": len(self.list_pending(include_tokens=False)),
             "activeGrantCount": sum(1 for path in self.grants_dir.glob("*.json") if self._grant_is_current(path)),
             "capabilities": sorted(ACTION_TYPES),

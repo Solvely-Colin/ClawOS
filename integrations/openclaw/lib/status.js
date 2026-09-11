@@ -59,6 +59,8 @@ function readBroker() {
     return {
       available: true,
       state: status.state,
+      brokerState: status.brokerState || "unknown",
+      readiness: status.readiness || null,
       message: `${status.pendingCount} action${status.pendingCount === 1 ? "" : "s"} waiting for approval`,
       pendingCount: status.pendingCount,
       securityLevel: status.securityLevel,
