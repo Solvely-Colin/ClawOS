@@ -1,5 +1,14 @@
 # Current development boundaries
 
+- **Fresh provider setup:** a graphical passwordless install of the private
+  `042dbc7` ISO on 2026-09-12 copied `clawos-provider-setup` with mode `0644`,
+  so onboarding could not open the native provider wizard. Image and installer
+  permissions now explicitly set `0755`; regression tests execute the installer
+  chmod block, and hosted installed-boot smoke requires an executable launcher.
+  Correcting only this file's mode in the checkpointed guest allowed the native
+  OpenClaw provider-selection wizard to open as `clawos`. This is repaired-guest
+  proof, not a newly built ISO pass or completed provider authentication.
+
 - **Fresh-install updater:** older CI run 34432248984 installed a non-executable
   updater and omitted delivery units; PR #99 fixed provisioning and added an
   installed-boot assertion. Unmodified CI ISO run 34522981039 now passed the
