@@ -102,6 +102,12 @@ class OpenClawVersionPin(unittest.TestCase):
         )
         self.assertEqual(literals(source), [self.pin], "stale version literal in the delivery adapter")
 
+    def test_release_metadata_includes_the_integrity_lock(self):
+        source = read('tools/ci/build-release.sh')
+        metadata = source.split('} >"$out/BUILD-METADATA.txt"', 1)[0]
+        self.assertIn('cat image/config/versions.env', metadata)
+        self.assertIn('OPENCLAW_INTEGRITY', self.lock)
+
     def test_plugin_compatibility_floors_admit_the_locked_version(self):
         manifest = json.loads(PLUGIN_MANIFEST.read_text(encoding="utf-8"))
         compat = manifest.get("openclaw", {}).get("compat", {})
