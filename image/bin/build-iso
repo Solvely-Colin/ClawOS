@@ -100,7 +100,7 @@ python3 "$repo_root/image/bin/verify-openclaw-archive" \
 for attempt in 1 2 3; do
   if timeout --kill-after=10s 15m npm install --global \
     --prefix "$profile/airootfs/usr" --no-audit --no-fund \
-    --allow-scripts='openclaw,@google/genai,tree-sitter-bash,protobufjs' \
+      --allow-scripts="file:$runtime_archive,@google/genai,tree-sitter-bash,protobufjs" \
     "$runtime_archive"; then
     break
   fi

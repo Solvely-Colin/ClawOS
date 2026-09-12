@@ -630,6 +630,8 @@ class BrokerTests(unittest.TestCase):
                 return package
             if value == "/usr/lib/node_modules/openclaw/dist/build-info.json":
                 return build
+            if value == "/usr/lib/node_modules/openclaw/.openclaw-lifecycle-pending":
+                return real_path(self.temporary.name) / "lifecycle-pending"
             if value == "/home/clawos":
                 return real_path(self.temporary.name)
             return real_path(value)
@@ -649,7 +651,7 @@ class BrokerTests(unittest.TestCase):
         self.assertFalse(Path(archive).parent.exists())
         self.assertEqual(self.runner.commands[2][-5:], [
             "/usr/bin/npm", "install", "--global",
-            "--allow-scripts=openclaw,@google/genai,tree-sitter-bash,protobufjs",
+            f"--allow-scripts=file:{archive},@google/genai,tree-sitter-bash,protobufjs",
             archive
         ])
         commands = [" ".join(command) for command in self.runner.commands]

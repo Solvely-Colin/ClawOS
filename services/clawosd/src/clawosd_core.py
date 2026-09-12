@@ -836,7 +836,7 @@ class Broker:
                         "--service-type=exec", f"--unit={update_unit}",
                         "--property=RuntimeMaxSec=1800", "--property=KillMode=control-group",
                         "/usr/bin/npm", "install", "--global",
-                        "--allow-scripts=openclaw,@google/genai,tree-sitter-bash,protobufjs",
+                        f"--allow-scripts=file:{archive},@google/genai,tree-sitter-bash,protobufjs",
                         archive,
                     ], timeout=1860)
                 package_json = Path("/usr/lib/node_modules/openclaw/package.json")
@@ -857,6 +857,8 @@ class Broker:
                         raise ValueError("installed build differs from promoted commit")
                 except (OSError, ValueError, AttributeError) as error:
                     raise BrokerError(f"Could not verify the installed OpenClaw build: {error}") from error
+                if Path("/usr/lib/node_modules/openclaw/.openclaw-lifecycle-pending").exists():
+                    raise BrokerError("OpenClaw package lifecycle is incomplete; Gateway migration was not started.")
                 uid = self.runner.run(["/usr/bin/id", "-u", owner]).strip()
                 if not uid.isdigit():
                     raise BrokerError("Could not resolve the OpenClaw owner account.")
