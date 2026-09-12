@@ -14,6 +14,24 @@ the pinned upstream package, run upstream post-update migration and plugin
 convergence under the OpenClaw owner, restart the Gateway from the root system
 scope, and verify it is active before recording success.
 
+## Promoted OpenClaw input
+
+The typed updater creates its recovery checkpoint first, then packs the exact
+promoted npm version with lifecycle scripts disabled into root-private staging.
+The same verifier used by ISO builds checks SHA-512, package version and embedded
+build commit before installation from that local archive. Installed version and
+build metadata are checked before Gateway migration/restart. Download and install
+units have host-enforced time limits; staging is removed on success or failure.
+An integrity failure records a failed action with recovery available and does not
+invoke installation or Gateway changes. This is not a transitive dependency lock
+or a publisher signature, and an active Gateway is not proof of working inference.
+
+Older installations without `openclaw.promotedIntegrity` and `promotedCommit` in
+the root-owned `/etc/clawos/clawosd.json` refuse the update action. Runtime deploy
+deliberately preserves that configuration: a reviewed migration must merge those
+two fields from the matching release pins without replacing owner, agent or
+security settings. Fresh images receive matching pins automatically.
+
 No API accepts shell text, arbitrary package names, arbitrary service names,
 paths, or executables. Plugin-supplied agent metadata is recorded only as
 self-reported correlation; D-Bus peer UID and PID are authoritative.

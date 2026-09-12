@@ -171,6 +171,7 @@ def stage(repo):
                 include(source, 'usr/lib/clawos/openclaw-plugin/' +
                         source.relative_to(repo / 'integrations/openclaw').as_posix())
         mapping = {
+            'image/bin/verify-openclaw-archive': 'usr/lib/clawos/verify-openclaw-archive',
             'services/clawosd/src/clawosd_core.py': 'usr/lib/clawos/clawosd/clawosd_core.py',
             'services/clawosd/src/clawosd_service.py': 'usr/lib/clawos/clawosd/clawosd_service.py',
             'services/clawosd/src/clawosctl.py': 'usr/lib/clawos/clawosctl',

@@ -75,6 +75,8 @@ class OpenClawVersionPin(unittest.TestCase):
     def test_clawosd_promotes_the_locked_version(self):
         config = json.loads(CLAWOSD_CONFIG.read_text(encoding="utf-8"))
         promoted = config.get("openclaw", {}).get("promotedVersion")
+        self.assertEqual(config['openclaw']['promotedCommit'], self.lock['OPENCLAW_COMMIT'])
+        self.assertEqual(config['openclaw']['promotedIntegrity'], self.lock['OPENCLAW_INTEGRITY'])
         self.assertEqual(
             promoted, self.pin,
             f"{CLAWOSD_CONFIG} openclaw.promotedVersion={promoted!r} but "
