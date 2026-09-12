@@ -32,6 +32,34 @@ deliberately preserves that configuration: a reviewed migration must merge those
 two fields from the matching release pins without replacing owner, agent or
 security settings. Fresh images receive matching pins automatically.
 
+### 2026-09-12 live update verification
+
+Runtime code at `042dbc7b8b7c36c668a727a0ec07f806227538f4` was tested through
+the real system D-Bus broker in an existing passwordless QEMU/WHPX guest,
+with an offline disk/firmware checkpoint and broker-created Btrfs snapshots.
+The promoted OpenClaw version was already installed: this proves verified
+reinstallation and migration, not a transition between different versions.
+
+- The initial candidate passed archive verification but npm 12 blocked the
+  top-level lifecycle scripts: registry-name permission did not match the local
+  tarball. Owner-side migration failed after Gateway stop. The corrected code
+  permits the exact verified `file:` archive and checks the pending lifecycle
+  marker before Gateway stop.
+- The corrected real update completed in 84 seconds. Installed version/build
+  checks passed, the lifecycle marker was absent, the owner CLI reported the
+  promoted version, and the Gateway was active.
+- A deliberately incorrect root-owned SHA-512 pin failed through the same
+  real D-Bus path in four seconds. Package contents and modification time and
+  Gateway PID remained unchanged; recovery was available. The valid root-owned
+  configuration was restored immediately afterward.
+- Linux source preflight passed: 127 image tests, 31 broker tests and 36
+  integration tests, plus static checks. The existing dirty developer checkout
+  was not used as the test source.
+
+This does not establish fresh-image installation, inference after the update,
+transitive dependency integrity or successful whole-system rollback. Private
+operator logs and checkpoints are retained outside Git.
+
 No API accepts shell text, arbitrary package names, arbitrary service names,
 paths, or executables. Plugin-supplied agent metadata is recorded only as
 self-reported correlation; D-Bus peer UID and PID are authoritative.
