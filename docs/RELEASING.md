@@ -72,8 +72,12 @@ against `OPENCLAW_COMMIT`, then installs from that verified local archive.
 Image validation checks the shipped build metadata too. The pin was verified
 against the published package bytes, not merely copied from registry metadata.
 This is not a publisher signature or a locked transitive dependency tree.
-Runtime `openclaw.update` does not yet use this verifier; that part of #29
-remains a release gate. Do not describe the runtime updater as integrity-pinned.
+Runtime `openclaw.update` now checkpoints first, packs the exact promoted
+version without lifecycle scripts, verifies that archive against the root-owned
+SHA-512 and embedded-build-commit pins, installs only the verified local file,
+and checks installed metadata before Gateway migration. A bad-pin rejection and
+same-version reinstallation passed through the real D-Bus broker on 2026-09-12;
+that is not cross-version migration, a transitive lock or a publisher signature.
 
 The 2026-09-10 public launch is source-only. Its four historical ISO artifacts
 were removed after private backup verification; CodeQL SARIF artifacts are not
@@ -101,7 +105,11 @@ The first green run on `main` was 34270708295 on 2026-09-08 (source commit
 that day. At that time the workflow validated but did not boot; that artifact was booted
 live by hand (EVIDENCE.md). Later run 34432248984 at `de19c1b` completed a
 manual encrypted GTK install and default onboarding under WHPX on 2026-09-10;
-provider inference and full update/recovery were not part of that proof.
+provider inference and full update/recovery were not part of that proof. A
+private `f2da7a6` candidate later passed GTK passwordless installation and a
+separate encrypted CLI installation under WHPX/e1000e, including disk-only boot,
+unlock and native provider-wizard launch; it was not tagged or published. See
+the evidence ledger for its virtio-net failure and exact limitations.
 Do not create a release tag just to make the
 workflow look complete.
 
