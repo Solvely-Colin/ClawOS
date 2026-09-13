@@ -18,6 +18,12 @@
   selected `full-user-approvals` policy persisted. No provider authentication,
   inference, encrypted install or visible Polkit-dialog proof was obtained.
   See the exact image hash and network-test limitation in [EVIDENCE.md](EVIDENCE.md).
+  The same ISO also completed an encrypted CLI install to an independent blank
+  disk on 2026-09-13 UTC. Its protected throwaway passphrase unlocked the first
+  disk-only boot; encrypted-root, service, SSH and launcher checks passed, and
+  default Full Root onboarding reached the native provider wizard and model-later
+  workspace. This is not GTK encrypted-passphrase submission, provider login,
+  inference or a visible approval-dialog test.
 
 - **Windows VM networking:** the first `f2da7a6` install attempt with virtio-net
   stalled during package retrieval and logged transmit-queue watchdog timeouts.
