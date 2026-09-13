@@ -29,6 +29,11 @@ releases, not a diary of the maintainer's launch session. See
   - [x] Passwordless automation established on a branch in hosted KVM run
     34511620906: fresh disk, install, disk-only boot and ACPI shutdown.
     This does not tick the tagged-source or encrypted-mode requirement above.
+  - [x] Private candidate `f2da7a6` passed GTK passwordless install and a
+    separate encrypted CLI install, disk-only boots and first-boot provider
+    handoff under WHPX/e1000e on 2026-09-13. It remains pre-tag evidence: the
+    encrypted passphrase was not submitted through GTK, and the tagged-source
+    both-mode requirement above remains open.
 - [x] Verify a real agent request, live update, rollback and completion delivery.
   - Passed on the unmodified CI ISO from run 34522981039 at `7a2c464`, in a fresh
     passwordless WHPX guest, without runtime repair. Includes lost-ack retry and
