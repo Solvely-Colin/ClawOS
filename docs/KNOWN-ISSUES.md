@@ -8,6 +8,9 @@
   Correcting only this file's mode in the checkpointed guest allowed the native
   OpenClaw provider-selection wizard to open as `clawos`. This is repaired-guest
   proof, not a newly built ISO pass or completed provider authentication.
+  The same permission audit found `clawos-agent-window` omitted too; its image
+  and installer modes are now explicit. A source gate covers all script entry
+  points, excluding the deliberately sourced package-list library.
 
 - **Fresh-install updater:** older CI run 34432248984 installed a non-executable
   updater and omitted delivery units; PR #99 fixed provisioning and added an

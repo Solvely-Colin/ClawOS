@@ -343,6 +343,7 @@ chmod 0755 "$mount_root/usr/lib/clawos/clawos-session" \
   "$mount_root/usr/lib/clawos/clawos-onboard-ui" \
   "$mount_root/usr/lib/clawos/clawos-onboard-server" \
   "$mount_root/usr/lib/clawos/clawos-provider-setup" \
+  "$mount_root/usr/lib/clawos/clawos-agent-window" \
   "$mount_root/usr/lib/clawos/clawos-install-node" \
   "$mount_root/usr/lib/clawos/clawos-enroll-local-node" \
   "$mount_root/usr/lib/clawos/clawos-gateway-watchdog" \

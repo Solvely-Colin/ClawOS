@@ -19,6 +19,23 @@ def executable_block():
 
 
 class ProviderPermissions(unittest.TestCase):
+    def test_all_runtime_entrypoints_retain_executable_permissions(self):
+        profile = (ROOT / 'image/profile-overlay/profiledef.sh').read_text()
+        block = executable_block()
+        directory = ROOT / 'image/profile-overlay/airootfs/usr/lib/clawos'
+        # This package-list library is sourced by the installer, not executed.
+        sourced_libraries = {'clawos-install-packages.sh'}
+        for source in directory.iterdir():
+            if not source.is_file() or source.name in sourced_libraries:
+                continue
+            if not source.read_bytes().startswith(b'#!'):
+                continue
+            path = '/usr/lib/clawos/' + source.name
+            with self.subTest(entrypoint=source.name):
+                self.assertTrue(f'"$mount_root{path}"' in block or
+                                f'["{path}"]="0:0:755"' in profile,
+                                f'{path} loses execute permission during image creation')
+
     def test_live_image_explicitly_preserves_executable_mode(self):
         profile = (ROOT / 'image/profile-overlay/profiledef.sh').read_text()
         self.assertIn(f'["{HELPER}"]="0:0:755"', profile)
