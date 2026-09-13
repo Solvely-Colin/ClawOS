@@ -118,10 +118,11 @@ bash -c 'set -euo pipefail; P=PASS:; source /etc/os-release; test "$ID" = clawos
 COMMANDS
 )
 commands+=$'\nbash -c \'set -e; P=PASS:; test -x /usr/lib/clawos/clawos-deploy; /usr/lib/clawos/clawos-deploy --help >/dev/null; test -f /etc/systemd/system/clawos-deploy-delivery.service; systemctl is-enabled --quiet clawos-deploy-delivery.timer; echo "${P}DEPLOY_READY_OK"\'\n'
+commands+=$'\nbash -c \'set -e; P=PASS:; test -x /usr/lib/clawos/clawos-agent-window; test -x /usr/lib/clawos/clawos-provider-setup; bash -n /usr/lib/clawos/clawos-provider-setup; echo "${P}PROVIDER_LAUNCHER_READY_OK"\'\n'
 commands+=$'\nD=DONE:; echo "${D}INSTALLED"\n'
 printf '%s\n' "$commands" | python3 "$repo_root/tools/ci/qemu_io.py" capture "$serial_socket" "$transcript" 180 --until DONE:INSTALLED
 tr -d '\r' <"$transcript" >"$runtime/installed-markers.log"
-for marker in INSTALLED_ROOT_OK SERVICES_OK SSHD_KEYONLY_OK OPENCLAW_VERSION_OK PASSWORDLESS_OK INSTALLED_OK DEPLOY_READY_OK; do
+for marker in INSTALLED_ROOT_OK SERVICES_OK SSHD_KEYONLY_OK OPENCLAW_VERSION_OK PASSWORDLESS_OK INSTALLED_OK DEPLOY_READY_OK PROVIDER_LAUNCHER_READY_OK; do
   grep -Fxq "PASS:$marker" "$runtime/installed-markers.log"
 done
 # No credentials are supplied in this fresh, network-unenrolled test guest.

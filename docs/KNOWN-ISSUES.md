@@ -1,5 +1,38 @@
 # Current development boundaries
 
+- **Fresh provider setup:** a graphical passwordless install of the private
+  `042dbc7` ISO on 2026-09-12 copied `clawos-provider-setup` with mode `0644`,
+  so onboarding could not open the native provider wizard. Image and installer
+  permissions now explicitly set `0755`; regression tests execute the installer
+  chmod block, and hosted installed-boot smoke requires an executable launcher.
+  Correcting only this file's mode in the checkpointed guest allowed the native
+  OpenClaw provider-selection wizard to open as `clawos`. That initial check was repaired-guest
+  proof, not a newly built ISO pass or completed provider authentication.
+  The same permission audit found `clawos-agent-window` omitted too; its image
+  and installer modes are now explicit. A source gate covers all script entry
+  points, excluding the deliberately sourced package-list library.
+  A newly built `f2da7a6` ISO subsequently passed graphical passwordless install,
+  disk-only boot, native-provider-wizard launch/cancel from onboarding,
+  model-later workspace entry and terminal return without runtime repair
+  (2026-09-13 UTC, WHPX/e1000e). Both launchers were root-owned `0755` and the
+  selected `full-user-approvals` policy persisted. No provider authentication,
+  inference, encrypted install or visible Polkit-dialog proof was obtained.
+  See the exact image hash and network-test limitation in [EVIDENCE.md](EVIDENCE.md).
+  The same ISO also completed an encrypted CLI install to an independent blank
+  disk on 2026-09-13 UTC. Its protected throwaway passphrase unlocked the first
+  disk-only boot; encrypted-root, service, SSH and launcher checks passed, and
+  default Full Root onboarding reached the native provider wizard and model-later
+  workspace. This is not GTK encrypted-passphrase submission, provider login,
+  inference or a visible approval-dialog test.
+
+- **Windows VM networking:** the first `f2da7a6` install attempt with virtio-net
+  stalled during package retrieval and logged transmit-queue watchdog timeouts.
+  Normal ACPI shutdown and an offline comparison confirmed the target remained
+  entirely identical to a blank disk. The same ISO completed installation with
+  QEMU's e1000e NIC. This isolates a useful tested alternative, not the underlying
+  cause or universal WHPX/virtio reliability; the published host default is not
+  changed by this private test.
+
 - **Fresh-install updater:** older CI run 34432248984 installed a non-executable
   updater and omitted delivery units; PR #99 fixed provisioning and added an
   installed-boot assertion. Unmodified CI ISO run 34522981039 now passed the
