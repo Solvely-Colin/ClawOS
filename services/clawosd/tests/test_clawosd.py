@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import runpy
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -118,7 +119,8 @@ class BrokerTests(unittest.TestCase):
                 "NetworkManager.service", "sshd.service", "tailscaled.service",
                 "clawos-session@clawos.service",
             ]},
-            "openclaw": {"ownerUser": "clawos", "promotedVersion": "2026.8.2"},
+            "openclaw": {"ownerUser": "clawos", "promotedVersion": "2026.8.2",
+                         "promotedCommit": "0965053", "promotedIntegrity": "sha512-" + "A" * 86 + "=="},
         }))
         self.boot_id = root / "boot_id"
         self.boot_id.write_text("11111111-1111-4111-8111-111111111111\n")
@@ -618,12 +620,18 @@ class BrokerTests(unittest.TestCase):
         real_path = clawosd_core.Path
         package = Path(self.temporary.name) / "openclaw-package.json"
         package.write_text('{"version":"2026.8.2"}')
+        build = Path(self.temporary.name) / "build-info.json"
+        build.write_text(json.dumps({"version": "2026.8.2", "commit": "0965053" + "0" * 33}))
         config = Path(self.temporary.name) / ".openclaw" / "openclaw.json"
         config.parent.mkdir()
         config.write_text('{"agents":{"defaults":{"model":{"primary":"ollama-cloud/kimi-k2.5:cloud"}}}}')
         def test_path(value):
             if value == "/usr/lib/node_modules/openclaw/package.json":
                 return package
+            if value == "/usr/lib/node_modules/openclaw/dist/build-info.json":
+                return build
+            if value == "/usr/lib/node_modules/openclaw/.openclaw-lifecycle-pending":
+                return real_path(self.temporary.name) / "lifecycle-pending"
             if value == "/home/clawos":
                 return real_path(self.temporary.name)
             return real_path(value)
@@ -634,10 +642,17 @@ class BrokerTests(unittest.TestCase):
             clawosd_core.Path = real_path
         self.assertEqual(result["state"], "complete")
         self.assertEqual(result["installedVersion"], "2026.8.2")
-        self.assertEqual(self.runner.commands[0][-5:], [
+        self.assertIn("--ignore-scripts", self.runner.commands[0])
+        self.assertEqual(self.runner.commands[1][:2], [
+            "/usr/bin/python3", "/usr/lib/clawos/verify-openclaw-archive"])
+        archive = self.runner.commands[1][2]
+        self.assertEqual(self.runner.commands[1][3:], [
+            "sha512-" + "A" * 86 + "==", "2026.8.2", "0965053"])
+        self.assertFalse(Path(archive).parent.exists())
+        self.assertEqual(self.runner.commands[2][-5:], [
             "/usr/bin/npm", "install", "--global",
-            "--allow-scripts=openclaw,@google/genai,tree-sitter-bash,protobufjs",
-            "openclaw@2026.8.2"
+            f"--allow-scripts=file:{archive},@google/genai,tree-sitter-bash,protobufjs",
+            archive
         ])
         commands = [" ".join(command) for command in self.runner.commands]
         self.assertTrue(any(
@@ -659,6 +674,38 @@ class BrokerTests(unittest.TestCase):
             command.endswith("/usr/lib/clawos/clawos-refresh-agent-ui")
             for command in commands
         ))
+
+    def test_openclaw_update_refuses_missing_pins(self):
+        for key in ("promotedIntegrity", "promotedCommit"):
+            with self.subTest(key=key):
+                original = self.broker.config["openclaw"].pop(key)
+                with self.assertRaises(BrokerError):
+                    self.broker.prepare("openclaw.update", {}, self.peer)
+                self.broker.config["openclaw"][key] = original
+        self.assertEqual(self.runner.commands, [])
+
+    def test_openclaw_update_verifier_failure_prevents_install_and_gateway_changes(self):
+        original = self.runner.run
+        def reject_archive(argv, timeout=900):
+            if argv[0] == "/usr/bin/python3":
+                # Exercise the real shared verifier on tampered downloaded bytes.
+                Path(argv[2]).write_bytes(b"tampered archive")
+                verify = runpy.run_path(str(Path(__file__).resolve().parents[3] /
+                                           "image/bin/verify-openclaw-archive"))["verify"]
+                try:
+                    verify(*argv[2:])
+                except ValueError as error:
+                    raise BrokerError(str(error)) from error
+                self.fail("Tampered archive was accepted")
+            return original(argv, timeout)
+        self.runner.run = reject_archive
+        request = self.broker.prepare("openclaw.update", {}, self.peer)
+        result = self.broker.commit(request["token"], self.peer, authorized=True)
+        self.assertEqual(result["state"], "failed")
+        self.assertTrue(result["rollbackAvailable"])
+        self.assertEqual(len(self.recovery.created), 1)
+        self.assertEqual(len(self.runner.commands), 1)
+        self.assertFalse(Path(self.runner.commands[0][-1]).exists())
 
     def test_failed_change_retains_recovery_and_can_stage_rollback(self):
         self.runner.fail = True

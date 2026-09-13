@@ -97,6 +97,12 @@
   when upgrading that dependency. Supply-chain follow-ups:
   [integrity #29](https://github.com/Solvely-Colin/ClawOS/issues/29) and
   [dependency locking #31](https://github.com/Solvely-Colin/ClawOS/issues/31).
+  Build and typed runtime installs now verify the promoted top-level archive
+  and embedded commit. A checkpointed real D-Bus reinstallation and bad-pin
+  refusal passed on 2026-09-12; see the [bounded broker evidence](../services/clawosd/README.md#2026-09-12-live-update-verification).
+  Older root-owned configurations need the matching integrity/commit pins;
+  runtime deployment preserves those configs and otherwise refuses updates.
+  This does not lock transitive packages or prove cross-version migration.
 - **Design/docs:** plans and prototype guidance include superseded layouts.
   Consolidate the current Carapace adapter and acceptance checklist
   ([#50](https://github.com/Solvely-Colin/ClawOS/issues/50),

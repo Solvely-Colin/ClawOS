@@ -61,6 +61,7 @@ class OpenClawArchiveTests(unittest.TestCase):
         self.assertIn('--ignore-scripts --json', source)
         self.assertLess(source.index('image/bin/verify-openclaw-archive'), source.index('npm install --global'))
         self.assertIn('"$runtime_archive"; then', source)
+        self.assertIn('--allow-scripts="file:$runtime_archive,', source)
 
 
 if __name__ == '__main__':

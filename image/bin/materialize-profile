@@ -40,6 +40,8 @@ mkdir -p \
   "$destination/airootfs/usr/share/polkit-1/actions"
 install -m 0644 "$repo_root/services/clawosd/src/clawosd_core.py" \
   "$destination/airootfs/usr/lib/clawos/clawosd/clawosd_core.py"
+install -m 0644 "$repo_root/image/bin/verify-openclaw-archive" \
+  "$destination/airootfs/usr/lib/clawos/verify-openclaw-archive"
 install -m 0755 "$repo_root/services/clawosd/src/clawosd_service.py" \
   "$destination/airootfs/usr/lib/clawos/clawosd/clawosd_service.py"
 install -m 0755 "$repo_root/services/clawosd/src/clawosctl.py" \

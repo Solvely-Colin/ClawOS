@@ -9,6 +9,7 @@ import os
 import re
 import secrets
 import subprocess
+import tempfile
 import time
 import uuid
 from pathlib import Path
@@ -543,11 +544,18 @@ class Broker:
             settings = self.config.get("openclaw", {})
             target = settings.get("promotedVersion")
             owner = settings.get("ownerUser")
+            integrity = settings.get("promotedIntegrity")
+            commit = settings.get("promotedCommit")
+            if not isinstance(integrity, str) or not re.fullmatch(r"sha512-[A-Za-z0-9+/]{86}==", integrity):
+                raise BrokerError("No valid OpenClaw archive integrity pin is promoted.")
+            if not isinstance(commit, str) or not re.fullmatch(r"[0-9a-f]{7,40}", commit):
+                raise BrokerError("No valid OpenClaw build commit is promoted.")
             if not isinstance(target, str) or not VERSION_PATTERN.fullmatch(target):
                 raise BrokerError("No valid OpenClaw release is promoted by this ClawOS build.")
             if not isinstance(owner, str) or not USER_PATTERN.fullmatch(owner):
                 raise BrokerError("The OpenClaw owner account is invalid.")
-            return {"targetVersion": target, "ownerUser": owner}
+            return {"targetVersion": target, "ownerUser": owner,
+                    "targetIntegrity": integrity, "targetCommit": commit}
         if action == "system.time.configure":
             if set(parameters) != {"timezone", "clockFormat"}:
                 raise BrokerError("system.time.configure accepts only timezone and clockFormat.")
@@ -807,13 +815,30 @@ class Broker:
                 target = record["parameters"]["targetVersion"]
                 owner = record["parameters"]["ownerUser"]
                 update_unit = f"clawos-openclaw-update-{record['actionId']}"
-                self.runner.run([
-                    "/usr/bin/systemd-run", "--quiet", "--wait", "--pipe", "--collect",
-                    "--service-type=exec", f"--unit={update_unit}",
-                    "/usr/bin/npm", "install", "--global",
-                    "--allow-scripts=openclaw,@google/genai,tree-sitter-bash,protobufjs",
-                    f"openclaw@{target}",
-                ], timeout=1800)
+                # Root-private staging prevents unprivileged archive substitution.
+                # Pins are bound into the approved action, never caller input.
+                with tempfile.TemporaryDirectory(prefix="openclaw-input-", dir=self.state_dir) as staging:
+                    archive = str(Path(staging) / f"openclaw-{target}.tgz")
+                    self.runner.run([
+                        "/usr/bin/systemd-run", "--quiet", "--wait", "--pipe", "--collect",
+                        "--service-type=exec", f"--unit={update_unit}-pack",
+                        "--property=RuntimeMaxSec=600", "--property=KillMode=control-group",
+                        "/usr/bin/npm", "pack", f"openclaw@{target}",
+                        "--ignore-scripts", "--json", "--pack-destination", staging,
+                    ], timeout=660)
+                    self.runner.run([
+                        "/usr/bin/python3", "/usr/lib/clawos/verify-openclaw-archive",
+                        archive, record["parameters"]["targetIntegrity"], target,
+                        record["parameters"]["targetCommit"],
+                    ], timeout=120)
+                    self.runner.run([
+                        "/usr/bin/systemd-run", "--quiet", "--wait", "--pipe", "--collect",
+                        "--service-type=exec", f"--unit={update_unit}",
+                        "--property=RuntimeMaxSec=1800", "--property=KillMode=control-group",
+                        "/usr/bin/npm", "install", "--global",
+                        f"--allow-scripts=file:{archive},@google/genai,tree-sitter-bash,protobufjs",
+                        archive,
+                    ], timeout=1860)
                 package_json = Path("/usr/lib/node_modules/openclaw/package.json")
                 try:
                     installed = json.loads(package_json.read_text(encoding="utf-8")).get("version")
@@ -823,6 +848,17 @@ class Broker:
                     raise BrokerError(
                         f"OpenClaw version verification failed: expected {target}, got {str(installed)[:160]}"
                     )
+                try:
+                    build = json.loads(Path("/usr/lib/node_modules/openclaw/dist/build-info.json").read_text(encoding="utf-8"))
+                    installed_commit = build.get("commit", "")
+                    if (build.get("version") != target or not isinstance(installed_commit, str)
+                            or not re.fullmatch(r"[0-9a-f]{40}", installed_commit)
+                            or not installed_commit.startswith(record["parameters"]["targetCommit"])):
+                        raise ValueError("installed build differs from promoted commit")
+                except (OSError, ValueError, AttributeError) as error:
+                    raise BrokerError(f"Could not verify the installed OpenClaw build: {error}") from error
+                if Path("/usr/lib/node_modules/openclaw/.openclaw-lifecycle-pending").exists():
+                    raise BrokerError("OpenClaw package lifecycle is incomplete; Gateway migration was not started.")
                 uid = self.runner.run(["/usr/bin/id", "-u", owner]).strip()
                 if not uid.isdigit():
                     raise BrokerError("Could not resolve the OpenClaw owner account.")

@@ -110,7 +110,7 @@ tested.
   Polkit gate, skipping the call when the level is unchanged. The default choice
   is `full-root`, which matches the shipped config, so the default path does not
   prompt.
-- The ISO build pins OpenClaw's top-level npm tarball by SHA-512, packs it with lifecycle scripts disabled, verifies its package version and embedded build commit, then installs from that verified local archive. Image validation compares the shipped build commit too. The installer copies that ISO tree. Runtime `openclaw.update` still installs from npm and checks `package.json`; it does not yet enforce the archive integrity pin. There is no publisher signature or locked transitive dependency tree. The npm/OpenClaw supply chain remains a trusted dependency.
+- The ISO build pins OpenClaw's top-level npm tarball by SHA-512, packs it with lifecycle scripts disabled, verifies its package version and embedded build commit, then installs from that verified local archive. Image validation compares the shipped build commit too. The installer copies that ISO tree. Runtime `openclaw.update` checkpoints first, packs the promoted version with lifecycle scripts disabled into root-private staging, verifies the archive against root-owned SHA-512 and build-commit pins, then installs that local archive and checks installed version and build metadata before Gateway migration. Older configurations without those pins refuse the update action. There is no publisher signature or locked transitive dependency tree. The npm/OpenClaw supply chain remains a trusted dependency.
 - `tailscaled` is installed and enabled on every install. Nothing in this
   repository runs `tailscale up` or supplies an auth key.
   In an encrypted WHPX test on 2026-09-10, `tailscale status` reported NeedsLogin

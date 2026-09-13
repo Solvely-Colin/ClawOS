@@ -75,6 +75,8 @@ class OpenClawVersionPin(unittest.TestCase):
     def test_clawosd_promotes_the_locked_version(self):
         config = json.loads(CLAWOSD_CONFIG.read_text(encoding="utf-8"))
         promoted = config.get("openclaw", {}).get("promotedVersion")
+        self.assertEqual(config['openclaw']['promotedCommit'], self.lock['OPENCLAW_COMMIT'])
+        self.assertEqual(config['openclaw']['promotedIntegrity'], self.lock['OPENCLAW_INTEGRITY'])
         self.assertEqual(
             promoted, self.pin,
             f"{CLAWOSD_CONFIG} openclaw.promotedVersion={promoted!r} but "
@@ -99,6 +101,12 @@ class OpenClawVersionPin(unittest.TestCase):
             "an OpenClaw bump must update and reverify the adapter",
         )
         self.assertEqual(literals(source), [self.pin], "stale version literal in the delivery adapter")
+
+    def test_release_metadata_includes_the_integrity_lock(self):
+        source = read('tools/ci/build-release.sh')
+        metadata = source.split('} >"$out/BUILD-METADATA.txt"', 1)[0]
+        self.assertIn('cat image/config/versions.env', metadata)
+        self.assertIn('OPENCLAW_INTEGRITY', self.lock)
 
     def test_plugin_compatibility_floors_admit_the_locked_version(self):
         manifest = json.loads(PLUGIN_MANIFEST.read_text(encoding="utf-8"))
