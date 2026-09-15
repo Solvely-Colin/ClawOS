@@ -104,7 +104,7 @@ set -euo pipefail
 P=PASS:
 echo TRACE:PREPARE_UNSAFE_DISKS
 mkdir -p /mnt/clawos-refusal-mounted
-printf "label: gpt\n, type=L\n" | sfdisk /dev/vdb >/dev/null
+printf "label: gpt\ntype=L\n" | sfdisk /dev/vdb >/dev/null
 udevadm settle
 mkfs.ext4 -q -F /dev/vdb1
 mkfs.ext4 -q -F /dev/vdc

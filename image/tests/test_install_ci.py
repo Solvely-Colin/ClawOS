@@ -18,6 +18,8 @@ class InstallCI(unittest.TestCase):
         source = (ROOT / 'image/tests/install-refusal-smoke-qemu').read_text()
         for variable in ('control_disk', 'signature_disk', 'mounted_disk'):
             self.assertIn(f'qemu-img create -f qcow2 "${variable}"', source)
+        self.assertIn('printf "label: gpt\\ntype=L\\n" | sfdisk /dev/vdb', source)
+        self.assertNotIn('\\n, type=L', source)
         self.assertIn('mkfs.ext4 -q -F /dev/vdb1', source)
         self.assertIn('mount /dev/vdc /mnt/clawos-refusal-mounted', source)
         self.assertIn('map(.path) == [\\"/dev/vda\\"]', source)
