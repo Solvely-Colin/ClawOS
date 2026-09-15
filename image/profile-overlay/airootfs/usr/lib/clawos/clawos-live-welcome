@@ -74,6 +74,10 @@ menuitem:hover { background: #343a38; color: #f3f1ee; }
 .risk-toggle check:checked { background: #ff5c5c; border-color: #ff5c5c; color: #090b0b; }
 .install-plan { min-height: 38px; color: #a5a19f; font-size: 13px; }
 .warning { padding: 14px 16px; color: #d8d5d1; background: rgba(255,104,79,.08); border: 1px solid rgba(255,104,79,.34); border-radius: 8px; font-size: 13px; }
+.archive-status { padding: 14px 16px; border-radius: 8px; font-size: 13px; }
+.archive-pending { color: #d8d5d1; background: rgba(255,104,79,.08); border: 1px solid rgba(255,104,79,.34); }
+.archive-ready { color: #d8d5d1; background: rgba(53,206,120,.07); border: 1px solid rgba(53,206,120,.30); }
+.archive-unreachable { color: #f3d5d5; background: rgba(255,92,92,.08); border: 1px solid rgba(255,92,92,.34); }
 entry { min-height: 44px; padding: 0 12px; background: #202121; color: #f3f1ee; border: 1px solid #292d2b; border-radius: 8px; caret-color: #ff684f; }
 entry:focus { border-color: #ff684f; box-shadow: 0 0 0 1px #ff684f; }
 progressbar trough { min-height: 8px; background: #202121; border-radius: 8px; }
@@ -271,12 +275,15 @@ class Welcome(Gtk.ApplicationWindow):
         result = self.archive_result
         if result.get("checking"):
             state, style = "Checking", "muted"
+            box_style = "archive-pending"
             gate = "Checking the pinned package archive over HTTPS; Erase stays disabled."
         elif result.get("reachable"):
             state, style = "Reachable", "mono-success"
+            box_style = "archive-ready"
             gate = "Package archive reachable."
         else:
             state, style = "Unreachable", "danger"
+            box_style = "archive-unreachable"
             gate = f"Package archive unreachable: {result.get('reason', 'Check the network and retry.')}"
         snapshot = result.get("snapshot")
         if hasattr(self, "archive_state_label"):
@@ -289,6 +296,15 @@ class Welcome(Gtk.ApplicationWindow):
                 f"Snapshot {snapshot}" if snapshot else "Pinned Arch snapshot")
         if hasattr(self, "archive_install_status"):
             self.archive_install_status.set_text(gate)
+            context = self.archive_install_status.get_style_context()
+            for name in ("archive-pending", "archive-ready", "archive-unreachable"):
+                context.remove_class(name)
+            context.add_class(box_style)
+        if hasattr(self, "archive_event_label"):
+            self.archive_event_label.set_text(
+                "Pinned package archive reachable" if result.get("reachable") else
+                "Checking pinned package archive" if result.get("checking") else
+                "Pinned package archive unreachable")
         if hasattr(self, "install_button"):
             self._validate_passphrase()
 
@@ -348,7 +364,10 @@ class Welcome(Gtk.ApplicationWindow):
         source_label = self._label(source, "mono")
         source_label.set_size_request(72, -1)
         row.pack_start(source_label, False, False, 0)
-        row.pack_start(self._label(message, "mono-success" if final else "mono"), True, True, 0)
+        message_label = self._label(message, "mono-success" if final else "mono")
+        row.pack_start(message_label, True, True, 0)
+        if source == "netd":
+            self.archive_event_label = message_label
         row.pack_end(self._icon("media-record-symbolic", style="success"), False, False, 0)
         return row
 
@@ -482,7 +501,9 @@ class Welcome(Gtk.ApplicationWindow):
         left.pack_start(self.disk_details, False, False, 8)
         if not disks:
             left.pack_start(self._label('No eligible blank disk of at least 32 GiB found.', 'danger'), False, False, 0)
-        self.archive_install_status = self._label("Checking the pinned package archive over HTTPS; Erase stays disabled.", "warning", 58)
+        self.archive_install_status = self._label(
+            "Checking the pinned package archive over HTTPS; Erase stays disabled.", "archive-status", 58)
+        self._classes(self.archive_install_status, "archive-pending")
         left.pack_start(self.archive_install_status, False, False, 0)
         left.pack_start(self._label(
             "Boot media, mounted/in-use disks, and disks with partitions or filesystem signatures are protected. Network access is required. Keep the selected disk connected and the machine powered on.", "body", 58), False, False, 0)
@@ -621,8 +642,11 @@ class Welcome(Gtk.ApplicationWindow):
         if problem not in ("", "incomplete"):
             message = problem
         elif not archive_ok:
-            message = ("Checking the pinned package archive; Erase stays disabled." if self.archive_result.get('checking')
-                       else f"Package archive unreachable: {self.archive_result.get('reason', 'Check the network and retry.')}")
+            # The dedicated left-pane status card owns archive readiness. Do
+            # not repeat the same failure in the passphrase-error position.
+            message = "" if hasattr(self, "archive_install_status") else (
+                "Checking the pinned package archive; Erase stays disabled." if self.archive_result.get('checking')
+                else f"Package archive unreachable: {self.archive_result.get('reason', 'Check the network and retry.')}")
         else:
             message = ""
         self.error.set_text(message)

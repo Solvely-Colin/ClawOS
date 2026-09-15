@@ -41,6 +41,9 @@ class LiveWelcomeLayoutTests(unittest.TestCase):
         self.assertIn('"Package archive", "row-label"', source)
         self.assertIn('state, style = "Reachable", "mono-success"', source)
         self.assertIn('state, style = "Unreachable", "danger"', source)
+        self.assertIn('context.add_class(box_style)', source)
+        self.assertIn('self.archive_event_label = message_label', source)
+        self.assertIn('"Pinned package archive unreachable")', source)
         self.assertIn("archive_ok = self.archive_result.get('reachable')", source)
         self.assertIn("environment_ok and archive_ok and confirmed", source)
         self.assertIn("Package archive unreachable:", source)
@@ -63,12 +66,12 @@ class LiveWelcomeLayoutTests(unittest.TestCase):
             erase_confirmation=Mock(), install_environment={'kind': 'vm'},
             archive_result={'reachable': False, 'checking': False,
                             'reason': 'DNS is unavailable.'},
-            install_button=Mock(), error=Mock(), installing=False,
+            archive_install_status=Mock(), install_button=Mock(), error=Mock(), installing=False,
         )
         view.erase_confirmation.get_text.return_value = 'ERASE-/dev/vda'
         validate_namespace['_validate_passphrase'](view)
         view.install_button.set_sensitive.assert_called_once_with(False)
-        self.assertIn('Package archive unreachable', view.error.set_text.call_args.args[0])
+        view.error.set_text.assert_called_once_with('')
 
         start_code = compile(ast.fix_missing_locations(
             ast.Module(body=[methods['start_install']], type_ignores=[])),
