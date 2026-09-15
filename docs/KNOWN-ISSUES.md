@@ -48,10 +48,13 @@
   redirect-replacement alert is a false positive: the local operator can
   contain at most one ampersand at that expression; runtime parsing is unchanged.
 
-- **Fullscreen/layout:** Windows QEMU has an absolute tablet, but setup-window
-  offset/scaling is not fully solved. The GTK installer's clipped Back/Erase
-  actions were fixed in #81 and verified in CI ISO run 34432248984 at 1440x900;
-  that does not establish all QEMU fullscreen/pointer behavior (#54).
+- **Non-native Windows fullscreen:** the managed QEMU launcher now advertises
+  the Windows primary monitor's native mode, uses GTK zoom-to-fit without
+  hover-grab, and keeps an absolute tablet aligned. Windowed, maximized and
+  fullscreen pointer calibration passed at 1920x1080 and 1440x900 (#54).
+  QEMU 11.1 on Windows still stretches a manually forced non-native-aspect
+  guest mode in true fullscreen despite `keep-aspect-ratio=on`; the normal
+  launcher avoids that path by selecting the host-native preferred mode.
 - **Task context:** supporting-surface prompts can still target the fixed main
   session instead of the conversation owning the terminal/browser/build
   ([#55](https://github.com/Solvely-Colin/ClawOS/issues/55)).
