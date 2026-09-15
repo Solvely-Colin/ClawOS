@@ -2,7 +2,6 @@
 """Carapace-aligned ClawOS live welcome and guarded installer."""
 
 import datetime
-import json
 import os
 import pathlib
 import subprocess
@@ -11,6 +10,7 @@ import sys
 
 sys.path.insert(0, '/usr/lib/clawos')
 from clawos_install_targets import confirmation_token, describe, list_targets, virtualization
+from clawos_archive_probe import probe_archive
 
 import gi
 
@@ -93,6 +93,10 @@ class Welcome(Gtk.ApplicationWindow):
         self.target = None
         self.installing = False
         self.current_view = "welcome"
+        self.archive_result = {
+            "reachable": False, "checking": False, "snapshot": None,
+            "reason": "The pinned package archive has not been checked.",
+        }
         self.connect("key-press-event", self._on_key)
         self.get_accessible().set_name("ClawOS live setup")
 
@@ -113,6 +117,7 @@ class Welcome(Gtk.ApplicationWindow):
         self._classes(self.stage, "stage")
         self.root.pack_start(self.stage, True, True, 0)
         self.show_welcome()
+        GLib.timeout_add_seconds(30, self._refresh_archive_probe)
 
     @staticmethod
     def _classes(widget, *names):
@@ -250,17 +255,67 @@ class Welcome(Gtk.ApplicationWindow):
         install.grab_focus()
         return hero
 
-    @staticmethod
-    def _network_ready():
-        # The live ISO runs archiso's systemd-networkd/iwd, the installed system
-        # runs NetworkManager; a default route is the manager-agnostic signal.
-        try:
-            result = subprocess.run(
-                ["ip", "-json", "route", "show", "default"], capture_output=True, text=True, timeout=3
-            )
-            return result.returncode == 0 and bool(json.loads(result.stdout or "[]"))
-        except (OSError, subprocess.SubprocessError, ValueError):
-            return False
+    def _archive_row(self):
+        row = self._classes(Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12), "row")
+        row.pack_start(self._icon("network-wireless-signal-excellent-symbolic", style="muted"), False, False, 0)
+        row.pack_start(self._label("Package archive", "row-label"), False, False, 0)
+        self.archive_state_label = self._label("Checking", "muted")
+        row.pack_end(self.archive_state_label, False, False, 0)
+        self.archive_value_label = self._label("Pinned Arch snapshot", "row-value")
+        self.archive_value_label.set_xalign(1)
+        row.pack_end(self.archive_value_label, True, True, 0)
+        self._render_archive_status()
+        return row
+
+    def _render_archive_status(self):
+        result = self.archive_result
+        if result.get("checking"):
+            state, style = "Checking", "muted"
+            gate = "Checking the pinned package archive over HTTPS; Erase stays disabled."
+        elif result.get("reachable"):
+            state, style = "Reachable", "mono-success"
+            gate = "Package archive reachable."
+        else:
+            state, style = "Unreachable", "danger"
+            gate = f"Package archive unreachable: {result.get('reason', 'Check the network and retry.')}"
+        snapshot = result.get("snapshot")
+        if hasattr(self, "archive_state_label"):
+            self.archive_state_label.set_text(state)
+            context = self.archive_state_label.get_style_context()
+            for name in ("muted", "mono-success", "danger"):
+                context.remove_class(name)
+            context.add_class(style)
+            self.archive_value_label.set_text(
+                f"Snapshot {snapshot}" if snapshot else "Pinned Arch snapshot")
+        if hasattr(self, "archive_install_status"):
+            self.archive_install_status.set_text(gate)
+        if hasattr(self, "install_button"):
+            self._validate_passphrase()
+
+    def _start_archive_probe(self):
+        if self.installing or self.archive_result.get("checking"):
+            return
+        self.archive_result = {
+            "reachable": False, "checking": True,
+            "snapshot": self.archive_result.get("snapshot"),
+            "reason": "Checking the pinned package archive.",
+        }
+        self._render_archive_status()
+        threading.Thread(target=self._probe_archive_worker, daemon=True).start()
+
+    def _probe_archive_worker(self):
+        result = probe_archive()
+        result["checking"] = False
+        GLib.idle_add(self._finish_archive_probe, result)
+
+    def _finish_archive_probe(self, result):
+        self.archive_result = result
+        self._render_archive_status()
+        return False
+
+    def _refresh_archive_probe(self):
+        self._start_archive_probe()
+        return True
 
     @staticmethod
     def _disks():
@@ -315,8 +370,7 @@ class Welcome(Gtk.ApplicationWindow):
         header.set_margin_bottom(10)
         left.pack_start(header, False, False, 0)
         disk, disk_state = self._disk_summary()
-        left.pack_start(self._fact_row(
-            "network-wireless-signal-excellent-symbolic", "Network", "ClawOS live", "Connected" if self._network_ready() else "Waiting"), False, False, 3)
+        left.pack_start(self._archive_row(), False, False, 3)
         left.pack_start(self._fact_row(
             "video-display-symbolic", "Display",
             f"{self.screen_width} × {self.screen_height}", "60 Hz"), False, False, 0)
@@ -325,10 +379,12 @@ class Welcome(Gtk.ApplicationWindow):
         right.pack_start(self._label("Live event stream", "section-label"), False, False, 0)
         now = datetime.datetime.now()
         stamps = [(now + datetime.timedelta(seconds=i)).strftime("%H:%M:%S") for i in range(7)]
+        archive_event = ("Pinned package archive reachable" if self.archive_result.get("reachable")
+                         else "Checking pinned package archive")
         events = [
             ("systemd", "Starting ClawOS live environment…"),
             ("openclaw", "Agent runtime install staged"),
-            ("netd", "Connected to ClawOS live"),
+            ("netd", archive_event),
             ("displayd", f"Output active ({self.screen_width}×{self.screen_height}@60Hz)"),
             ("storaged", "Eligible installation disk detected" if disk_state != "Unavailable" else "Waiting for an eligible blank disk"),
             ("openclaw", "Capability policy staged"),
@@ -355,6 +411,7 @@ class Welcome(Gtk.ApplicationWindow):
         self.stage.pack_start(self._systems(), False, False, 0)
         self.stage.pack_start(self._footer(), True, True, 0)
         self.show_all()
+        self._start_archive_probe()
 
     def _screen_header(self, eyebrow, title, body):
         header = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
@@ -382,6 +439,7 @@ class Welcome(Gtk.ApplicationWindow):
         content.pack_end(actions, False, False, 0)
         self.stage.pack_start(content, True, True, 0)
         self.show_all()
+        self._start_archive_probe()
 
     def show_install(self, *_args):
         self.current_view = "install"
@@ -424,6 +482,8 @@ class Welcome(Gtk.ApplicationWindow):
         left.pack_start(self.disk_details, False, False, 8)
         if not disks:
             left.pack_start(self._label('No eligible blank disk of at least 32 GiB found.', 'danger'), False, False, 0)
+        self.archive_install_status = self._label("Checking the pinned package archive over HTTPS; Erase stays disabled.", "warning", 58)
+        left.pack_start(self.archive_install_status, False, False, 0)
         left.pack_start(self._label(
             "Boot media, mounted/in-use disks, and disks with partitions or filesystem signatures are protected. Network access is required. Keep the selected disk connected and the machine powered on.", "body", 58), False, False, 0)
         self.passphrase_title = self._label("Disk unlock and session-lock passphrase", "body-strong")
@@ -496,6 +556,7 @@ class Welcome(Gtk.ApplicationWindow):
         self.stage.pack_start(content, True, True, 0)
         self.show_all()
         selector.grab_focus()
+        self._start_archive_probe()
 
     def _select_disk(self, selector):
         if self.installing:
@@ -555,8 +616,16 @@ class Welcome(Gtk.ApplicationWindow):
         problem = self._passphrase_problem()
         confirmed = bool(self.target) and self.erase_confirmation.get_text() == confirmation_token(self.target)
         environment_ok = getattr(self, 'install_environment', {}).get('kind') == 'vm'
-        self.install_button.set_sensitive(environment_ok and confirmed and not problem and not self.installing)
-        self.error.set_text("" if problem == "incomplete" else problem)
+        archive_ok = self.archive_result.get('reachable') and not self.archive_result.get('checking')
+        self.install_button.set_sensitive(environment_ok and archive_ok and confirmed and not problem and not self.installing)
+        if problem not in ("", "incomplete"):
+            message = problem
+        elif not archive_ok:
+            message = ("Checking the pinned package archive; Erase stays disabled." if self.archive_result.get('checking')
+                       else f"Package archive unreachable: {self.archive_result.get('reason', 'Check the network and retry.')}")
+        else:
+            message = ""
+        self.error.set_text(message)
 
     def start_install(self, *_args):
         if self.installing:
@@ -564,6 +633,12 @@ class Welcome(Gtk.ApplicationWindow):
         if virtualization()['kind'] != 'vm':
             self.error.set_text('This release is VM-only. Installation is unavailable on this machine.')
             self.install_button.set_sensitive(False)
+            return
+        if not self.archive_result.get('reachable') or self.archive_result.get('checking'):
+            self.error.set_text(
+                "Package archive unreachable: " + self.archive_result.get('reason', 'Check the network and retry.'))
+            self.install_button.set_sensitive(False)
+            self._start_archive_probe()
             return
         if not self.target or not self.disk_id or self.erase_confirmation.get_text() != confirmation_token(self.target):
             self.error.set_text('Select a disk and type its exact erase confirmation.')

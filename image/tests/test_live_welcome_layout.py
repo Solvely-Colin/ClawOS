@@ -2,6 +2,8 @@
 import ast
 import pathlib
 import unittest
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 
 SOURCE = pathlib.Path(__file__).resolve().parents[1] / "profile-overlay/airootfs/usr/lib/clawos/clawos-live-welcome"
@@ -31,6 +33,52 @@ class LiveWelcomeLayoutTests(unittest.TestCase):
 
     def test_erase_starts_disabled(self):
         self.assertIn("self.install_button.set_sensitive(False)", self.calls)
+
+    def test_archive_probe_is_async_and_gates_erase(self):
+        source = SOURCE.read_text()
+        self.assertIn("from clawos_archive_probe import probe_archive", source)
+        self.assertIn("threading.Thread(target=self._probe_archive_worker, daemon=True).start()", source)
+        self.assertIn('"Package archive", "row-label"', source)
+        self.assertIn('state, style = "Reachable", "mono-success"', source)
+        self.assertIn('state, style = "Unreachable", "danger"', source)
+        self.assertIn("archive_ok = self.archive_result.get('reachable')", source)
+        self.assertIn("environment_ok and archive_ok and confirmed", source)
+        self.assertIn("Package archive unreachable:", source)
+        self.assertNotIn("def _network_ready", source)
+        self.assertNotIn('"ip", "-json", "route"', source)
+
+    def test_unreachable_archive_disables_erase_and_blocks_launch(self):
+        source = SOURCE.read_text()
+        tree = ast.parse(source)
+        methods = {node.name: node for node in ast.walk(tree)
+                   if isinstance(node, ast.FunctionDef)}
+
+        validate_code = compile(ast.fix_missing_locations(
+            ast.Module(body=[methods['_validate_passphrase']], type_ignores=[])),
+            '<validate-passphrase>', 'exec')
+        validate_namespace = {'confirmation_token': lambda target: f'ERASE-{target}'}
+        exec(validate_code, validate_namespace)
+        view = SimpleNamespace(
+            _passphrase_problem=Mock(return_value=''), target='/dev/vda',
+            erase_confirmation=Mock(), install_environment={'kind': 'vm'},
+            archive_result={'reachable': False, 'checking': False,
+                            'reason': 'DNS is unavailable.'},
+            install_button=Mock(), error=Mock(), installing=False,
+        )
+        view.erase_confirmation.get_text.return_value = 'ERASE-/dev/vda'
+        validate_namespace['_validate_passphrase'](view)
+        view.install_button.set_sensitive.assert_called_once_with(False)
+        self.assertIn('Package archive unreachable', view.error.set_text.call_args.args[0])
+
+        start_code = compile(ast.fix_missing_locations(
+            ast.Module(body=[methods['start_install']], type_ignores=[])),
+            '<start-install>', 'exec')
+        start_namespace = {'virtualization': lambda: {'kind': 'vm'}}
+        exec(start_code, start_namespace)
+        view._start_archive_probe = Mock()
+        start_namespace['start_install'](view)
+        view._start_archive_probe.assert_called_once_with()
+        self.assertFalse(view.installing)
 
 
 if __name__ == "__main__":

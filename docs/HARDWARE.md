@@ -37,6 +37,10 @@ validation and `clawos-install-dev`. It is intentionally absent from the GUI.
   line naming the cause (DNS, connection, TLS, HTTP status, timeout or
   insufficient storage) and the fix. A machine with less than 4 GiB of RAM
   stops here: `/tmp` is half of RAM on the live ISO.
+- The graphical installer performs the same bounded pinned-archive HEAD check
+  in the background. Its readiness pane shows the snapshot as reachable or
+  unreachable, and Erase remains disabled while the check is pending or
+  unsuccessful. The privileged installer checks again before downloading.
 - The complete Arch package dependency set is then downloaded and
   signature-verified into the live environment before erasure. Downloads use
   one connection and tolerate slow archive responses. Only a timed-out or
