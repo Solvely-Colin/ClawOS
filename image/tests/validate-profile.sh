@@ -88,6 +88,13 @@ if [[ -f "$installer" ]]; then
   test -s "$profile/airootfs/usr/share/licenses/clawos-radix-icons/LICENSE"
   grep -Fq 'install -D -m 0644 /usr/share/licenses/clawos-radix-icons/LICENSE' "$installer"
   grep -Fq '"$mount_root/usr/share/licenses/clawos-radix-icons/LICENSE"' "$installer"
+  grep -Fq 'cp -a /usr/share/licenses/openclaw-npm/.' "$installer"
+  grep -Fq '"$mount_root/usr/share/licenses/openclaw-npm/"' "$installer"
+  grep -Fq 'generate-openclaw-inventory' "$repo_root/image/bin/build-iso"
+  grep -Fq 'npm sbom --package-lock-only --sbom-format cyclonedx --omit dev' \
+    "$repo_root/image/bin/build-iso"
+  grep -Fq 'npm audit --json --package-lock-only --omit dev' \
+    "$repo_root/image/bin/build-iso"
   # Pin the guard placement, not just its existence: the pre-erase validate
   # must sit directly above sfdisk and an identity recheck above the first format.
   grep -Fq 'recheck validate --confirm "$confirmation" >/dev/null' "$installer"

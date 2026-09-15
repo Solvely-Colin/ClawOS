@@ -150,6 +150,43 @@ if not commit.startswith(sys.argv[4]):
     raise SystemExit('ISO OpenClaw build commit differs from the lock')
 PY
 
+inventory="$tmpdir/openclaw-inventory"
+unsquashfs -no-progress -d "$inventory" "$squashfs" \
+  usr/share/licenses/openclaw-npm >/dev/null
+python3 - "$inventory/usr/share/licenses/openclaw-npm" "$OPENCLAW_VERSION" <<'PY'
+import json, pathlib, sys
+root = pathlib.Path(sys.argv[1])
+manifest = json.loads((root / 'manifest.json').read_text())
+sbom = json.loads((root / 'SBOM.cdx.json').read_text())
+audit = json.loads((root / 'AUDIT.json').read_text())
+packages = manifest.get('packages')
+if manifest.get('root') != '/usr/lib/node_modules/openclaw' or not isinstance(packages, list):
+    raise SystemExit('ISO OpenClaw license manifest is invalid')
+if manifest.get('packageCount') != len(packages) or len(packages) < 100:
+    raise SystemExit('ISO OpenClaw license manifest is incomplete')
+if not any(item.get('name') == 'openclaw' and item.get('version') == sys.argv[2] for item in packages):
+    raise SystemExit('ISO OpenClaw license manifest lacks the promoted runtime')
+for item in packages:
+    if not all(isinstance(item.get(key), str) and item[key] for key in ('name', 'version', 'license', 'path')):
+        raise SystemExit('ISO OpenClaw license manifest has an invalid package entry')
+    if not item['path'].startswith('/usr/lib/node_modules/openclaw'):
+        raise SystemExit('ISO OpenClaw license manifest has an invalid installed path')
+    for relative in item.get('licenseFiles', []):
+        candidate = (root / relative).resolve()
+        if root.resolve() not in candidate.parents or not candidate.is_file():
+            raise SystemExit('ISO OpenClaw license text reference is invalid')
+if sbom.get('bomFormat') != 'CycloneDX' or not sbom.get('components'):
+    raise SystemExit('ISO OpenClaw CycloneDX SBOM is invalid')
+installed_ids = {(item['name'], item['version']) for item in packages}
+sbom_ids = {(item.get('name'), item.get('version')) for item in sbom['components']}
+if installed_ids != sbom_ids:
+    raise SystemExit('ISO OpenClaw SBOM differs from its installed package inventory')
+if not isinstance(audit, dict):
+    raise SystemExit('ISO OpenClaw audit report is invalid')
+if not (root / 'AUDIT-STATUS.txt').is_file():
+    raise SystemExit('ISO OpenClaw audit status is missing')
+PY
+
 # The sshd posture is otherwise asserted only at source level
 # (validate-profile.sh). Extract what the live system will actually read and
 # check the shipped files, including archiso's own drop-in and its order.
@@ -159,4 +196,4 @@ unsquashfs -no-progress -d "$posture" "$squashfs" \
 check_sshd_posture "$posture"
 check_live_banner "$posture"
 
-echo "ClawOS ISO boot-chain, pinned runtime and sshd posture validation passed."
+echo "ClawOS ISO boot-chain, pinned runtime, npm inventory and sshd posture validation passed."

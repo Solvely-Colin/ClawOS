@@ -23,6 +23,14 @@ boot-chain structure, and records the source SHA, package list, container digest
 and SHA256 checksums. The bootstrap container tag is resolved at build time and
 its digest recorded; this is not a claim of bit-for-bit reproducibility.
 
+Each build inventories the actual installed OpenClaw npm tree. The image and
+installed target retain `manifest.json`, collected license texts, the npm
+CycloneDX SBOM and the audit snapshot under
+`/usr/share/licenses/openclaw-npm/`. Release artifacts also expose
+`OPENCLAW-LICENSES.json`, `SBOM.cdx.json`, `AUDIT.json` and its status; all are
+covered by `SHA256SUMS`. Audit findings are non-blocking evidence, not a claim
+that the dependency tree is vulnerability-free or locked.
+
 Before building, the hosted runner must expose readable/writable `/dev/kvm`
 and successfully create a KVM VM. Missing acceleration fails the workflow;
 there is no silent skip. This follows GitHub's

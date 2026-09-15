@@ -29,8 +29,10 @@ out=/src/artifacts/m1/out
   shopt -s nullglob
   images=(*.iso)
   [[ ${#images[@]} == 1 ]] || { echo 'Expected one validated ISO.' >&2; exit 1; }
-  sha256sum "${images[0]}" >SHA256SUMS
-  sha256sum "${images[0]}" >"${images[0]}.sha256"
+  sha256sum -c SHA256SUMS
+  grep -Fq '  SBOM.cdx.json' SHA256SUMS
+  grep -Fq '  AUDIT.json' SHA256SUMS
+  grep -Fq '  OPENCLAW-LICENSES.json' SHA256SUMS
 )
 {
   printf 'Source commit: %s\n' "$GITHUB_SHA"
@@ -40,6 +42,7 @@ out=/src/artifacts/m1/out
   printf 'Passwordless install smoke: NOT RUN\n'
   printf 'Onboarding/encrypted-install/hardware acceptance: NOT RUN by this workflow\n'
   printf 'Installer: experimental x86_64 UEFI blank disks; physical hardware NOT verified\n'
+  cat "$out/AUDIT-STATUS.txt"
   cat image/config/versions.env
 } >"$out/BUILD-METADATA.txt"
 pacman -Q >"$out/BUILD-PACKAGES.txt"
