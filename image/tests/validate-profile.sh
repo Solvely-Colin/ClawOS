@@ -149,8 +149,8 @@ if [[ -f "$installer" ]]; then
   grep -Fq 'networkmanager openssh sudo zsh tmux curl jq' "$packages"
   grep -Fq 'nodejs npm polkit lxqt-policykit plymouth tailscale' "$packages"
   grep -Fq 'prepare_install_packages "$download_root"' "$installer"
-  grep -Fq 'from clawos_archive_probe import probe_archive' "$root/usr/lib/clawos/clawos-live-welcome"
-  test -f "$root/usr/lib/clawos/clawos_archive_probe.py"
+  grep -Fq 'from clawos_archive_probe import probe_archive' "$profile/airootfs/usr/lib/clawos/clawos-live-welcome"
+  test -f "$profile/airootfs/usr/lib/clawos/clawos_archive_probe.py"
   grep -Fq -- '--experimental-hardware) environment_args+=(--experimental-hardware)' "$installer"
   python3 - "$installer" <<'PY'
 import pathlib, sys
