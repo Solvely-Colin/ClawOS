@@ -22,6 +22,14 @@ class WindowsVMDisplayTests(unittest.TestCase):
         self.assertIn('serial=CLAWOS-V01-BUILD', source)
         self.assertIn('-qmp "tcp:127.0.0.1:4444,server=on,wait=off"', source)
 
+    def test_linux_graphical_launcher_uses_the_same_absolute_pointer_contract(self):
+        source = (ROOT / "image/bin/run-qemu").read_text()
+        display = ('gtk,zoom-to-fit=on,keep-aspect-ratio=on,grab-on-hover=off,'
+                   'show-cursor=on,window-close=off,show-menubar=off')
+        self.assertIn(f"display_args=(-display '{display}')", source)
+        self.assertIn('-usb -device usb-tablet,id=clawos-pointer', source)
+        self.assertIn('display_args=(-display none -vnc "127.0.0.1:$vnc_display")', source)
+
 
 if __name__ == "__main__":
     unittest.main()
