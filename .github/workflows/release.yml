@@ -19,6 +19,10 @@ jobs:
     if: github.repository == 'Solvely-Colin/ClawOS'
     runs-on: ubuntu-24.04
     timeout-minutes: 180
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -58,17 +62,43 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          docker pull archlinux:base-devel
-          docker image inspect archlinux:base-devel --format '{{json .RepoDigests}}' > build-container-digest.txt
+          # Docker Hub manifest resolved 2026-09-14; roll with ARCH_SNAPSHOT review.
+          build_image='archlinux:base-devel@sha256:70d777aaeb45befc04150df137c4d7c1b5042be442b4c904c38c6f6880bb7844'
+          pinned_digest="${build_image##*@}"
+          docker pull "$build_image"
+          observed_digests="$(docker image inspect "$build_image" --format '{{join .RepoDigests "\n"}}')"
+          grep -Fq "@$pinned_digest" <<<"$observed_digests" || {
+            echo 'Pulled container digest differs from the reviewed pin.' >&2
+            exit 1
+          }
+          {
+            printf 'Pinned manifest digest: %s\n' "$pinned_digest"
+            printf 'Observed repository digest(s):\n%s\n' "$observed_digests"
+          } > build-container-digest.txt
           docker run --rm --privileged --device /dev/kvm \
             -e GITHUB_ACTIONS=true -e GITHUB_SHA -e GITHUB_RUN_ID \
             -v "$GITHUB_WORKSPACE:/src" -w /src \
-            archlinux:base-devel bash tools/ci/build-release.sh
+            "$build_image" bash tools/ci/build-release.sh
           # The container wrote artifacts/m1/out as root and artifacts/m1 as
           # its build user; hand the tree back to the runner account before
           # the host touches it (cp here, upload-artifact next).
           sudo chown -R "$(id -u):$(id -g)" artifacts
           cp build-container-digest.txt artifacts/m1/out/BUILD-CONTAINER.txt
+      - name: Attest ISO, checksums and SBOM provenance
+        id: provenance
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: |
+            artifacts/m1/out/*.iso
+            artifacts/m1/out/SHA256SUMS
+            artifacts/m1/out/SBOM.cdx.json
+      - name: Preserve attestation bundle with release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          bundle='${{ steps.provenance.outputs.bundle-path }}'
+          test -s "$bundle"
+          cp "$bundle" artifacts/m1/out/ATTESTATION.json
       - name: Prepare scanned boot and install evidence (including failed runs)
         id: evidence
         if: always()
@@ -117,6 +147,7 @@ jobs:
             artifacts/m1/out/AUDIT.json
             artifacts/m1/out/AUDIT-STATUS.txt
             artifacts/m1/out/OPENCLAW-LICENSES.json
+            artifacts/m1/out/ATTESTATION.json
           if-no-files-found: error
           compression-level: 0
           retention-days: 14

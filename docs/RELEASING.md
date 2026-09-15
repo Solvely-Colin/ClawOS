@@ -21,7 +21,17 @@ The helper uses the repository's Arch snapshot and checks the ArchISO version.
 It runs full source preflight, builds the release-compressed ISO, validates its
 boot-chain structure, and records the source SHA, package list, container digest
 and SHA256 checksums. The bootstrap container tag is resolved at build time and
-its digest recorded; this is not a claim of bit-for-bit reproducibility.
+its reviewed manifest digest is pinned in both workflows and the contributor
+container helper. `BUILD-CONTAINER.txt` records the pin and observed repository
+digest, and the build fails when they differ. The build container runs
+privileged for ArchISO and KVM tests; pinning its bytes does not reduce that
+authority or claim bit-for-bit reproducibility.
+
+Roll the container digest only as a reviewed build-input change: resolve the
+new Docker Hub `archlinux:base-devel` manifest, update the dated pin together in
+`ci.yml`, `release.yml` and `tools/dev/preflight-in-container.sh`, then review
+`ARCH_SNAPSHOT` and `ARCHISO_VERSION` in `image/config/versions.env`. Run the
+source gates and an exact-source release build before accepting the new input.
 
 Each build inventories the actual installed OpenClaw npm tree. The image and
 installed target retain `manifest.json`, collected license texts, the npm
@@ -30,6 +40,21 @@ CycloneDX SBOM and the audit snapshot under
 `OPENCLAW-LICENSES.json`, `SBOM.cdx.json`, `AUDIT.json` and its status; all are
 covered by `SHA256SUMS`. Audit findings are non-blocking evidence, not a claim
 that the dependency tree is vulnerability-free or locked.
+
+The release build attests the ISO, `SHA256SUMS` and `SBOM.cdx.json` through
+GitHub's artifact-attestation service and retains the generated bundle as
+`ATTESTATION.json`. After downloading a release bundle, verify locally:
+
+```sh
+sha256sum -c SHA256SUMS
+gh attestation verify clawos-*.iso --repo Solvely-Colin/ClawOS
+```
+
+Use a current GitHub CLI compatible with the current Sigstore trust root. During
+the 2026-09-15 proof, the host's old `gh` 2.55.0 verifier rejected the newer
+ED25519 trust-root key type; a checksum-verified portable `gh` 2.100.0 verified
+the same downloaded subject successfully. That client error did not indicate a
+missing or invalid repository attestation.
 
 Before building, the hosted runner must expose readable/writable `/dev/kvm`
 and successfully create a KVM VM. Missing acceleration fails the workflow;
