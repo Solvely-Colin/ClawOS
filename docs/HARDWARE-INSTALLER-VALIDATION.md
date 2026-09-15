@@ -54,7 +54,11 @@ OpenClaw is bundled during ISO construction with executable modes preserved.
   account could not switch to root with an empty password.
 - The passwordless Windows/WHPX guest initially showed a blank frame and stalled
   SSH, then recovered after keyboard input. Immediate unattended first-paint
-  responsiveness is not established by this run; the cause remains unconfirmed.
+  responsiveness was not established by this run. A later installed-VM
+  reproduction for #53 found an independent desktop race: an unmasked automatic
+  tty2 getty hung up Sway immediately after launch. Runtime deployment now
+  repairs the mask, and five cold boots passed; that does not retroactively prove
+  the stalled SSH in this older run had the same cause.
 - No installed serial-root autologin was enabled. Post-boot inspection used a
   test-only SSH public key; no provider account or production secret was used.
 - Physical hardware and complete provider enrollment/model inference remain

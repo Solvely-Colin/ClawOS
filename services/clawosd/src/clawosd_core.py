@@ -124,6 +124,9 @@ class Broker:
         uptime_path="/proc/uptime",
         sudoers_path="/etc/sudoers.d/90-clawos-full-root",
         full_root_sudoers_path="/etc/clawos/full-root.sudoers",
+        owner_home=None,
+        passwordless_entry_path="/etc/clawos-passwordless-entry",
+        repair_marker_path="/var/lib/clawosd/repair-required.json",
         proc_root="/proc",
         runner=None,
         recovery=None,
@@ -140,6 +143,9 @@ class Broker:
         self.uptime_path = Path(uptime_path)
         self.sudoers_path = Path(sudoers_path)
         self.full_root_sudoers_path = Path(full_root_sudoers_path)
+        self.owner_home = Path(owner_home) if owner_home else None
+        self.passwordless_entry_path = Path(passwordless_entry_path)
+        self.repair_marker_path = Path(repair_marker_path)
         self.proc_root = Path(proc_root)
         self.runner = runner or CommandRunner()
         self.recovery = recovery or BtrfsRecovery(self.runner)
@@ -294,23 +300,122 @@ class Broker:
             return
         raise BrokerError(f"Agent {requester['agentId']} is not allowed to request {action}.")
 
+    def _status_command(self, argv):
+        try:
+            return self.runner.run(argv, timeout=5).strip()
+        except (BrokerError, OSError, subprocess.SubprocessError):
+            return ""
+
+    def _owner_account(self):
+        owner = self.config.get("openclaw", {}).get("ownerUser", "clawos")
+        uid = account_uid(owner)
+        if self.owner_home is not None:
+            return owner, uid, self.owner_home
+        record = self._status_command(["/usr/bin/getent", "passwd", owner]).split(":")
+        home = Path(record[5]) if len(record) > 5 and record[5].startswith("/") else Path(f"/home/{owner}")
+        return owner, uid, home
+
+    @staticmethod
+    def _status_json(path):
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+            return value if isinstance(value, dict) else {}
+        except (OSError, ValueError):
+            return {}
+
+    def _startup_status(self):
+        owner, uid, home = self._owner_account()
+        openclaw = self._status_json(home / ".openclaw/openclaw.json")
+        gateway = openclaw.get("gateway", {}) if isinstance(openclaw.get("gateway"), dict) else {}
+        mode = gateway.get("mode") if gateway.get("mode") in {"local", "remote"} else None
+        checkpoint = self._status_json(home / ".local/state/clawos/onboarding.json")
+        setup_complete = bool(
+            mode and checkpoint.get("version") == 1 and checkpoint.get("mode") == mode
+            and checkpoint.get("stage") == "complete"
+        )
+        try:
+            desktop = self._service_state(f"clawos-session@{owner}.service")
+        except BrokerError:
+            desktop = "unknown"
+        locked = bool(self._status_command(["/usr/bin/pgrep", "-u", str(uid), "-x", "gtklock"]))
+        passwordless = False
+        try:
+            passwordless = (
+                not self.passwordless_entry_path.is_symlink()
+                and self.passwordless_entry_path.stat().st_uid == 0
+                and (self.passwordless_entry_path.stat().st_mode & 0o777) == 0o644
+                and self.passwordless_entry_path.read_text(encoding="utf-8").strip() == "enabled"
+            )
+        except OSError:
+            pass
+        password_record = self._status_command(["/usr/bin/passwd", "--status", owner]).split()
+        lock_available = len(password_record) > 1 and password_record[1] in {"P", "PS"}
+
+        gateway_state = "not-configured"
+        if mode == "local":
+            port = gateway.get("port", 18789)
+            port = port if isinstance(port, int) and 1 <= port <= 65535 else 18789
+            gateway_state = "reachable" if self._status_command([
+                "/usr/bin/curl", "--fail", "--silent", "--output", "/dev/null",
+                "--write-out", "%{http_code}", "--max-time", "2",
+                f"http://127.0.0.1:{port}/health",
+            ]) else "unreachable"
+        elif mode == "remote":
+            remote = gateway.get("remote", {}) if isinstance(gateway.get("remote"), dict) else {}
+            remote_url = remote.get("url", "")
+            if isinstance(remote_url, str) and remote_url.startswith(("ws://", "wss://")):
+                controller = ("http://" + remote_url[5:]) if remote_url.startswith("ws://") else ("https://" + remote_url[6:])
+                gateway_state = "reachable" if self._status_command([
+                    "/usr/bin/curl", "--fail", "--silent", "--output", "/dev/null",
+                    "--write-out", "%{http_code}", "--max-time", "2", controller,
+                ]) else "unreachable"
+
+        agents = openclaw.get("agents", {}) if isinstance(openclaw.get("agents"), dict) else {}
+        defaults = agents.get("defaults", {}) if isinstance(agents.get("defaults"), dict) else {}
+        model = defaults.get("model")
+        if isinstance(model, dict):
+            model = model.get("primary")
+        model_state = "configured-unverified" if isinstance(model, str) and model else "unverified"
+        repair_required = self.repair_marker_path.is_file() or desktop == "failed"
+        if repair_required:
+            state, reason = "repair-required", "A managed component reported a failure that needs recovery."
+        elif locked:
+            state, reason = "locked", "The graphical session is locked."
+        elif desktop not in {"active"}:
+            state, reason = "startup", "The graphical session is still starting."
+        elif not setup_complete:
+            state, reason = "setup-incomplete", "First-run setup has not completed."
+        elif gateway_state != "reachable":
+            state, reason = "startup", "Setup is complete and the Gateway is still connecting."
+        else:
+            state, reason = "ready", "Desktop and Gateway are reachable; model inference is unverified."
+        return {
+            "state": state,
+            "stateReason": reason,
+            "mode": mode,
+            "setupStage": checkpoint.get("stage", "start"),
+            "readiness": {
+                "setup": "complete" if setup_complete else "incomplete",
+                "desktop": desktop,
+                "lock": "disabled" if passwordless else (
+                    "unavailable" if not lock_available else ("locked" if locked else "unlocked")
+                ),
+                "gateway": gateway_state,
+                "model": model_state,
+            },
+        }
+
     def status(self):
+        startup = self._startup_status()
         return {
             "apiVersion": API_VERSION,
             "securityLevel": self.config["securityLevel"],
-            # Answering D-Bus proves only broker availability. It does not
-            # establish completed setup, an unlocked desktop, Gateway health,
-            # or successful inference. Keep those observations explicit until
-            # the shared startup-state collector supplies them.
-            "state": "unknown",
+            "state": startup["state"],
+            "stateReason": startup["stateReason"],
+            "mode": startup["mode"],
+            "setupStage": startup["setupStage"],
             "brokerState": "ready",
-            "readiness": {
-                "setup": "unverified",
-                "desktop": "unverified",
-                "lock": "unverified",
-                "gateway": "unverified",
-                "model": "unverified",
-            },
+            "readiness": startup["readiness"],
             "pendingCount": len(self.list_pending(include_tokens=False)),
             "activeGrantCount": sum(1 for path in self.grants_dir.glob("*.json") if self._grant_is_current(path)),
             "capabilities": sorted(ACTION_TYPES),

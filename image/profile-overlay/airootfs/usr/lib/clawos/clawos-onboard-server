@@ -78,6 +78,15 @@ async function gatewayMode() {
   }
 }
 
+async function machineStatus() {
+  try {
+    const result = await command("/usr/lib/clawos/clawosctl", ["status"], {timeout: 5000});
+    return JSON.parse(result.stdout);
+  } catch {
+    return {state: "startup", mode: null, setupStage: "start", readiness: {setup: "incomplete", model: "unverified"}};
+  }
+}
+
 async function selectedModel() {
   try {
     const config = JSON.parse(await fs.readFile(path.join(openclawStateDir, "openclaw.json"), "utf8"));
@@ -409,13 +418,15 @@ async function handleApi(request, response, pathname) {
 
   if (request.method === "GET" && pathname === "/api/status") {
     const checkpoint = await readCheckpoint();
-    const mode = await gatewayMode();
+    const machine = await machineStatus();
+    const mode = machine.mode;
     json(response, 200, {
       mode,
       network: await networkOnline(),
       running: setupRunning,
-      setupComplete: checkpoint?.mode === mode && checkpoint?.stage === "complete",
-      stage: checkpoint?.stage || "start",
+      machineState: machine.state,
+      setupComplete: machine.readiness?.setup === "complete",
+      stage: machine.setupStage || checkpoint?.stage || "start",
       access: checkpoint?.access || null,
       selectedModel: await selectedModel(),
       providerSetup,

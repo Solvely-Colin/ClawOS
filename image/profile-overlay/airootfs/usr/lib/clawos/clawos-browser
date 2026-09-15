@@ -35,7 +35,9 @@ route_pattern='^/[A-Za-z0-9/?=&%._~-]*$'
 
 profile_dir="${profile_root}-${profile}"
 bootstrap="$runtime_dir/clawos-control-ui-bootstrap-${profile}.html"
-mode="$(/usr/bin/openclaw config get gateway.mode 2>/dev/null || true)"
+machine_status="$(/usr/bin/timeout 5 /usr/lib/clawos/clawosctl status 2>/dev/null || true)"
+[[ -n "$machine_status" ]] || machine_status='{}'
+mode="$(printf '%s' "$machine_status" | /usr/bin/jq -r '.mode // empty')"
 token=
 
 read_config_string() {

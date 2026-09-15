@@ -24,6 +24,7 @@ install and boot proof is from QEMU (Linux KVM or Windows WHPX).
 | Work and decisions | Shared attention projection, reviewable notices and pending deployments |
 | Terminal/browser/build surfaces | Available; fullscreen layout and pointer mapping verified on Windows WHPX; task association remains #55 |
 | Windows VM lifecycle | Scheduled Task, SSH/ACPI shutdown, protected unlock, persistent build disk, host-native GTK scaling and absolute tablet |
+| Installed startup state | Broker-owned `startup`, `locked`, `setup-incomplete`, `ready` and `repair-required` states consumed by the shell; `ready` labels model inference unverified |
 | Remote-node roles | Implementation and isolated tests; broader live acceptance remains |
 | Physical hardware installation | VM-only by default; unsupported physical installation requires explicit CLI opt-in. Blank SATA/NVMe/eMMC eligibility checks remain; no physical machine installed or supported |
 | Graphical install and first setup | Encrypted GTK install, disk-only boot and local/model-later/Full Root onboarding verified on 2026-09-10 at `de19c1b` in WHPX; passwordless GTK and non-default policy remain separate from the newer CLI/agent-loop proof |

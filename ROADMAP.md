@@ -71,8 +71,9 @@ Milestones: Post-flip hardening and contributor tooling; Runtime reliability.
   recorded in docs/EVIDENCE.md.
 - [x] Fix setup/fullscreen offset and clipping; verify pointer alignment with
   saved screenshots (#54, Windows WHPX at 1920x1080 and 1440x900).
-- [ ] Distinguish startup, locked, setup-incomplete, ready and repair-required
-  states from one source of truth.
+- [x] Distinguish startup, locked, setup-incomplete, ready and repair-required
+  states through broker-owned status; five managed WHPX cold boots reached the
+  expected state with model inference explicitly unverified (#53).
 - [ ] Bind terminal, browser and build surfaces to their owning task; prove two
   simultaneous tasks cannot cross-route prompts or lose drafts.
 - [ ] Prove boot/root/home compatibility during failed-update recovery.

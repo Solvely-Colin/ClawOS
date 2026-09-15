@@ -17,33 +17,23 @@ case "${1:-}" in
     esac
     ;;
   gateway)
-    mode="$(/usr/bin/openclaw config get gateway.mode 2>/dev/null || true)"
-    if [[ "$mode" != local && "$mode" != remote ]]; then
-      json 'Setup required' 'Finish first-boot setup · click to return' setup-required
-      exit 0
-    fi
-    if [[ "$mode" == local ]]; then
-      port="$(/usr/bin/openclaw config get gateway.port 2>/dev/null || true)"
-      [[ "$port" =~ ^[0-9]+$ ]] || port=18789
-      if /usr/bin/curl --fail --silent --max-time 1 "http://127.0.0.1:$port/health" >/dev/null 2>&1; then
-        json 'Gateway online' 'Gateway reachable · model unverified' online
-      else
-        json 'Gateway offline' 'OpenClaw Gateway is unavailable' offline
-      fi
-    else
-      remote_url="$(/usr/bin/openclaw config get gateway.remote.url 2>/dev/null || true)"
-      case "$remote_url" in
-        ws://*) controller_url="http://${remote_url#ws://}" ;;
-        wss://*) controller_url="https://${remote_url#wss://}" ;;
-        *) controller_url= ;;
-      esac
-      if [[ -n "$controller_url" ]] &&
-         /usr/bin/curl --fail --silent --max-time 2 "$controller_url" >/dev/null 2>&1; then
-        json 'Controller online' 'Controller reachable · model unverified' online
-      else
-        json 'Controller offline' 'Remote OpenClaw controller is unavailable' offline
-      fi
-    fi
+    status="$(/usr/bin/timeout 5 /usr/lib/clawos/clawosctl status 2>/dev/null || true)"
+    [[ -n "$status" ]] || status='{}'
+    state="$(printf '%s' "$status" | /usr/bin/jq -r '.state // "unavailable"')"
+    mode="$(printf '%s' "$status" | /usr/bin/jq -r '.mode // empty')"
+    model="$(printf '%s' "$status" | /usr/bin/jq -r '.readiness.model // "unverified"')"
+    case "$state" in
+      setup-incomplete) json 'Setup required' 'Finish first-boot setup · click to return' setup-required ;;
+      repair-required) json 'Repair required' 'A managed component needs recovery' offline ;;
+      locked) json 'Session locked' 'Unlock this ClawOS session to continue' offline ;;
+      startup) json 'Starting ClawOS' 'Desktop or Gateway is still connecting' idle ;;
+      ready)
+        [[ "$mode" == remote ]] && label='Controller online' || label='Gateway online'
+        [[ "$model" == configured-unverified ]] && detail='Model configured · inference unverified' || detail='Model unverified'
+        json "$label" "$detail" online
+        ;;
+      *) json 'State unavailable' 'The ClawOS state service is unavailable' offline ;;
+    esac
     ;;
   *)
     json 'CLAWOS' 'Unknown panel status request' offline

@@ -3,6 +3,7 @@ import importlib.util
 from importlib.machinery import SourceFileLoader
 import json
 from pathlib import Path
+from types import SimpleNamespace
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -44,6 +45,29 @@ class WindowIdentity(unittest.TestCase):
 
 
 class Deployment(unittest.TestCase):
+    def test_legacy_config_migrates_to_completed_onboarding_checkpoint(self):
+        home = Path(self.temp.name) / 'legacy-home'
+        (home / '.openclaw').mkdir(parents=True)
+        (home / '.openclaw/openclaw.json').write_text(json.dumps({'gateway': {'mode': 'local'}}))
+        broker = Path(self.temp.name) / 'clawosd.json'
+        broker.write_text(json.dumps({'securityLevel': 'full-user-approvals'}))
+        account = SimpleNamespace(pw_dir=str(home), pw_uid=1000, pw_gid=1000)
+        original_read_json = deploy.read_json
+        def redirected(path, default=None):
+            return original_read_json(broker if str(path) == '/etc/clawos/clawosd.json' else path, default)
+        with patch.object(deploy.pwd, 'getpwnam', return_value=account), \
+             patch.object(deploy, 'read_json', side_effect=redirected), \
+             patch.object(deploy, 'user_command', side_effect=lambda owner, args: args), \
+             patch.object(deploy, 'run') as run:
+            self.assertTrue(deploy.migrate_onboarding_checkpoint('clawos'))
+        command = run.call_args.args[0]
+        self.assertEqual(command[:2], ['/usr/bin/python3', '-c'])
+        self.assertEqual(json.loads(command[-1]), {
+            'version': 1, 'mode': 'local', 'access': 'full-approvals',
+            'stage': 'complete', 'migratedFrom': 'legacy-config',
+        })
+        self.assertNotIn('chown', command[2])
+
     def test_delivery_retries_without_replaying_deployment(self):
         identifier = '33333333-3333-4333-8333-333333333333'
         job = self.store / 'jobs' / identifier
@@ -94,6 +118,8 @@ class Deployment(unittest.TestCase):
     def test_gateway_restart_waits_for_graceful_agent_drain(self):
         with patch.object(deploy, 'run') as run, patch.object(deploy, 'user_command', side_effect=lambda owner, args: args):
             deploy.reload_runtime('clawos', ['usr/lib/clawos/openclaw-plugin/lib/embodiment.js'])
+        self.assertIn((['systemctl', 'mask', 'getty@tty2.service'],),
+                      [call.args for call in run.call_args_list])
         restart = next(call for call in run.call_args_list if 'openclaw-gateway.service' in call.args[0])
         self.assertGreaterEqual(restart.kwargs['timeout'], 330 + 60)
 

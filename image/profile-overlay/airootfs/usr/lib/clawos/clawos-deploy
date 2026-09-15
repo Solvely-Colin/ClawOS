@@ -267,8 +267,63 @@ def user_command(owner, args):
     return ['runuser', '-u', owner, '--', 'env', *env, *args]
 
 
+def migrate_onboarding_checkpoint(owner):
+    """Preserve completed setup on installations from before checkpoints existed."""
+    try:
+        account = pwd.getpwnam(owner)
+    except KeyError:
+        return False
+    checkpoint = Path(account.pw_dir) / '.local/state/clawos/onboarding.json'
+    if checkpoint.exists():
+        return False
+    config = read_json(Path(account.pw_dir) / '.openclaw/openclaw.json', {})
+    gateway = config.get('gateway', {}) if isinstance(config, dict) else {}
+    mode = gateway.get('mode') if isinstance(gateway, dict) else None
+    if mode not in {'local', 'remote'}:
+        return False
+    broker = read_json(Path('/etc/clawos/clawosd.json'), {})
+    access = {'full-user-approvals': 'full-approvals', 'full-root': 'full-root',
+              'user-limited': 'user-limited'}.get(broker.get('securityLevel'), 'full-root')
+    payload = {
+        'version': 1, 'mode': mode, 'access': access, 'stage': 'complete',
+        'migratedFrom': 'legacy-config',
+    }
+    # The home directory is user-controlled. Create the checkpoint as its
+    # owner, not as root, and use an atomic no-replace hard link so a concurrent
+    # modern onboarding checkpoint always wins.
+    script = '''
+import json, os, pathlib, sys, tempfile
+directory = pathlib.Path(os.environ["HOME"]) / ".local/state/clawos"
+directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+target = directory / "onboarding.json"
+if target.exists():
+    raise SystemExit(0)
+fd, name = tempfile.mkstemp(prefix=".onboarding.", dir=directory)
+temporary = pathlib.Path(name)
+try:
+    os.fchmod(fd, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as stream:
+        stream.write(json.dumps(json.loads(sys.argv[1]), sort_keys=True) + "\\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+    try:
+        os.link(temporary, target, follow_symlinks=False)
+    except FileExistsError:
+        pass
+finally:
+    temporary.unlink(missing_ok=True)
+'''
+    run(user_command(owner, ['/usr/bin/python3', '-c', script, json.dumps(payload)]))
+    return True
+
+
 def reload_runtime(owner, names):
     run(['systemctl', 'daemon-reload'])
+    # tty2 belongs exclusively to the ClawOS graphical session. Older
+    # installations predate the installer mask and can otherwise let logind
+    # respawn getty@tty2 immediately after Sway starts, hanging up the desktop.
+    run(['systemctl', 'mask', 'getty@tty2.service'])
+    migrate_onboarding_checkpoint(owner)
     if any('/clawosd/' in n or n.endswith('clawosd.service') or n.endswith('/clawosctl') for n in names):
         run(['systemctl', 'restart', 'clawosd.service'])
     if any('/openclaw-plugin/' in n for n in names):

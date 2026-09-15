@@ -64,19 +64,15 @@ No API accepts shell text, arbitrary package names, arbitrary service names,
 paths, or executables. Plugin-supplied agent metadata is recorded only as
 self-reported correlation; D-Bus peer UID and PID are authoritative.
 
-## Status is not startup acceptance
+## Startup status
 
-`GetStatus` / `clawosctl status` reports `brokerState: "ready"` when the
-broker answers, but machine `state: "unknown"`. Its `readiness` fields for
-setup, desktop, lock, Gateway and model are explicitly `"unverified"`.
-Supported capabilities and pending/grant counts are not evidence that those
-components work. Status does not run inference or inspect provider credentials.
-The shell's Gateway/controller tooltip separately says reachability leaves the
-model unverified. Consumers must not promote either signal to machine readiness.
-
-This is the first, conservative slice of #53, not the shared startup-state
-implementation: setup/lock observation, unified consumers and five cold-boot
-acceptance remain outstanding.
+`GetStatus` / `clawosctl status` is the single installed-machine state source.
+It distinguishes `startup`, `locked`, `setup-incomplete`, `ready` and
+`repair-required` from explicit setup, desktop, lock, Gateway and repair
+observations. `brokerState: "ready"` still means only that the broker answered.
+A configured model remains `configured-unverified`; machine `ready` means the
+Gateway is reachable, not that inference succeeded. The complete ownership and
+transition contract is in [the startup-state document](../../docs/STARTUP-STATE.md).
 
 ## Caller and approval boundary
 
