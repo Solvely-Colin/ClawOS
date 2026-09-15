@@ -358,6 +358,8 @@ grep -Fq 'Wants=clawos-live-session.service' \
 grep -Fq 'User=clawos-live' \
   "$profile/airootfs/etc/systemd/system/clawos-live-session.service"
 grep -Fq 'Ctrl+Alt+F3' "$profile/airootfs/etc/clawos/live-sway.conf"
+grep -Fq 'output Virtual-1 scale 1' "$profile/airootfs/etc/clawos/live-sway.conf"
+! grep -Fq 'output Virtual-1 mode 1440x900' "$profile/airootfs/etc/clawos/live-sway.conf"
 grep -Fq 'Inspect system' "$profile/airootfs/usr/lib/clawos/clawos-live-welcome"
 grep -Fq 'The full Agent workspace is created after installation.' \
   "$profile/airootfs/usr/lib/clawos/clawos-live-welcome"
