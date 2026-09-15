@@ -50,6 +50,12 @@ sha256sum -c SHA256SUMS
 gh attestation verify clawos-*.iso --repo Solvely-Colin/ClawOS
 ```
 
+Use a current GitHub CLI compatible with the current Sigstore trust root. During
+the 2026-09-15 proof, the host's old `gh` 2.55.0 verifier rejected the newer
+ED25519 trust-root key type; a checksum-verified portable `gh` 2.100.0 verified
+the same downloaded subject successfully. That client error did not indicate a
+missing or invalid repository attestation.
+
 Before building, the hosted runner must expose readable/writable `/dev/kvm`
 and successfully create a KVM VM. Missing acceleration fails the workflow;
 there is no silent skip. This follows GitHub's
