@@ -97,6 +97,18 @@ install/boot chain, not the shipped serial-console posture. Successful execution
 alone changes `Passwordless install smoke: NOT RUN` to `RUN (KVM, run <id>)`;
 failure records `FAILED`. Encrypted install and full onboarding remain separate.
 
+Before the install smoke, `image/tests/install-refusal-smoke-qemu ISO` boots
+that same ISO with three new disposable QCOW2 disks: a blank control, a disk
+with GPT plus an ext4 partition, and a whole-disk ext4 filesystem mounted in
+the live guest. The live ISO itself is the fourth unsafe target. The eligible
+target list must contain only the blank control. For every unsafe target the
+harness derives the current kernel-backed disk identity, runs a dry-run
+refusal and then a real refusal, and requires both to stop before package
+preparation or the disk-write marker. Exact `sfdisk -d` and descendant `blkid`
+snapshots must remain byte-identical after each attempt. The scanned evidence
+retains the serial proof and snapshots, but never QCOW2 disks, writable
+firmware, or sockets. QEMU cleanup is acknowledged ACPI only.
+
 ## What success does not mean
 
 The ISO build packs OpenClaw with lifecycle scripts disabled, verifies the

@@ -39,6 +39,7 @@ out=/src/artifacts/m1/out
   printf 'Build channel: experimental development ISO\n'
   printf 'Validation: source preflight and ISO boot-chain structure\n'
   printf 'Live boot smoke: NOT RUN\n'
+  printf 'Installer refusal smoke: NOT RUN\n'
   printf 'Passwordless install smoke: NOT RUN\n'
   printf 'Onboarding/encrypted-install/hardware acceptance: NOT RUN by this workflow\n'
   printf 'Installer: experimental x86_64 UEFI blank disks; physical hardware NOT verified\n'
@@ -58,6 +59,19 @@ if CLAWOS_SMOKE_RUNTIME="$out/boot-smoke" \
 else
   status=$?
   sed -i "s/^Live boot smoke: NOT RUN$/Live boot smoke: FAILED (KVM, run $GITHUB_RUN_ID)/" \
+    "$out/BUILD-METADATA.txt"
+  exit "$status"
+fi
+
+# Same freshly built ISO with one blank control target and separate disposable
+# signature-bearing and mounted targets. No target may change.
+if CLAWOS_REFUSAL_RUNTIME="$out/install-refusal" \
+    timeout --signal=TERM --foreground 15m ./image/tests/install-refusal-smoke-qemu "${images[0]}"; then
+  sed -i "s/^Installer refusal smoke: NOT RUN$/Installer refusal smoke: RUN (KVM, run $GITHUB_RUN_ID)/" \
+    "$out/BUILD-METADATA.txt"
+else
+  status=$?
+  sed -i "s/^Installer refusal smoke: NOT RUN$/Installer refusal smoke: FAILED (KVM, run $GITHUB_RUN_ID)/" \
     "$out/BUILD-METADATA.txt"
   exit "$status"
 fi

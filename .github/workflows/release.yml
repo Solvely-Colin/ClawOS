@@ -106,7 +106,9 @@ jobs:
         run: |
           set -euo pipefail
           test -d artifacts/m1/out/boot-smoke || exit 0
-          sudo chown -R "$(id -u):$(id -g)" artifacts/m1/out
+          # The container exits before the build step's hand-back on a failed
+          # gate, so reclaim the parent too before creating the evidence tree.
+          sudo chown -R "$(id -u):$(id -g)" artifacts
           logs=(artifacts/m1/out/boot-smoke/serial.log artifacts/m1/out/boot-smoke/transcript.log artifacts/m1/out/boot-smoke/qemu.log)
           ./image/tests/scan-log-secrets.sh "${logs[@]}" artifacts/m1/out/BUILD-METADATA.txt
           mkdir -p artifacts/boot-evidence
@@ -123,6 +125,17 @@ jobs:
               if test -f "$source"; then
                 ./image/tests/scan-log-secrets.sh "$source"
                 cp "$source" artifacts/boot-evidence/install/
+              fi
+            done
+          fi
+          if test -d artifacts/m1/out/install-refusal; then
+            mkdir -p artifacts/boot-evidence/refusal
+            # Explicit whitelist: never retain test disks, firmware variables or sockets.
+            for name in serial.log transcript.log qemu.log markers.log disk-check.log result.txt; do
+              source="artifacts/m1/out/install-refusal/$name"
+              if test -f "$source"; then
+                ./image/tests/scan-log-secrets.sh "$source"
+                cp "$source" artifacts/boot-evidence/refusal/
               fi
             done
           fi

@@ -14,6 +14,42 @@ spec.loader.exec_module(qemu_io)
 
 
 class InstallCI(unittest.TestCase):
+    def test_refusal_smoke_contract_and_evidence_boundary(self):
+        source = (ROOT / 'image/tests/install-refusal-smoke-qemu').read_text()
+        for variable in ('control_disk', 'signature_disk', 'mounted_disk'):
+            self.assertIn(f'qemu-img create -f qcow2 "${variable}"', source)
+        serials = ('CLAWOS-REF-CONTROL', 'CLAWOS-REF-SIGN', 'CLAWOS-REF-MOUNT')
+        self.assertEqual(len(set(serials)), 3)
+        self.assertTrue(all(len(serial) <= 20 for serial in serials))
+        for serial in serials:
+            self.assertIn(f'serial={serial}', source)
+            self.assertIn(f'== {serial} ]]', source)
+        self.assertIn('printf "label: gpt\\ntype=L\\n" | sfdisk /dev/vdb', source)
+        self.assertNotIn('\\n, type=L', source)
+        self.assertIn('mkfs.ext4 -q -F /dev/vdb1', source)
+        self.assertIn('mount /dev/vdc /mnt/clawos-refusal-mounted', source)
+        self.assertIn('(\\$paths | index(\\"/dev/vda\\")) != null', source)
+        for excluded in ('/dev/vdb', '/dev/vdc'):
+            self.assertIn(f'(\\$paths | index(\\"{excluded}\\")) == null', source)
+        self.assertIn('(\\$paths | index(\\$boot)) == null', source)
+        self.assertLess(source.index('refuse_once dry'), source.index('refuse_once real'))
+        self.assertIn('sfdisk -d "$device"', source)
+        self.assertIn('blkid "${nodes[@]}"', source)
+        self.assertGreaterEqual(source.count('cmp "/tmp/$safe_name.before"'), 2)
+        self.assertIn('! grep -Fq CLAWOS_INSTALL_DISK_WRITE_STARTED', source)
+        for line in source.splitlines():
+            if 'kill ' in line:
+                self.assertIn('kill -0 ', line)
+        self.assertIn('qemu_io.py" powerdown', source)
+
+        workflow = (ROOT / '.github/workflows/release.yml').read_text()
+        whitelist = next(line for line in workflow.splitlines()
+                         if 'for name in serial.log transcript.log' in line)
+        for forbidden in ('qcow2', 'vars.fd', '*.log', '*;'):
+            self.assertNotIn(forbidden, whitelist)
+        refusal_copy = workflow.index('cp "$source" artifacts/boot-evidence/refusal/')
+        self.assertLess(workflow.rindex('scan-log-secrets.sh "$source"', 0, refusal_copy), refusal_copy)
+
     def test_installed_console_cannot_match_live_console(self):
         with tempfile.TemporaryDirectory() as tmp:
             log = Path(tmp) / 'log'

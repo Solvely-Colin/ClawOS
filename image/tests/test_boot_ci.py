@@ -111,7 +111,8 @@ class BootCI(unittest.TestCase):
     @unittest.skipUnless(sys.platform == 'linux', 'Shell contract runs on Linux CI')
     def test_metadata_records_success_and_failure_without_masking_exit(self):
         helper = (ROOT / 'tools/ci/build-release.sh').read_text()
-        fragment = helper[helper.index('# Same freshly built ISO'):helper.index('# Fresh disposable disk')]
+        fragment = helper[helper.index('# Same freshly built ISO'):
+                          helper.index('# Same freshly built ISO with one blank control')]
         for status in (0, 23):
             with self.subTest(status=status), tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
