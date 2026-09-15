@@ -60,7 +60,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     container:
-      image: archlinux:base-devel
+      # Docker Hub manifest resolved 2026-09-14; roll with ARCH_SNAPSHOT review.
+      image: archlinux:base-devel@sha256:70d777aaeb45befc04150df137c4d7c1b5042be442b4c904c38c6f6880bb7844
     steps:
       # base-devel ships no git. Without it actions/checkout silently falls
       # back to a tarball download and "git diff --check" in preflight-iso

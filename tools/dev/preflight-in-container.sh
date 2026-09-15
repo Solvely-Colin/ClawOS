@@ -25,7 +25,8 @@
 # passing preflight, as CI does, and its failure also fails this script.
 set -euo pipefail
 
-image=archlinux:base-devel
+# Docker Hub manifest resolved 2026-09-14; keep equal to ci.yml/release.yml.
+image=archlinux:base-devel@sha256:70d777aaeb45befc04150df137c4d7c1b5042be442b4c904c38c6f6880bb7844
 # Same list as ci.yml; --dbus appends what verify_dbus_authorization.py needs.
 packages=(git inetutils nodejs python jq shellcheck)
 dbus_packages=(dbus python-dbus python-gobject)

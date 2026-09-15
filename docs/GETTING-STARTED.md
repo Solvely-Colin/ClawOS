@@ -100,7 +100,16 @@ git rev-parse HEAD
 Keep that revision with your build/install report. Maintainer-triggered future
 CI builds are described in [RELEASING.md](RELEASING.md); they are not a promise
 of public binary availability. When an ISO bundle is explicitly offered,
-verify its `SHA256SUMS` and source metadata before using it.
+verify its `SHA256SUMS`, source metadata and GitHub build attestation before
+using it:
+
+```sh
+sha256sum -c SHA256SUMS
+gh attestation verify clawos-*.iso --repo Solvely-Colin/ClawOS
+```
+
+The attestation proves which repository workflow produced matching bytes; it
+does not make the experimental image supported or prove its dependencies safe.
 
 1. Install the build tooling. The script says what it is about to do, then
    runs `sudo pacman -S` for `base-devel`, `git`, `inetutils`, `archiso`,
