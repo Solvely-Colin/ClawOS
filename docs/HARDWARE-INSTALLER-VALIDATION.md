@@ -123,6 +123,34 @@ install and disk-only boot gate. This proves these refusal cases for this exact
 CI image; it is not physical-hardware qualification or proof for disk classes
 outside the tested virtio and ISO devices.
 
+## 2026-09-15: pinned-archive GTK readiness
+
+Source `2632fd69a5dd3d08245a527f85035f285f4fef67` produced private fast ISO
+SHA-256 `3710f193629fa968c91ceb2055d7f2c8981312e460ecec2864679113e4d89863`.
+The clean source passed 146 image tests and the complete nine-stage Arch
+preflight. The image passed structural validation, and its checksum matched
+after transfer from the persistent Linux builder to Windows.
+
+Two fresh OVMF states booted that exact image under Windows QEMU/WHPX, Q35,
+8 GiB RAM, a 40 GiB virtio target and 1440x900 display:
+
+- With e1000e user networking, the welcome readiness row showed pinned
+  snapshot `2026/08/25` as `Reachable`; the event stream updated to `Pinned
+  package archive reachable`. The Install screen showed one green `Package
+  archive reachable` card. Erase remained disabled because no disk had been
+  explicitly selected or confirmed.
+- With `-nic none`, the row and event stream both changed to `Unreachable`.
+  The Install screen showed one failure card: the archive hostname could not
+  be resolved, with DNS or captive-portal sign-in as the suggested fix. Erase
+  remained disabled. The old default-route readiness check is absent.
+
+Neither run invoked the installer. Both guests shut down through acknowledged
+ACPI and the Scheduled Task returned 0. `qemu-img check` passed, and comparison
+against a new blank 40 GiB QCOW2 reported `Images are identical`. Screenshots,
+serial logs, the ISO and checksum remain private; no public artifact or release
+was created. The privileged installer still performs its own bounded HEAD
+probe and classified preparation checks before downloading or writing a disk.
+
 ## 2026-09-07: sshd policy and both install modes re-verified
 
 ISO `clawos-fast-2026.09.07-x86_64.iso` (SHA-256

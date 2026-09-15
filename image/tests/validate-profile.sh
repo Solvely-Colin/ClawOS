@@ -36,6 +36,7 @@ node_check() {
 }
 
 grep -Fq 'materialize-profile" "$profile"' "$repo_root/image/bin/build-iso"
+grep -Fq 'work_root=${CLAWOS_BUILD_WORK_ROOT:-/var/tmp}' "$repo_root/image/bin/build-iso"
 grep -Fq 'integrations/openclaw/.' "$repo_root/image/bin/materialize-profile"
 grep -Fq 'find "$generated_dir" -depth -delete' "$repo_root/image/bin/build-iso"
 grep -Fq -- '-device virtio-vga,xres=1440,yres=900' "$repo_root/image/bin/run-qemu"
@@ -149,6 +150,8 @@ if [[ -f "$installer" ]]; then
   grep -Fq 'networkmanager openssh sudo zsh tmux curl jq' "$packages"
   grep -Fq 'nodejs npm polkit lxqt-policykit plymouth tailscale' "$packages"
   grep -Fq 'prepare_install_packages "$download_root"' "$installer"
+  grep -Fq 'from clawos_archive_probe import probe_archive' "$profile/airootfs/usr/lib/clawos/clawos-live-welcome"
+  test -f "$profile/airootfs/usr/lib/clawos/clawos_archive_probe.py"
   grep -Fq -- '--experimental-hardware) environment_args+=(--experimental-hardware)' "$installer"
   python3 - "$installer" <<'PY'
 import pathlib, sys

@@ -47,6 +47,9 @@ Build host:
 - Roughly 20 GB free. The CI build refuses to start with less; a local build
   keeps its profile, work tree and ISO output under `artifacts/m1/` and
   `/var/tmp/`.
+  A persistent builder with a dedicated mounted volume can keep the large
+  ArchISO work tree off its system disk by setting
+  `CLAWOS_BUILD_WORK_ROOT` to an existing canonical, non-symlink directory.
 - Network access to `archive.archlinux.org` at the pinned snapshot
   (`ARCH_SNAPSHOT` in [image/config/versions.env](../image/config/versions.env)) and
   to `registry.npmjs.org`, from which `build-iso` installs
@@ -151,6 +154,13 @@ does not make the experimental image supported or prove its dependencies safe.
    sudo ./image/bin/build-iso
    ```
 
+   On a persistent builder with `/mnt/clawos-v01-build` mounted on its
+   dedicated build disk:
+
+   ```sh
+   sudo CLAWOS_BUILD_WORK_ROOT=/mnt/clawos-v01-build/work ./image/bin/build-iso
+   ```
+
    `NOT YET VERIFIED` as this exact local walkthrough command. Release mode
    ran in CI, including run 34432248984; that image completed the encrypted
    GTK/default-onboarding proof on 2026-09-10. This is not proof that a new
@@ -211,8 +221,15 @@ covered. The copy is read from
    and **Inspect system**. Inspect system shows live-system facts (network,
    target disk, recovery) and writes nothing. Verified in the 2026-09-10 run.
 2. **Install.** Install ClawOS opens "Create the agent system.", which says the
-   install is for a blank disk on an experimental x86_64 UEFI system and is
-   encrypted with LUKS2 by default. Verified in the 2026-09-10 run.
+   install is for a blank disk on an experimental x86_64 UEFI system and uses
+   LUKS2 encryption by default. It checks the pinned Arch package archive over
+   HTTPS in the background. The
+   readiness state says reachable or unreachable; Erase stays disabled with
+   the failure reason until that exact snapshot answers the 10-second HEAD
+   check. The privileged installer repeats the check before downloading.
+   The encrypted path was verified in the 2026-09-10 run. Reachable and
+   no-network readiness states were verified on the 2026-09-15 fast ISO at
+   `2632fd6`; see the [validation record](HARDWARE-INSTALLER-VALIDATION.md#2026-09-15-pinned-archive-gtk-readiness).
 3. **Disk selection.** The selector starts at "Select a blank disk — no default
    target" and lists eligible blank whole disks of at least 32 GiB with path,
    capacity, model and an identity hint. In a `run-qemu` guest the disk is
