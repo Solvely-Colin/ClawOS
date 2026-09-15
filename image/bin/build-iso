@@ -19,13 +19,23 @@ case "${1:-}" in
     ;;
 esac
 
+# Large mkarchiso work trees default to host-local /var/tmp. Persistent VM
+# builders may place them on a dedicated volume, but only through an existing,
+# canonical directory so cleanup can never escape the reviewed work basename.
+work_root=${CLAWOS_BUILD_WORK_ROOT:-/var/tmp}
+if [[ "$work_root" != /* || ! -d "$work_root" || -L "$work_root" ||
+      "$(realpath -e -- "$work_root")" != "$work_root" ]]; then
+  echo 'CLAWOS_BUILD_WORK_ROOT must be an existing canonical absolute directory, not a symlink.' >&2
+  exit 2
+fi
+
 if [[ "$mode" == fast ]]; then
   profile="$repo_root/artifacts/m1/profile-fast"
-  work="/var/tmp/clawos-m1-work-fast"
+  work="$work_root/clawos-m1-work-fast"
   out="$repo_root/artifacts/m1/out-fast"
 else
   profile="$repo_root/artifacts/m1/profile"
-  work="/var/tmp/clawos-m1-work"
+  work="$work_root/clawos-m1-work"
   out="$repo_root/artifacts/m1/out"
 fi
 # Keep mkarchiso's bind-mounted proc/sys/dev tree outside the desktop workspace.

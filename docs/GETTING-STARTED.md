@@ -47,6 +47,9 @@ Build host:
 - Roughly 20 GB free. The CI build refuses to start with less; a local build
   keeps its profile, work tree and ISO output under `artifacts/m1/` and
   `/var/tmp/`.
+  A persistent builder with a dedicated mounted volume can keep the large
+  ArchISO work tree off its system disk by setting
+  `CLAWOS_BUILD_WORK_ROOT` to an existing canonical, non-symlink directory.
 - Network access to `archive.archlinux.org` at the pinned snapshot
   (`ARCH_SNAPSHOT` in [image/config/versions.env](../image/config/versions.env)) and
   to `registry.npmjs.org`, from which `build-iso` installs
@@ -149,6 +152,13 @@ does not make the experimental image supported or prove its dependencies safe.
 
    ```sh
    sudo ./image/bin/build-iso
+   ```
+
+   On a persistent builder with `/mnt/clawos-v01-build` mounted on its
+   dedicated build disk:
+
+   ```sh
+   sudo CLAWOS_BUILD_WORK_ROOT=/mnt/clawos-v01-build/work ./image/bin/build-iso
    ```
 
    `NOT YET VERIFIED` as this exact local walkthrough command. Release mode

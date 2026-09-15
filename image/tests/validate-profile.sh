@@ -36,6 +36,7 @@ node_check() {
 }
 
 grep -Fq 'materialize-profile" "$profile"' "$repo_root/image/bin/build-iso"
+grep -Fq 'work_root=${CLAWOS_BUILD_WORK_ROOT:-/var/tmp}' "$repo_root/image/bin/build-iso"
 grep -Fq 'integrations/openclaw/.' "$repo_root/image/bin/materialize-profile"
 grep -Fq 'find "$generated_dir" -depth -delete' "$repo_root/image/bin/build-iso"
 grep -Fq -- '-device virtio-vga,xres=1440,yres=900' "$repo_root/image/bin/run-qemu"
