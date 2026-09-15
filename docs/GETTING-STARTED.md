@@ -227,8 +227,9 @@ covered. The copy is read from
    readiness state says reachable or unreachable; Erase stays disabled with
    the failure reason until that exact snapshot answers the 10-second HEAD
    check. The privileged installer repeats the check before downloading.
-   The encrypted path was verified in the 2026-09-10 run; the new readiness
-   gate still requires fresh live-UI evidence.
+   The encrypted path was verified in the 2026-09-10 run. Reachable and
+   no-network readiness states were verified on the 2026-09-15 fast ISO at
+   `2632fd6`; see the [validation record](HARDWARE-INSTALLER-VALIDATION.md#2026-09-15-pinned-archive-gtk-readiness).
 3. **Disk selection.** The selector starts at "Select a blank disk — no default
    target" and lists eligible blank whole disks of at least 32 GiB with path,
    capacity, model and an identity hint. In a `run-qemu` guest the disk is
