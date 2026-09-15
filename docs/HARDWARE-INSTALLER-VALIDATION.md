@@ -70,7 +70,8 @@ variables, and omitted `--vm-test`. All VM shutdowns were guest/ACPI-driven.
 
 - [x] Build an ISO from the candidate source and pass ISO validation.
 - [x] Run fresh QEMU SATA and NVMe installation tests, not only virtio.
-- [ ] Verify boot media and mounted/signature-bearing disks are refused in that ISO.
+- [x] Verify boot media and mounted/signature-bearing disks are refused in that ISO
+  ([2026-09-15 booted CI record](#2026-09-15-booted-ci-iso-refusal-matrix)).
 - [x] Verify UEFI boot, encryption unlock and the OpenClaw onboarding entry screen.
 - [ ] Complete provider enrollment and verify real agent inference after installation.
 - [x] Repeat the QEMU install without `--vm-test` (NVRAM-writing bootctl path)
@@ -87,6 +88,40 @@ integration harness. A `--passwordless` mode (no encryption, empty account
 passwords, no screen lock) exists for people who accept that risk explicitly.
 Existing partitions, Secure Boot, legacy BIOS, RAID/multipath and non-x86_64
 installation remain outside this first implementation.
+
+## 2026-09-15: booted CI ISO refusal matrix
+
+[Release workflow run 34991750229](https://github.com/Solvely-Colin/ClawOS/actions/runs/34991750229)
+built source `9c206cc650e3f51c8559c4f2908d24890311f032` into ISO SHA-256
+`6d5c7316266c7c0d3c9d7bcd01dec0f1210c435d859bc85faf624e3f86744c27`,
+then booted that exact image under QEMU/KVM, Q35 and OVMF. ISO retention was
+off. Only scanned evidence artifact 10407495300 was uploaded; it contains no
+ISO, QCOW2 disk, writable firmware image or socket.
+
+The live guest had a new blank 32 GiB control disk (`/dev/vda`), a new 36 GiB
+disk carrying GPT plus an ext4 partition (`/dev/vdb`), a new 36 GiB whole-disk
+ext4 filesystem mounted in the guest (`/dev/vdc`), and the hybrid ISO boot
+medium (`/dev/sr0`). `clawos_install_targets.py list` returned only `/dev/vda`.
+For each of the other three paths the harness derived its actual kernel-backed
+disk identity, ran `clawos-install-dev --dry-run` first and then ran the same
+request without `--dry-run`. All six attempts exited 1 before the package-ready
+or disk-write marker:
+
+- `/dev/vdb`: `Only blank, unpartitioned disks are supported`; exact combined
+  `sfdisk -d` and descendant `blkid` snapshot SHA-256 remained
+  `bd9ed71516e3fe71a2147f648cb4d37890f540270a666ab442982f19b5b7904a`.
+- `/dev/vdc`: `Disk or child is mounted or used as swap`; exact snapshot
+  SHA-256 remained
+  `0ac50596ff95c07922f5de296e6b865438bf7d547126edc7e4e4a63e97f80b1e`.
+- `/dev/sr0`: `Not a supported whole disk`; exact snapshot SHA-256 remained
+  `f15f3fe5923450d0944a62caf99d3c6280878dcfb910a153412990e856d807a8`.
+
+The three disposable QCOW2 images passed `qemu-img check`. The refusal guest,
+normal live-install guest and installed-system guest all shut down through
+acknowledged ACPI. The same run continued through the existing passwordless
+install and disk-only boot gate. This proves these refusal cases for this exact
+CI image; it is not physical-hardware qualification or proof for disk classes
+outside the tested virtio and ISO devices.
 
 ## 2026-09-07: sshd policy and both install modes re-verified
 
