@@ -80,11 +80,11 @@ qemu-system-x86_64 -enable-kvm -machine q35,accel=kvm -cpu host -m 4096 -smp 2 \
   -drive "if=pflash,format=raw,readonly=on,file=$ovmf_code" \
   -drive "if=pflash,format=raw,file=$runtime/vars.fd" \
   -drive "if=none,id=control,format=qcow2,file=$control_disk" \
-  -device virtio-blk-pci,drive=control,serial=CLAWOS-REFUSAL-CONTROL \
+  -device virtio-blk-pci,drive=control,serial=CLAWOS-REF-CONTROL \
   -drive "if=none,id=signature,format=qcow2,file=$signature_disk" \
-  -device virtio-blk-pci,drive=signature,serial=CLAWOS-REFUSAL-SIGNATURE \
+  -device virtio-blk-pci,drive=signature,serial=CLAWOS-REF-SIGN \
   -drive "if=none,id=mounted,format=qcow2,file=$mounted_disk" \
-  -device virtio-blk-pci,drive=mounted,serial=CLAWOS-REFUSAL-MOUNTED \
+  -device virtio-blk-pci,drive=mounted,serial=CLAWOS-REF-MOUNT \
   -device virtio-vga,xres=1440,yres=900 -display none \
   -chardev "socket,id=serial,path=$serial_socket,server=on,wait=off,logfile=$serial_log" \
   -serial chardev:serial -monitor none -qmp "unix:$qmp_socket,server=on,wait=off" \
@@ -119,9 +119,9 @@ control_serial=$(cat /sys/block/vda/serial)
 signature_serial=$(cat /sys/block/vdb/serial)
 mounted_serial=$(cat /sys/block/vdc/serial)
 echo "TRACE:SERIALS $control_serial $signature_serial $mounted_serial"
-[[ $control_serial == CLAWOS-REFUSAL-CONTROL ]]
-[[ $signature_serial == CLAWOS-REFUSAL-SIGNATURE ]]
-[[ $mounted_serial == CLAWOS-REFUSAL-MOUNTED ]]
+[[ $control_serial == CLAWOS-REF-CONTROL ]]
+[[ $signature_serial == CLAWOS-REF-SIGN ]]
+[[ $mounted_serial == CLAWOS-REF-MOUNT ]]
 
 inventory=$(python3 /usr/lib/clawos/clawos_install_targets.py list)
 echo "TRACE:ELIGIBLE_PATHS $(jq -c "map(.path)" <<<"$inventory")"

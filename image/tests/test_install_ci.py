@@ -18,6 +18,12 @@ class InstallCI(unittest.TestCase):
         source = (ROOT / 'image/tests/install-refusal-smoke-qemu').read_text()
         for variable in ('control_disk', 'signature_disk', 'mounted_disk'):
             self.assertIn(f'qemu-img create -f qcow2 "${variable}"', source)
+        serials = ('CLAWOS-REF-CONTROL', 'CLAWOS-REF-SIGN', 'CLAWOS-REF-MOUNT')
+        self.assertEqual(len(set(serials)), 3)
+        self.assertTrue(all(len(serial) <= 20 for serial in serials))
+        for serial in serials:
+            self.assertIn(f'serial={serial}', source)
+            self.assertIn(f'== {serial} ]]', source)
         self.assertIn('printf "label: gpt\\ntype=L\\n" | sfdisk /dev/vdb', source)
         self.assertNotIn('\\n, type=L', source)
         self.assertIn('mkfs.ext4 -q -F /dev/vdb1', source)
