@@ -70,7 +70,9 @@ Guest:
 Accelerators:
 
 - **KVM** (Linux host with `/dev/kvm`): the default in `image/bin/run-qemu`,
-  which passes `-enable-kvm -machine q35,accel=kvm -cpu host`.
+  which passes `-enable-kvm -machine q35,accel=kvm -cpu host`. Its graphical
+  GTK path uses zoom-to-fit, aspect preservation and the same absolute USB
+  tablet contract as the Windows launcher.
 - **TCG**: `image/bin/run-qemu --software` switches to
   `-machine q35,accel=tcg -cpu max`. It needs no KVM, so it works inside a VM
   without nested virtualization, but boot and install are much slower. No

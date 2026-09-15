@@ -40,6 +40,8 @@ grep -Fq 'work_root=${CLAWOS_BUILD_WORK_ROOT:-/var/tmp}' "$repo_root/image/bin/b
 grep -Fq 'integrations/openclaw/.' "$repo_root/image/bin/materialize-profile"
 grep -Fq 'find "$generated_dir" -depth -delete' "$repo_root/image/bin/build-iso"
 grep -Fq -- '-device virtio-vga,xres=1440,yres=900' "$repo_root/image/bin/run-qemu"
+grep -Fq -- '-usb -device usb-tablet,id=clawos-pointer' "$repo_root/image/bin/run-qemu"
+grep -Fq -- 'keep-aspect-ratio=on' "$repo_root/image/bin/run-qemu"
 
 grep -Fqx 'SigLevel = Required DatabaseOptional' "$repo_root/image/profile-overlay/pacman.conf"
 if grep -RniE 'SigLevel[[:space:]]*=[[:space:]]*(Never|Optional)' \
@@ -358,6 +360,8 @@ grep -Fq 'Wants=clawos-live-session.service' \
 grep -Fq 'User=clawos-live' \
   "$profile/airootfs/etc/systemd/system/clawos-live-session.service"
 grep -Fq 'Ctrl+Alt+F3' "$profile/airootfs/etc/clawos/live-sway.conf"
+grep -Fq 'output Virtual-1 scale 1' "$profile/airootfs/etc/clawos/live-sway.conf"
+! grep -Fq 'output Virtual-1 mode 1440x900' "$profile/airootfs/etc/clawos/live-sway.conf"
 grep -Fq 'Inspect system' "$profile/airootfs/usr/lib/clawos/clawos-live-welcome"
 grep -Fq 'The full Agent workspace is created after installation.' \
   "$profile/airootfs/usr/lib/clawos/clawos-live-welcome"

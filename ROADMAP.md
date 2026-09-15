@@ -69,8 +69,8 @@ Milestones: Post-flip hardening and contributor tooling; Runtime reliability.
   comparison, clean Linux ISO build/validation and checkpointed VM deployment
   plus rollback (#92, #96). Installed OS paths stayed unchanged; evidence is
   recorded in docs/EVIDENCE.md.
-- [ ] Fix setup/fullscreen offset and clipping; verify pointer alignment with
-  saved screenshots.
+- [x] Fix setup/fullscreen offset and clipping; verify pointer alignment with
+  saved screenshots (#54, Windows WHPX at 1920x1080 and 1440x900).
 - [ ] Distinguish startup, locked, setup-incomplete, ready and repair-required
   states from one source of truth.
 - [ ] Bind terminal, browser and build surfaces to their owning task; prove two

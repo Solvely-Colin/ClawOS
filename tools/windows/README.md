@@ -5,6 +5,7 @@ Scheduled Tasks. Install QEMU and provision a disposable disk using the Linux
 build instructions. Keep private machine files beside these scripts, never in Git:
 
 - `clawos-builder-windows.qcow2`
+- `clawos-v01-build.qcow2` (dedicated persistent ISO build volume)
 - `clawos-builder-vars.fd` (that VM's writable UEFI variables)
 - `clawos-builder-unlock.dpapi` (that Windows user's protected disk-unlock key)
 
@@ -23,8 +24,13 @@ Never copy someone else's credential or bypass unlock-screen verification.
 
 SSH is loopback-only on port 2222; QMP uses port 4444. Shutdown uses SSH or ACPI.
 The unlock helper verifies the encrypted-root screen before sending credentials
-and fails closed if recognition is unavailable. The absolute USB tablet avoids
-relative-mouse dependence, but fullscreen layout remains a known issue.
+and fails closed if recognition is unavailable. The runner derives the Windows
+primary display geometry, advertises it as QEMU's preferred virtio mode and
+uses GTK zoom-to-fit with an absolute USB tablet and hover-grab disabled.
+Windowed, maximized and host-native fullscreen pointer mapping were verified
+within 2 px; Ctrl+Alt+F toggles QEMU fullscreen. A manually forced guest mode
+with a different aspect ratio may still stretch in Windows fullscreen; return
+to the preferred mode or leave fullscreen.
 These scripts are not a turnkey Windows installer.
 
 ## Getting a CI-built ISO for acceptance runs
