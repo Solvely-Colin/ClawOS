@@ -1,9 +1,12 @@
+import ast
 import os
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
+from unittest.mock import Mock, patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -61,10 +64,35 @@ def last_line(text):
 class PackagePreparation(unittest.TestCase):
     def test_failure_ui_tracks_the_disk_write_marker(self):
         source = (ROOT / 'profile-overlay/airootfs/usr/lib/clawos/clawos-live-welcome').read_text()
-        self.assertIn("line.strip() == 'CLAWOS_INSTALL_DISK_WRITE_STARTED'", source)
-        self.assertIn('self._finish_install, code, passwordless, disk_write_started', source)
+        self.assertIn("stripped == 'CLAWOS_INSTALL_DISK_WRITE_STARTED'", source)
+        self.assertIn("('Package preparation failed:', 'Installer target refused:')", source)
+        self.assertIn('failure_summary = stripped[:600]', source)
+        self.assertIn('self._finish_install, code, passwordless, disk_write_started, failure_summary', source)
         self.assertIn('The target may be partially installed.', source)
         self.assertIn('The target disk was not changed.', source)
+        self.assertIn('failure_detail = failure_summary', source)
+        self.assertNotIn('Check the network and retry. Disk protection checks will run again.', source)
+
+    def test_prewrite_failure_summary_reaches_result_callback_bounded(self):
+        source = (ROOT / 'profile-overlay/airootfs/usr/lib/clawos/clawos-live-welcome').read_text()
+        method = next(node for node in ast.walk(ast.parse(source))
+                      if isinstance(node, ast.FunctionDef) and node.name == '_run_installer')
+        namespace = {
+            'subprocess': subprocess,
+            'confirmation_token': lambda target: f'ERASE-{target}',
+            'GLib': SimpleNamespace(idle_add=Mock()),
+        }
+        exec(compile(ast.fix_missing_locations(ast.Module(body=[method], type_ignores=[])),
+                     '<run-installer>', 'exec'), namespace)
+        summary = ('Package preparation failed: increase VM memory to at least 4 GiB. ' +
+                   'x' * 700)
+        process = SimpleNamespace(stdout=[summary + '\n'], wait=Mock(return_value=1))
+        view = SimpleNamespace(_append_log=Mock(), _finish_install=Mock())
+        with patch.object(subprocess, 'Popen', return_value=process):
+            namespace['_run_installer'](view, None, '/dev/vda', 'disk-id', True)
+        final = namespace['GLib'].idle_add.call_args_list[-1].args
+        self.assertEqual(final[:4], (view._finish_install, 1, True, False))
+        self.assertEqual(final[4], summary[:600])
 
     def test_download_gate_precedes_disk_write_and_local_install(self):
         source = INSTALLER.read_text()
