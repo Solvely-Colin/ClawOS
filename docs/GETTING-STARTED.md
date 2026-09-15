@@ -267,6 +267,9 @@ covered. The copy is read from
    after it with "The target may be partially installed." The successful path
    and reset retries were observed on 2026-09-10; these failure-result screens
    were not exercised by that run.
+   A 2 GiB GTK run on 2026-09-15 failed the temporary-storage guard within a
+   16.53-second polling upper bound, displayed the 4 GiB minimum, and left the
+   complete QCOW2 byte-identical; see the [validation record](HARDWARE-INSTALLER-VALIDATION.md#2026-09-15-2-gib-graphical-capacity-refusal).
 7. **Restart into ClawOS.** "Installation complete." with the button **Restart
    into ClawOS**, which runs `/usr/lib/clawos/clawos-live-reboot` through
    `pkexec`. Detach the ISO before the guest comes back up. Verified on

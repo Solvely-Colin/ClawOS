@@ -151,6 +151,36 @@ serial logs, the ISO and checksum remain private; no public artifact or release
 was created. The privileged installer still performs its own bounded HEAD
 probe and classified preparation checks before downloading or writing a disk.
 
+## 2026-09-15: 2 GiB graphical capacity refusal
+
+Source `155f3a107ced085be5fe309d9b8a76614bbf011a` produced private fast ISO
+SHA-256 `e15334f6a56da2f63fe1d9e05ce97d078ac984df58b6c1de861c9b73620d6723`.
+The source passed 147 image tests and the complete Arch preflight; the image
+passed structural validation and its hash matched after Windows transfer.
+
+A fresh Windows QEMU/WHPX guest used Q35/OVMF, **2 GiB RAM**, two vCPUs,
+e1000e, 1440x900 and a new 40 GiB virtio target. Through the actual GTK flow,
+the sole disk was selected, passwordless risk accepted, exact
+`ERASE-/dev/vda` confirmation entered, and the visible Erase button clicked by
+absolute tablet input. At 2.5 seconds the progress log showed only the bounded
+archive probe/database refresh and explicitly said the disk was unchanged.
+The result screen was captured within a 16.53-second upper bound and said:
+
+> The target disk was not changed. The package download needs 1386 MiB of
+> temporary storage (1130 MiB of packages plus a 256 MiB margin) but /tmp has
+> 968 MiB free. /tmp is RAM-backed on the live ISO: increase VM memory to at
+> least 4 GiB.
+
+The new result-page path carries only bounded installer-authored preparation
+or target-refusal summaries forward from the detailed log; it no longer
+mislabels a memory failure as a network problem. Before boot, the QCOW2
+SHA-256 was
+`a4229cbb62008145e55cb151ec0a83c7c48b9a10801f6aaab4faaaab65b2ab73`.
+After the failure and acknowledged ACPI shutdown it was the same byte for byte.
+`qemu-img check` found no errors and comparison with a fresh blank 40 GiB image
+reported `Images are identical`. The Scheduled Task returned 0. No ISO or
+binary artifact was published.
+
 ## 2026-09-07: sshd policy and both install modes re-verified
 
 ISO `clawos-fast-2026.09.07-x86_64.iso` (SHA-256
