@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+"""Inventory the exact installed OpenClaw npm tree and collect license texts."""
+
+import argparse
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+
+LICENSE_NAME = re.compile(r"^(licen[cs]e|copying|notice)(?:[._-].*)?$", re.IGNORECASE)
+MAX_LICENSE_BYTES = 2 * 1024 * 1024
+
+
+def package_directories(root):
+    found = [root]
+    pending = [root / "node_modules"]
+    seen = set()
+    while pending:
+        node_modules = pending.pop()
+        if node_modules in seen or not node_modules.is_dir() or node_modules.is_symlink():
+            continue
+        seen.add(node_modules)
+        for entry in sorted(node_modules.iterdir(), key=lambda path: path.name):
+            if entry.name == ".bin" or entry.is_symlink() or not entry.is_dir():
+                continue
+            candidates = []
+            if entry.name.startswith("@"):
+                candidates = [child for child in sorted(entry.iterdir(), key=lambda path: path.name)
+                              if child.is_dir() and not child.is_symlink()]
+            else:
+                candidates = [entry]
+            for package in candidates:
+                if (package / "package.json").is_file():
+                    found.append(package)
+                    pending.append(package / "node_modules")
+    return found
+
+
+def license_value(package):
+    value = package.get("license", package.get("licenses", "UNKNOWN"))
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    if isinstance(value, dict):
+        kind = value.get("type") or value.get("name")
+        if isinstance(kind, str) and kind.strip():
+            return kind.strip()
+    if isinstance(value, list):
+        values = [license_value({"license": item}) for item in value]
+        values = [value for value in values if value != "UNKNOWN"]
+        if values:
+            return " OR ".join(values)
+    return "UNKNOWN"
+
+
+def lock_entry(package):
+    result = {"name": package["name"], "version": package["version"]}
+    for key in ("license", "dependencies", "optionalDependencies", "peerDependencies",
+                "peerDependenciesMeta", "engines", "os", "cpu", "bin"):
+        if key in package:
+            result[key] = package[key]
+    return result
+
+
+def generate(package_root, output_root, lock_path):
+    package_root = package_root.resolve(strict=True)
+    if package_root.is_symlink() or not (package_root / "package.json").is_file():
+        raise ValueError("Expected a real installed OpenClaw package directory")
+    if output_root.exists() and any(output_root.iterdir()):
+        raise ValueError("Refusing to overwrite a non-empty inventory directory")
+    output_root.mkdir(parents=True, exist_ok=True)
+    texts_root = output_root / "license-texts"
+    packages = []
+    lock_packages = {"": {
+        "name": "clawos-openclaw-runtime-inventory", "version": "1.0.0",
+        "dependencies": {"openclaw": json.loads((package_root / "package.json").read_text())["version"]},
+    }}
+    for directory in package_directories(package_root):
+        metadata = json.loads((directory / "package.json").read_text(encoding="utf-8"))
+        name, version = metadata.get("name"), metadata.get("version")
+        if not isinstance(name, str) or not name or not isinstance(version, str) or not version:
+            raise ValueError(f"Invalid package identity at {directory}")
+        relative = directory.relative_to(package_root)
+        installed = Path("/usr/lib/node_modules/openclaw") / relative
+        text_base = Path("license-texts") / (relative if relative.parts else Path("_root"))
+        license_files = []
+        for candidate in sorted(directory.iterdir(), key=lambda path: path.name.lower()):
+            if not LICENSE_NAME.fullmatch(candidate.name) or not candidate.is_file():
+                continue
+            resolved = candidate.resolve(strict=True)
+            if package_root not in (resolved, *resolved.parents) or resolved.stat().st_size > MAX_LICENSE_BYTES:
+                raise ValueError(f"Unsafe license file at {candidate}")
+            destination = output_root / text_base / candidate.name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(resolved, destination)
+            license_files.append(destination.relative_to(output_root).as_posix())
+        packages.append({
+            "name": name, "version": version, "license": license_value(metadata),
+            "path": installed.as_posix(), "licenseFiles": license_files,
+        })
+        lock_key = "node_modules/openclaw"
+        if relative.parts:
+            lock_key += "/" + relative.as_posix()
+        lock_packages[lock_key] = lock_entry(metadata)
+    packages.sort(key=lambda item: (item["name"], item["version"], item["path"]))
+    manifest = {
+        "schemaVersion": 1,
+        "root": "/usr/lib/node_modules/openclaw",
+        "packageCount": len(packages),
+        "packages": packages,
+    }
+    (output_root / "manifest.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    lock = {
+        "name": "clawos-openclaw-runtime-inventory", "version": "1.0.0",
+        "lockfileVersion": 3, "requires": True, "packages": lock_packages,
+    }
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path.write_text(json.dumps(lock, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return manifest
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("package_root", type=Path)
+    parser.add_argument("output_root", type=Path)
+    parser.add_argument("lock_path", type=Path)
+    args = parser.parse_args()
+    try:
+        result = generate(args.package_root, args.output_root, args.lock_path)
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        raise SystemExit(f"OpenClaw inventory failed: {error}")
+    print(f"Inventoried {result['packageCount']} installed OpenClaw npm packages.")

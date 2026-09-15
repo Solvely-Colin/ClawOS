@@ -113,6 +113,10 @@ jobs:
             artifacts/m1/out/*.sha256
             artifacts/m1/out/SHA256SUMS
             artifacts/m1/out/BUILD-*.txt
+            artifacts/m1/out/SBOM.cdx.json
+            artifacts/m1/out/AUDIT.json
+            artifacts/m1/out/AUDIT-STATUS.txt
+            artifacts/m1/out/OPENCLAW-LICENSES.json
           if-no-files-found: error
           compression-level: 0
           retention-days: 14

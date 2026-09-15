@@ -108,6 +108,38 @@ for attempt in 1 2 3; do
   sleep 3
 done
 "$profile/airootfs/usr/bin/openclaw" --version | grep -Fq "$OPENCLAW_VERSION"
+inventory_root="$profile/airootfs/usr/share/licenses/openclaw-npm"
+inventory_work="$runtime_input/inventory-work"
+python3 "$repo_root/image/bin/generate-openclaw-inventory" \
+  "$profile/airootfs/usr/lib/node_modules/openclaw" "$inventory_root" \
+  "$inventory_work/package-lock.json"
+(
+  cd "$inventory_work"
+  npm sbom --package-lock-only --sbom-format cyclonedx --omit dev \
+    >"$inventory_root/SBOM.cdx.json"
+  audit_exit=0
+  set +e
+  timeout --kill-after=5s 2m npm audit --json --package-lock-only --omit dev \
+    >"$inventory_root/AUDIT.json"
+  audit_exit=$?
+  set -e
+  jq -e 'type == "object"' "$inventory_root/AUDIT.json" >/dev/null
+  printf 'npm audit exit code: %s (non-zero vulnerability findings do not fail the build)\n' \
+    "$audit_exit" >"$inventory_root/AUDIT-STATUS.txt"
+)
+jq -e '.bomFormat == "CycloneDX" and (.components | length > 0)' \
+  "$inventory_root/SBOM.cdx.json" >/dev/null
+python3 - "$inventory_root/manifest.json" "$inventory_root/SBOM.cdx.json" <<'PY'
+import json, sys
+with open(sys.argv[1]) as source:
+    installed = json.load(source)['packages']
+with open(sys.argv[2]) as source:
+    components = json.load(source)['components']
+installed_ids = {(item['name'], item['version']) for item in installed}
+sbom_ids = {(item['name'], item['version']) for item in components}
+if installed_ids != sbom_ids:
+    raise SystemExit('CycloneDX components differ from the installed npm inventory')
+PY
 # ArchISO normalizes overlay file modes to 0644 unless explicitly listed.
 # Preserve executable package entry points and native helpers, not just the
 # top-level openclaw symlink. %q keeps package paths literal in profiledef.sh.
@@ -133,7 +165,16 @@ mkarchiso -v -w "$work" -o "$out" "$profile"
 iso="$(find "$out" -maxdepth 1 -type f -name '*.iso' -print -quit)"
 test -n "$iso"
 "$repo_root/image/tests/validate-iso.sh" "$iso"
-sha256sum "$iso" >"$iso.sha256"
+cp "$inventory_root/SBOM.cdx.json" "$out/SBOM.cdx.json"
+cp "$inventory_root/AUDIT.json" "$out/AUDIT.json"
+cp "$inventory_root/AUDIT-STATUS.txt" "$out/AUDIT-STATUS.txt"
+cp "$inventory_root/manifest.json" "$out/OPENCLAW-LICENSES.json"
+(
+  cd "$out"
+  sha256sum "${iso##*/}" SBOM.cdx.json AUDIT.json AUDIT-STATUS.txt \
+    OPENCLAW-LICENSES.json >SHA256SUMS
+  sha256sum "${iso##*/}" >"${iso##*/}.sha256"
+)
 echo "Built $iso"
 echo "Profile was freshly materialized from the pinned overlay for this build."
 echo "Build mode: $mode"

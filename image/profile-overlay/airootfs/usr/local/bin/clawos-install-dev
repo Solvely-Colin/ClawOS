@@ -317,6 +317,9 @@ cp -a /usr/share/applications/clawos-agent.desktop \
 cp -a /usr/share/clawos/. "$mount_root/usr/share/clawos/"
 install -D -m 0644 /usr/share/licenses/clawos-radix-icons/LICENSE \
   "$mount_root/usr/share/licenses/clawos-radix-icons/LICENSE"
+install -d -m 0755 "$mount_root/usr/share/licenses/openclaw-npm"
+cp -a /usr/share/licenses/openclaw-npm/. \
+  "$mount_root/usr/share/licenses/openclaw-npm/"
 cp -a /usr/share/plymouth/themes/clawos/. \
   "$mount_root/usr/share/plymouth/themes/clawos/"
 install -m 0644 /etc/systemd/system/clawos-session@.service \

@@ -122,9 +122,13 @@ to the target. Every ClawOS ISO and installed system therefore contains
 OpenClaw and its complete npm dependency closure under
 `/usr/lib/node_modules/openclaw` (including, among many others,
 `@anthropic-ai/sdk`, `@google/genai`, `openai`, `express`, `playwright-core`,
-`tree-sitter-bash`, `typescript`, `ws`, `zod`). Each package's license file is
-kept inside its own directory in that tree; a generated license manifest for
-that tree is not yet produced at build time.
+`tree-sitter-bash`, `typescript`, `ws`, `zod`). Each package's own license file
+remains in that tree. Every build additionally installs the authoritative
+package/version/license/path inventory and collected license texts at
+`/usr/share/licenses/openclaw-npm/`; its `manifest.json` covers duplicate
+installed paths, while `SBOM.cdx.json` is the npm-generated CycloneDX graph.
+Release artifacts expose those as `OPENCLAW-LICENSES.json` and
+`SBOM.cdx.json`, alongside the non-blocking `AUDIT.json` advisory snapshot.
 
 `integrations/openclaw` (`@clawos/openclaw-system`) is ClawOS code under MIT; it
 declares an optional peer dependency on OpenClaw and installs no third-party
