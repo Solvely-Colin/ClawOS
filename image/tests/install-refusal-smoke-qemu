@@ -63,7 +63,12 @@ finish() {
   shutdown_guest || status=1
   if (( status != 0 )); then
     printf 'Installer refusal smoke: FAILED\n' >"$runtime/result.txt"
-    "$repo_root/image/tests/scan-log-secrets.sh" "$serial_log" "$transcript" "$qemu_log" || true
+    if "$repo_root/image/tests/scan-log-secrets.sh" "$serial_log" "$transcript" "$qemu_log"; then
+      echo 'Sanitized refusal transcript tail follows:' >&2
+      tail -n 160 "$transcript" >&2
+      echo 'Sanitized QEMU log tail follows:' >&2
+      tail -n 40 "$qemu_log" >&2
+    fi
   fi
   exit "$status"
 }
@@ -97,12 +102,14 @@ commands=$(cat <<'COMMANDS'
 bash -c '
 set -euo pipefail
 P=PASS:
+echo TRACE:PREPARE_UNSAFE_DISKS
 mkdir -p /mnt/clawos-refusal-mounted
 printf "label: gpt\n, type=L\n" | sfdisk /dev/vdb >/dev/null
 udevadm settle
 mkfs.ext4 -q -F /dev/vdb1
 mkfs.ext4 -q -F /dev/vdc
 mount /dev/vdc /mnt/clawos-refusal-mounted
+echo TRACE:UNSAFE_DISKS_READY
 
 boot_device=$(findmnt -nro SOURCE /run/archiso/bootmnt | sed "s/\[.*//")
 boot_device=$(readlink -f "$boot_device")
@@ -160,6 +167,7 @@ refuse_once() {
 }
 
 for device in /dev/vdb /dev/vdc "$boot_device"; do
+  echo "TRACE:REFUSAL_BEGIN $device"
   safe_name=${device#/dev/}
   id=$(disk_id "$device")
   snapshot "$device" "/tmp/$safe_name.before"
