@@ -3,8 +3,10 @@ set -euo pipefail
 
 /usr/bin/swaymsg workspace 1:Main >/dev/null
 
-mode="$(/usr/bin/openclaw config get gateway.mode 2>/dev/null || true)"
-if [[ "$mode" == local || "$mode" == remote ]]; then
+status="$(/usr/bin/timeout 5 /usr/lib/clawos/clawosctl status 2>/dev/null || true)"
+[[ -n "$status" ]] || status='{}'
+state="$(printf '%s' "$status" | /usr/bin/jq -r '.state // "startup"')"
+if [[ "$state" != setup-incomplete ]]; then
   /usr/lib/clawos/clawos-agent-window focus >/dev/null
   exit 0
 fi

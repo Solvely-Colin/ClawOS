@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-mode() {
-  /usr/bin/openclaw config get gateway.mode 2>/dev/null || true
+machine_status() {
+  /usr/bin/timeout 5 /usr/lib/clawos/clawosctl status 2>/dev/null || true
 }
 
 security_level() {
@@ -14,7 +14,9 @@ session_alive() {
     /usr/bin/swaymsg -s "$SWAYSOCK" -t get_version >/dev/null 2>&1
 }
 
-while [[ "$(mode)" != local && "$(mode)" != remote ]]; do
+status="$(machine_status)"
+[[ -n "$status" ]] || status='{}'
+while [[ "$(printf '%s' "$status" | /usr/bin/jq -r '.state // "startup"')" == setup-incomplete ]]; do
   if ! /usr/lib/clawos/clawos-onboard-ui; then
     # The graphical path owns normal first boot. Keep the upstream-compatible
     # terminal wizard as a recovery fallback if Chromium or the local setup
@@ -28,10 +30,23 @@ while [[ "$(mode)" != local && "$(mode)" != remote ]]; do
   fi
   session_alive || exit 0
   sleep 1
+  status="$(machine_status)"
+  [[ -n "$status" ]] || status='{}'
 done
 
+while [[ "$(printf '%s' "$status" | /usr/bin/jq -r '.state // "startup"')" == startup ]]; do
+  session_alive || exit 0
+  sleep 1
+  status="$(machine_status)"
+  [[ -n "$status" ]] || status='{}'
+done
+
+state="$(printf '%s' "$status" | /usr/bin/jq -r '.state // "repair-required"')"
+[[ "$state" != repair-required ]] || exit 1
+mode="$(printf '%s' "$status" | /usr/bin/jq -r '.mode // empty')"
+
 if [[ "$(security_level)" != user-limited ]]; then
-  case "$(mode)" in
+  case "$mode" in
     local)
       (/usr/bin/openclaw gateway start >/dev/null 2>&1 || true) &
       ;;

@@ -17,6 +17,7 @@ class FakeRunner:
         self.commands = []
         self.fail = fail
         self.timezone = "UTC"
+        self.gtklock = False
         self.services = {
             "NetworkManager.service": "active",
             "sshd.service": "active",
@@ -32,6 +33,12 @@ class FakeRunner:
             return "1000\n"
         if argv == ["/usr/bin/getent", "passwd", "clawos"]:
             return "clawos:x:1000:1000::/home/clawos:/bin/bash\n"
+        if argv == ["/usr/bin/passwd", "--status", "clawos"]:
+            return "clawos P 2026-09-15 0 99999 7 -1\n"
+        if argv == ["/usr/bin/pgrep", "-u", "1000", "-x", "gtklock"]:
+            return "777\n" if self.gtklock else ""
+        if argv and argv[0] == "/usr/bin/curl":
+            return "ok\n"
         if argv[-3:] == ["--user", "is-active", "openclaw-gateway.service"]:
             return "active\n"
         if argv == ["/usr/bin/timedatectl", "show", "--property=Timezone", "--value"]:
@@ -129,6 +136,19 @@ class BrokerTests(unittest.TestCase):
         self.sudoers = root / "90-clawos-full-root"
         self.full_root_sudoers = root / "full-root.sudoers"
         self.full_root_sudoers.write_text("clawos ALL=(ALL:ALL) NOPASSWD: ALL\n")
+        self.owner_home = root / "home/clawos"
+        (self.owner_home / ".openclaw").mkdir(parents=True)
+        (self.owner_home / ".openclaw/openclaw.json").write_text(json.dumps({
+            "gateway": {"mode": "local", "port": 18789},
+            "agents": {"defaults": {"model": {"primary": "test/model"}}},
+        }))
+        (self.owner_home / ".local/state/clawos").mkdir(parents=True)
+        self.onboarding = self.owner_home / ".local/state/clawos/onboarding.json"
+        self.onboarding.write_text(json.dumps({
+            "version": 1, "mode": "local", "stage": "complete", "access": "full-root",
+        }))
+        self.passwordless_entry = root / "passwordless-entry"
+        self.repair_marker = root / "repair-required.json"
         self.runner = FakeRunner()
         self.recovery = FakeRecovery()
         self.broker = Broker(
@@ -140,6 +160,9 @@ class BrokerTests(unittest.TestCase):
             uptime_path=self.uptime,
             sudoers_path=self.sudoers,
             full_root_sudoers_path=self.full_root_sudoers,
+            owner_home=self.owner_home,
+            passwordless_entry_path=self.passwordless_entry,
+            repair_marker_path=self.repair_marker,
             runner=self.runner,
             recovery=self.recovery,
             clock=lambda: self.clock_value,
@@ -150,27 +173,40 @@ class BrokerTests(unittest.TestCase):
     def tearDown(self):
         self.temporary.cleanup()
 
-    def test_status_does_not_infer_machine_readiness_from_broker_availability(self):
+    def test_status_reports_ready_without_claiming_model_inference(self):
         self.runner.commands.clear()
         status = self.broker.status()
-        self.assertEqual(status["state"], "unknown")
+        self.assertEqual(status["state"], "ready")
         self.assertEqual(status["brokerState"], "ready")
         self.assertEqual(status["readiness"], {
-            "setup": "unverified", "desktop": "unverified",
-            "lock": "unverified", "gateway": "unverified",
-            "model": "unverified",
+            "setup": "complete", "desktop": "active",
+            "lock": "unlocked", "gateway": "reachable",
+            "model": "configured-unverified",
         })
-        self.assertEqual(self.runner.commands, [])
+        self.assertIn("model inference is unverified", status["stateReason"])
         self.assertEqual(status["pendingCount"], 0)
         self.assertEqual(status["activeGrantCount"], 0)
         self.assertIn("system.time.configure", status["capabilities"])
 
-    def test_status_remains_unverified_for_every_security_level(self):
+    def test_status_state_transitions_are_owned_by_one_collector(self):
+        self.onboarding.write_text(json.dumps({"version": 1, "mode": "local", "stage": "tools"}))
+        self.assertEqual(self.broker.status()["state"], "setup-incomplete")
+        self.runner.services["clawos-session@clawos.service"] = "activating"
+        self.assertEqual(self.broker.status()["state"], "startup")
+        self.runner.services["clawos-session@clawos.service"] = "active"
+        self.onboarding.write_text(json.dumps({"version": 1, "mode": "local", "stage": "complete"}))
+        self.runner.gtklock = True
+        self.assertEqual(self.broker.status()["state"], "locked")
+        self.runner.gtklock = False
+        self.repair_marker.write_text("{}\n")
+        self.assertEqual(self.broker.status()["state"], "repair-required")
+
+    def test_status_keeps_model_inference_unverified_for_every_security_level(self):
         for level in ("full-root", "full-user-approvals", "user-limited"):
             with self.subTest(level=level):
                 self.broker.config["securityLevel"] = level
-                self.assertEqual(self.broker.status()["state"], "unknown")
-                self.assertEqual(self.broker.status()["readiness"]["model"], "unverified")
+                self.assertEqual(self.broker.status()["state"], "ready")
+                self.assertEqual(self.broker.status()["readiness"]["model"], "configured-unverified")
 
     def gateway_peer(self, uid=1000, pid=4242, unit="openclaw-gateway.service"):
         self.broker.proc_root = Path(self.temporary.name) / "proc"

@@ -58,15 +58,12 @@
 - **Task context:** supporting-surface prompts can still target the fixed main
   session instead of the conversation owning the terminal/browser/build
   ([#55](https://github.com/Solvely-Colin/ClawOS/issues/55)).
-- **Startup:** configuration presence, onboarding completion, model readiness,
-  desktop readiness and repair state need a coherent model. Gateway reachability
-  is not proof of successful model inference
-  ([#53](https://github.com/Solvely-Colin/ClawOS/issues/53)).
-  Broker status now distinguishes broker availability from unknown machine
-  readiness and explicitly labels setup/desktop/lock/Gateway/model checks as
-  unverified. Gateway/controller tooltips also leave model readiness unverified.
-  The unified state collector, consumer migration and cold-boot acceptance are
-  still outstanding; this does not fix the underlying first-request failure.
+- **Inference readiness:** broker-owned startup status now distinguishes
+  `startup`, `locked`, `setup-incomplete`, `ready` and `repair-required`, and
+  all shell consumers use it. `ready` proves the configured Gateway is
+  reachable but deliberately reports model inference as unverified. This does
+  not fix the separate first-request failure below.
+- **First request after provider setup:**
   In the corrected-CI-image test, the first request after credential/model setup
   returned `missing-provider-auth` despite a listed auth profile; a later retry
   after setup finished succeeded with the same credential/model. Cause unproven.

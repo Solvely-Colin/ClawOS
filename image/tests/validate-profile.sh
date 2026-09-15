@@ -386,7 +386,7 @@ if grep -Fq 'program === "/usr/bin/systemctl"' \
 fi
 
 grep -Fq 'openclaw onboard' "$profile/airootfs/usr/lib/clawos/clawos-onboard"
-grep -Fq 'openclaw config get gateway.mode' "$profile/airootfs/usr/lib/clawos/clawos-entry"
+grep -Fq 'clawosctl status' "$profile/airootfs/usr/lib/clawos/clawos-entry"
 grep -Fq '/usr/lib/clawos/clawos-onboard-ui' "$profile/airootfs/usr/lib/clawos/clawos-entry"
 grep -Fq 'onboard' "$profile/airootfs/usr/lib/clawos/clawos-onboard-server"
 grep -Fq -- '--non-interactive' "$profile/airootfs/usr/lib/clawos/clawos-onboard-server"
@@ -528,6 +528,7 @@ if grep -Fq 'custom/system' "$profile/airootfs/etc/clawos/waybar/config.jsonc"; 
 fi
 grep -Fq 'swayidle -w timeout 900' "$profile/airootfs/etc/clawos/sway.conf"
 grep -Fq 'gtklock' "$profile/airootfs/usr/lib/clawos/clawos-lock"
+grep -Fq 'clawosctl status' "$profile/airootfs/usr/lib/clawos/clawos-lock"
 grep -Fq 'clawos-system-menu' "$profile/airootfs/usr/lib/clawos/clawos-power-menu"
 grep -Fq 'clawos-intent-palette' "$profile/airootfs/usr/lib/clawos/clawos-actions-menu"
 grep -Fq 'panel.set_margin_top(6)' \
@@ -542,6 +543,8 @@ if grep -Fq -- '-vnc "0.0.0.0' "$repo_root/image/bin/run-qemu"; then
   exit 1
 fi
 grep -Fq 'Setup required' "$profile/airootfs/usr/lib/clawos/clawos-panel-status"
+grep -Fq 'clawosctl status' "$profile/airootfs/usr/lib/clawos/clawos-panel-status"
+grep -Fq 'clawosctl status' "$profile/airootfs/usr/lib/clawos/clawos-browser"
 grep -Fq 'Enter Agent workspace' "$profile/airootfs/usr/share/clawos/onboarding/index.html"
 ! grep -Fq 'setup-header' "$profile/airootfs/usr/share/clawos/onboarding/index.html"
 grep -Fq 'Choose providers and models through OpenClaw setup' \
