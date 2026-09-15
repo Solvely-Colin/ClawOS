@@ -113,13 +113,25 @@ echo TRACE:UNSAFE_DISKS_READY
 
 boot_device=$(findmnt -nro SOURCE /run/archiso/bootmnt | sed "s/\[.*//")
 boot_device=$(readlink -f "$boot_device")
+echo "TRACE:BOOT_DEVICE $boot_device"
 [[ $boot_device == /dev/* ]]
-[[ $(cat /sys/block/vda/serial) == CLAWOS-REFUSAL-CONTROL ]]
-[[ $(cat /sys/block/vdb/serial) == CLAWOS-REFUSAL-SIGNATURE ]]
-[[ $(cat /sys/block/vdc/serial) == CLAWOS-REFUSAL-MOUNTED ]]
+control_serial=$(cat /sys/block/vda/serial)
+signature_serial=$(cat /sys/block/vdb/serial)
+mounted_serial=$(cat /sys/block/vdc/serial)
+echo "TRACE:SERIALS $control_serial $signature_serial $mounted_serial"
+[[ $control_serial == CLAWOS-REFUSAL-CONTROL ]]
+[[ $signature_serial == CLAWOS-REFUSAL-SIGNATURE ]]
+[[ $mounted_serial == CLAWOS-REFUSAL-MOUNTED ]]
 
 inventory=$(python3 /usr/lib/clawos/clawos_install_targets.py list)
-jq -e "map(.path) == [\"/dev/vda\"]" <<<"$inventory" >/dev/null
+echo "TRACE:ELIGIBLE_PATHS $(jq -c "map(.path)" <<<"$inventory")"
+jq -e --arg boot "$boot_device" "
+  map(.path) as \$paths |
+  (\$paths | index(\"/dev/vda\")) != null and
+  (\$paths | index(\"/dev/vdb\")) == null and
+  (\$paths | index(\"/dev/vdc\")) == null and
+  (\$paths | index(\$boot)) == null
+" <<<"$inventory" >/dev/null
 echo "${P}LIST_EXCLUDES_BOOT_SIGNATURE_MOUNTED"
 
 disk_id() {

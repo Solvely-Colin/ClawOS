@@ -22,7 +22,10 @@ class InstallCI(unittest.TestCase):
         self.assertNotIn('\\n, type=L', source)
         self.assertIn('mkfs.ext4 -q -F /dev/vdb1', source)
         self.assertIn('mount /dev/vdc /mnt/clawos-refusal-mounted', source)
-        self.assertIn('map(.path) == [\\"/dev/vda\\"]', source)
+        self.assertIn('(\\$paths | index(\\"/dev/vda\\")) != null', source)
+        for excluded in ('/dev/vdb', '/dev/vdc'):
+            self.assertIn(f'(\\$paths | index(\\"{excluded}\\")) == null', source)
+        self.assertIn('(\\$paths | index(\\$boot)) == null', source)
         self.assertLess(source.index('refuse_once dry'), source.index('refuse_once real'))
         self.assertIn('sfdisk -d "$device"', source)
         self.assertIn('blkid "${nodes[@]}"', source)
