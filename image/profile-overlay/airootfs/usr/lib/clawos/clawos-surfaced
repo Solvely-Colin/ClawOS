@@ -81,7 +81,11 @@ async function acquireSingleton() {
 }
 
 function releaseSingleton() {
-  try { fs.rmSync(lockPath, { recursive: true, force: true }); } catch {}
+  try {
+    if (fs.readFileSync(path.join(lockPath, 'pid'), 'utf8').trim() === String(process.pid)) {
+      fs.rmSync(lockPath, { recursive: true, force: true });
+    }
+  } catch {}
 }
 
 function cleanText(value, fallback = "", max = 160) {
