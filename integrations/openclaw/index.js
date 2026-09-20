@@ -278,7 +278,7 @@ export default definePluginEntry({
         if (!params.surface) throw new Error("surface is required for present or hide.");
         if (params.action === "present" && params.surface === "all") throw new Error("Present one surface at a time.");
         const action = params.action === "present" ? "surface.present" : "surface.hide";
-        return toolResult(await requestSurface({ action, surface: params.surface, sessionKey: context.sessionKey }, { timeoutMs: 10_000 }));
+        return toolResult(await requestSurface({ action, surface: params.surface, sessionKey: context.sessionKey }, { timeoutMs: 35_000 }));
       },
     }, toolContext), { name: "clawos_surface" });
 
@@ -339,7 +339,7 @@ export default definePluginEntry({
           return toolResult(await requestSurface({ action: `app.${params.action}` }, { timeoutMs: 10_000 }));
         }
         if (!params.appId) throw new Error("appId is required for this application action.");
-        return toolResult(await requestSurface({ action: `app.${params.action}`, appId: params.appId, sessionKey: context.sessionKey }, { timeoutMs: 10_000 }));
+        return toolResult(await requestSurface({ action: `app.${params.action}`, appId: params.appId, sessionKey: context.sessionKey }, { timeoutMs: 35_000 }));
       },
     }, toolContext), { name: "clawos_app" });
 
