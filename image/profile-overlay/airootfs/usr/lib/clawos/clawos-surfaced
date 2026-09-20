@@ -43,9 +43,9 @@ let state = {
   updatedAt: new Date().toISOString(),
 };
 
-function acquireSingleton() {
+async function acquireSingleton() {
   fs.mkdirSync(stateDir, { recursive: true, mode: 0o700 });
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
     try {
       fs.mkdirSync(lockPath, { mode: 0o700 });
       fs.writeFileSync(path.join(lockPath, "pid"), `${process.pid}\n`, { mode: 0o600 });
@@ -61,7 +61,19 @@ function acquireSingleton() {
           liveOwner = command.includes("clawos-surfaced");
         } catch {}
       }
-      if (liveOwner) process.exit(0);
+      if (liveOwner) {
+        // PAM sessions can outlive the system unit that launched Sway. An
+        // old broker cannot own windows in the replacement compositor.
+        let previousSocket;
+        try {
+          previousSocket = fs.readFileSync(`/proc/${owner}/environ`, 'utf8')
+            .split('\0').find((entry) => entry.startsWith('SWAYSOCK='))?.slice(9);
+        } catch {}
+        if (!previousSocket || previousSocket === process.env.SWAYSOCK || fs.existsSync(previousSocket)) process.exit(0);
+        try { process.kill(owner, 'SIGTERM'); } catch {}
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        continue;
+      }
       fs.rmSync(lockPath, { recursive: true, force: true });
     }
   }
@@ -391,7 +403,8 @@ async function handle(request) {
   }
 }
 
-acquireSingleton();
+async function start() {
+await acquireSingleton();
 try { fs.unlinkSync(socketPath); } catch (error) { if (error.code !== "ENOENT") throw error; }
 loadPersistentState();
 writeState();
@@ -430,3 +443,8 @@ function shutdown() {
 process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);
 process.on("exit", releaseSingleton);
+}
+start().catch((error) => {
+  process.stderr.write(`clawos-surfaced: ${error.message}\n`);
+  process.exitCode = 1;
+});
