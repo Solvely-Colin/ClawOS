@@ -60,7 +60,7 @@ Use a disposable Linux VM, not your daily-driver installation. A step-by-step
 build and install walkthrough, with a verification marker on every step, is in
 [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md).
 
-Help is especially useful on [keeping supporting surfaces attached to their task](https://github.com/Solvely-Colin/ClawOS/issues/55).
+Help is especially useful on [coordinated recovery](https://github.com/Solvely-Colin/ClawOS/issues/56).
 For a smaller first contribution, start with the
 [contributor guide](CONTRIBUTING.md#finding-work) and its scoped documentation/CI tasks.
 

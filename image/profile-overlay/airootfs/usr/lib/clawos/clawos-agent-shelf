@@ -131,6 +131,7 @@ class AgentShelf(Gtk.Window):
         self.entry.set_activates_default(True)
         self.entry.connect("activate", self.submit)
         self.entry.connect('changed', self.save_draft)
+        self.entry.connect('focus-in-event', self.on_entry_focus)
         if self.task:
             self.entry.set_text(self.drafts.load(self.task))
         composer.pack_start(self.entry, True, True, 0)
@@ -207,7 +208,12 @@ class AgentShelf(Gtk.Window):
         if self.task and not self.loading_draft:
             self.drafts.save(self.task, self.entry.get_text())
 
+    def on_entry_focus(self, *_args):
+        self.refresh_context()
+        return False
+
     def submit(self, *_args):
+        self.refresh_context()
         prompt = self.entry.get_text().strip()
         if not prompt or not self.task or self.sending:
             self.entry.grab_focus()

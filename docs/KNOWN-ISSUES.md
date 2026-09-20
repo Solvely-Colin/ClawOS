@@ -55,9 +55,12 @@
   QEMU 11.1 on Windows still stretches a manually forced non-native-aspect
   guest mode in true fullscreen despite `keep-aspect-ratio=on`; the normal
   launcher avoids that path by selecting the host-native preferred mode.
-- **Task context:** supporting-surface prompts can still target the fixed main
-  session instead of the conversation owning the terminal/browser/build
-  ([#55](https://github.com/Solvely-Colin/ClawOS/issues/55)).
+- **Task browser automation:** supporting windows and queued prompts now carry
+  their owning conversation, and drafts are saved per task. Each task browser
+  has its own profile and loopback debugging port; automatic OpenClaw browser
+  profile registration is still pending. Legacy unbound queued requests are
+  retained and refused until resubmitted with an explicit destination.
+  See [task surfaces](TASK-SURFACES.md).
 - **Inference readiness:** broker-owned startup status now distinguishes
   `startup`, `locked`, `setup-incomplete`, `ready` and `repair-required`, and
   all shell consumers use it. `ready` proves the configured Gateway is
