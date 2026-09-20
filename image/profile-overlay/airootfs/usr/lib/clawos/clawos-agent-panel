@@ -48,7 +48,7 @@ open_panel() {
     surface_name="$(/usr/bin/jq -r --arg mark "$focused_mark" '.apps[]? | select(.mark == $mark) | .name' "$activity_state" | /usr/bin/head -n 1)"
   fi
   case "$focused_app" in
-    clawos-command) surface_name='Terminal' ;;
+    clawos-command|clawos-command-*) surface_name='Terminal' ;;
     clawos-build|clawos-build-*) surface_name='Build' ;;
     clawos-browse|clawos-browse-*) surface_name='Browser' ;;
   esac

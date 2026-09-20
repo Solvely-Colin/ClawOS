@@ -37,8 +37,7 @@ def main():
     request_id = secrets.token_hex(16)
     request_path = QUEUE / f"{request_id}.txt"
     binding_path = QUEUE / f"{request_id}.task.json"
-    with open(binding_path, 'x', encoding='utf-8') as binding:
-        os.chmod(binding_path, 0o600)
+    with os.fdopen(os.open(binding_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'w', encoding='utf-8') as binding:
         json.dump({'version': 1, 'sessionKey': key}, binding)
         binding.flush()
         os.fsync(binding.fileno())

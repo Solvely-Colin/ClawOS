@@ -222,7 +222,7 @@ async function presentApplication(application, sessionKey) {
     if (!new Set(["agent", "terminal", "browser", "build"]).has(application.surface)) {
       throw new Error("Application declares an unknown ClawOS surface.");
     }
-    if (application.surface !== 'agent') bindTask(sessionKey);
+    if (application.surface !== 'agent' && sessionKey) bindTask(sessionKey);
     writeState();
     await run("/usr/lib/clawos/clawos-surface", [application.surface, sessionKey || '']);
     state.surface.visible = application.surface;
@@ -281,6 +281,11 @@ async function handle(request) {
       writeState();
       await run("/usr/lib/clawos/clawos-surface", [request.surface, request.sessionKey]);
       state.surface.visible = request.surface;
+      state.surface.sessionKey = request.sessionKey;
+      const taskId = bindTask(request.sessionKey);
+      state.surface.appId = `${appIds[request.surface]}-${taskId}`;
+      state.surface.browserProfilePath = request.surface === 'browser'
+        ? path.join(persistentStateDir, `browser-${taskId}`) : null;
       writeState();
       return state;
     }
