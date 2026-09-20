@@ -59,7 +59,7 @@ with tempfile.TemporaryDirectory(prefix="clawos-agent-queue-") as temporary:
         "ARGS_LOG": str(args_log),
     }
     submitted = subprocess.run(
-        [str(SUBMIT)], input=secret_prompt, text=True, capture_output=True,
+        [str(SUBMIT), 'agent:main:task-a'], input=secret_prompt, text=True, capture_output=True,
         env=environment, timeout=15, check=True,
     )
     request_id = json.loads(submitted.stdout)["requestId"]
@@ -67,6 +67,7 @@ with tempfile.TemporaryDirectory(prefix="clawos-agent-queue-") as temporary:
     assert request.read_text(encoding="utf-8") == secret_prompt
     assert stat.S_IMODE(request.stat().st_mode) == 0o600
     assert secret_prompt not in args_log.read_text(encoding="utf-8")
+    assert json.loads(request.with_suffix('.task.json').read_text())['sessionKey'] == 'agent:main:task-a'
 
     runner_environment = {
         **os.environ,
@@ -87,12 +88,16 @@ with tempfile.TemporaryDirectory(prefix="clawos-agent-queue-") as temporary:
     failed_request = state / "clawos/agent-requests" / f"{failed_id}.txt"
     failed_request.write_text("request expected to fail", encoding="utf-8")
     failed_request.chmod(0o600)
+    failed_binding = failed_request.with_suffix('.task.json')
+    failed_binding.write_text(json.dumps({'version': 1, 'sessionKey': 'agent:main:task-b'}))
+    failed_binding.chmod(0o600)
     executable(fake_openclaw, "#!/bin/sh\nexit 1\n")
     failed = subprocess.run(
         [str(RUNNER), str(failed_request)], env=runner_environment, timeout=15, check=False,
     )
     assert failed.returncode == 1
-    assert not failed_request.exists()
+    assert failed_request.exists()
+    assert failed_binding.exists()
     failed_receipt = json.loads(
         (state / "clawos/agent-receipts" / f"{failed_id}.json").read_text()
     )
@@ -100,6 +105,8 @@ with tempfile.TemporaryDirectory(prefix="clawos-agent-queue-") as temporary:
     assert (root / "appctl.log").read_text(encoding="utf-8") == (
         "attention A background Agent request failed"
     )
+    failed_request.unlink()
+    failed_binding.unlink()
 
     wrong_mode_id = "e" * 32
     wrong_mode = state / "clawos/agent-requests" / f"{wrong_mode_id}.txt"

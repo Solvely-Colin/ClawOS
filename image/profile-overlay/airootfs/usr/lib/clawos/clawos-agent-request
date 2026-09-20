@@ -107,6 +107,7 @@ def discard(request_id):
     if not request or active(request_id):
         raise SystemExit(65)
     request.unlink()
+    request.with_suffix('.task.json').unlink(missing_ok=True)
     RECEIPTS.mkdir(mode=0o700, parents=True, exist_ok=True)
     os.chmod(RECEIPTS, 0o700)
     destination = RECEIPTS / f"{request_id}.json"

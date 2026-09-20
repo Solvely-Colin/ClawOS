@@ -40,9 +40,9 @@ elif [[ -n "$focused_mark" && -r "$state_file" ]]; then
   class='application'
 else
   case "$focused_app" in
-    clawos-command) surface='Terminal' ; class='terminal' ;;
-    clawos-build) surface='Build' ; class='build' ;;
-    clawos-browse) surface='Browser' ; class='browser' ;;
+    clawos-command|clawos-command-*) surface='Terminal' ; class='terminal' ;;
+    clawos-build|clawos-build-*) surface='Build' ; class='build' ;;
+    clawos-browse|clawos-browse-*) surface='Browser' ; class='browser' ;;
     *) surface='Agent' ; class='agent' ;;
   esac
 fi

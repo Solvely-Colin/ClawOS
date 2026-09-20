@@ -10,23 +10,26 @@ case "$url" in
     ;;
 esac
 
-profile_dir="${XDG_STATE_HOME:-$HOME/.local/state}/clawos/browser"
+export CLAWOS_SESSION_KEY
+CLAWOS_SESSION_KEY="$(/usr/bin/python3 /usr/lib/clawos/clawos_task.py)"
+task_id="$(printf '%s' "$CLAWOS_SESSION_KEY" | /usr/bin/sha256sum | /usr/bin/cut -c 1-24)"
+profile_dir="${XDG_STATE_HOME:-$HOME/.local/state}/clawos/browser-$task_id"
 mkdir -p "$profile_dir"
 
 # xdg-open callers such as OpenClaw expect this command to return promptly.
 # Chromium forwards the URL to the browser surface when it is already running,
-# a single local browser identity and the loopback-only CDP endpoint.
+# a browser identity and loopback-only CDP endpoint specific to this task.
 nohup /usr/lib/chromium/chromium \
   --ozone-platform=wayland \
   --enable-features=UseOzonePlatform,WebUIDarkMode \
   --force-dark-mode \
-  --class=clawos-browse \
+  --class="clawos-browse-$task_id" \
   --no-first-run \
   --no-default-browser-check \
   --disable-background-mode \
   --disable-session-crashed-bubble \
   --hide-crash-restore-bubble \
   --remote-debugging-address=127.0.0.1 \
-  --remote-debugging-port=9222 \
+  --remote-debugging-port=0 \
   --user-data-dir="$profile_dir" \
   "$url" >/dev/null 2>&1 &

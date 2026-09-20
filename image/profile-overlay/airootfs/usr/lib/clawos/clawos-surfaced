@@ -39,6 +39,7 @@ let state = {
   attention: { count: 0, message: "" },
   surface: { visible: "agent" },
   apps: {},
+  tasks: {},
   updatedAt: new Date().toISOString(),
 };
 
@@ -92,6 +93,9 @@ function loadPersistentState() {
     // the work, but make the Agent canvas authoritative until asked otherwise.
     state.surface.visible = "agent";
     state.apps = {};
+    for (const record of Object.values(stored.tasks || {})) {
+      try { bindTask(record.sessionKey); } catch {}
+    }
     if (state.activity.state === "running") {
       state.activity.state = "waiting";
       state.activity.summary = "Work restored; waiting for Gateway activity";
@@ -123,6 +127,15 @@ function run(file, args, timeout = 5000) {
 
 function applicationMark(appId) {
   return `clawos-app-${crypto.createHash("sha256").update(appId).digest("hex").slice(0, 20)}`;
+}
+
+function bindTask(sessionKey) {
+  if (typeof sessionKey !== 'string' || !/^agent:[A-Za-z0-9_.-]+:[A-Za-z0-9_.:/-]{1,220}$/.test(sessionKey)) {
+    throw new Error('Open this surface from its owning conversation.');
+  }
+  const id = crypto.createHash('sha256').update(sessionKey).digest('hex').slice(0, 24);
+  state.tasks[id] = { sessionKey };
+  return id;
 }
 
 function treeContainers(node, containers = []) {
@@ -203,13 +216,15 @@ async function waitForApplicationWindow(beforeIds, beforeFocusedId, timeoutMs = 
   return null;
 }
 
-async function presentApplication(application) {
+async function presentApplication(application, sessionKey) {
   await run("/usr/lib/clawos/clawos-agent-panel", ["close"]).catch(() => {});
   if (application.kind === "surface") {
     if (!new Set(["agent", "terminal", "browser", "build"]).has(application.surface)) {
       throw new Error("Application declares an unknown ClawOS surface.");
     }
-    await run("/usr/lib/clawos/clawos-surface", [application.surface]);
+    if (application.surface !== 'agent') bindTask(sessionKey);
+    writeState();
+    await run("/usr/lib/clawos/clawos-surface", [application.surface, sessionKey || '']);
     state.surface.visible = application.surface;
     writeState();
     return state;
@@ -247,8 +262,8 @@ async function presentApplication(application) {
   return state;
 }
 
-async function hideSurface(surface) {
-  const appId = appIds[surface];
+async function hideSurface(surface, sessionKey) {
+  const appId = `${appIds[surface]}-${bindTask(sessionKey)}`;
   await run("/usr/bin/swaymsg", [`[app_id=\"${appId}\"] move scratchpad`]).catch(() => {});
 }
 
@@ -262,18 +277,20 @@ async function handle(request) {
       return state;
     case "surface.present": {
       if (!surfaceIds.has(request.surface)) throw new Error("Unknown surface.");
-      await run("/usr/lib/clawos/clawos-surface", [request.surface]);
+      bindTask(request.sessionKey);
+      writeState();
+      await run("/usr/lib/clawos/clawos-surface", [request.surface, request.sessionKey]);
       state.surface.visible = request.surface;
       writeState();
       return state;
     }
     case "surface.hide": {
       if (request.surface === "all") {
-        for (const surface of surfaceIds) await hideSurface(surface);
+        for (const surface of surfaceIds) await hideSurface(surface, request.sessionKey);
         await hideAllApplications();
       } else {
         if (!surfaceIds.has(request.surface)) throw new Error("Unknown surface.");
-        await hideSurface(request.surface);
+        await hideSurface(request.surface, request.sessionKey);
       }
       await run("/usr/lib/clawos/clawos-surface", ["agent"]);
       state.surface.visible = "agent";
@@ -300,12 +317,12 @@ async function handle(request) {
     case "app.open": {
       const application = resolveApplication({ appId: request.appId, desktopId: request.desktopId });
       if (!application) throw new Error("Unknown application.");
-      return presentApplication(application);
+      return presentApplication(application, request.sessionKey);
     }
     case "app.focus": {
       const application = resolveApplication({ appId: request.appId });
       if (!application) throw new Error("Unknown application.");
-      if (application.kind === "surface") return presentApplication(application);
+      if (application.kind === "surface") return presentApplication(application, request.sessionKey);
       await run("/usr/lib/clawos/clawos-agent-panel", ["close"]).catch(() => {});
       const mark = applicationMark(application.id);
       const container = markedContainer(await swayTree(), mark);
@@ -374,16 +391,23 @@ try { fs.unlinkSync(socketPath); } catch (error) { if (error.code !== "ENOENT") 
 loadPersistentState();
 writeState();
 
+let pendingAction = Promise.resolve();
 const server = net.createServer({ allowHalfOpen: true }, (connection) => {
   let input = "";
+  let handled = false;
   connection.setEncoding("utf8");
   connection.on("data", (chunk) => {
+    if (handled) return;
     input += chunk;
-    if (input.length > 16384) connection.destroy(new Error("Request too large."));
+    if (input.length > 16384) { connection.destroy(); return; }
     if (!input.includes("\n")) return;
     const line = input.slice(0, input.indexOf("\n"));
-    Promise.resolve()
-      .then(() => handle(JSON.parse(line)))
+    handled = true;
+    // Serialize window creation and focus changes: two concurrent requests
+    // must not discover or claim each other's new window.
+    const action = pendingAction.then(() => handle(JSON.parse(line)));
+    pendingAction = action.catch(() => {});
+    action
       .then((result) => connection.end(`${JSON.stringify({ ok: true, result })}\n`))
       .catch((error) => connection.end(`${JSON.stringify({ ok: false, error: cleanText(error.message, "Request failed") })}\n`));
   });

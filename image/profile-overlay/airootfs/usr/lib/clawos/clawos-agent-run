@@ -6,6 +6,7 @@ import stat
 import subprocess
 import sys
 from datetime import datetime, timezone
+from clawos_task import session_key
 
 
 OPENCLAW = os.environ.get("CLAWOS_OPENCLAW", "/usr/bin/openclaw")
@@ -64,13 +65,26 @@ def main():
     if not validated:
         raise SystemExit(65)
     request_path, request_id = validated
+    binding_path = request_path.with_suffix('.task.json')
+    try:
+        metadata = binding_path.lstat()
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_uid != os.getuid() or stat.S_IMODE(metadata.st_mode) != 0o600:
+            raise ValueError('Invalid task binding')
+        binding = json.loads(binding_path.read_text(encoding='utf-8'))
+        if binding.get('version') != 1:
+            raise ValueError('Invalid task binding version')
+        key = session_key(binding.get('sessionKey'))
+    except (OSError, ValueError, TypeError):
+        # Legacy requests remain recoverable; never guess their conversation.
+        receipt(request_id, 'needs-task')
+        raise SystemExit(65)
     try:
         result = subprocess.run(
             [
                 OPENCLAW,
                 "agent",
                 "--session-key",
-                "agent:main:main",
+                key,
                 "--message-file",
                 str(request_path),
                 "--json",
@@ -84,8 +98,9 @@ def main():
         status_value = "completed" if result.returncode == 0 else "failed"
     except (OSError, subprocess.TimeoutExpired):
         status_value = "failed"
-    finally:
+    if status_value == 'completed':
         request_path.unlink(missing_ok=True)
+        binding_path.unlink(missing_ok=True)
     receipt(request_id, status_value)
     if status_value != "completed":
         subprocess.run(

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
+[[ "${CLAWOS_TASK_ID:-}" =~ ^[0-9a-f]{24}$ && -n "${CLAWOS_SESSION_KEY:-}" ]] || exit 2
 
-profile_dir="${XDG_STATE_HOME:-$HOME/.local/state}/clawos/browser"
+profile_dir="${XDG_STATE_HOME:-$HOME/.local/state}/clawos/browser-$CLAWOS_TASK_ID"
 mkdir -p "$profile_dir"
 
 session_alive() {
@@ -11,21 +12,21 @@ session_alive() {
 
 # This is a normal local browser workspace, not a second Control UI profile.
 # Keeping Gateway auth in the Agent profile avoids a second OpenClaw pairing.
-# CDP is bound to loopback so the local OpenClaw browser integration can attach
-# without exposing browser control on the network.
+# Each task gets an independent loopback CDP port; Chromium publishes it in
+# this profile's DevToolsActivePort file. Never share port 9222 across tasks.
 while true; do
   /usr/lib/chromium/chromium \
     --ozone-platform=wayland \
     --enable-features=UseOzonePlatform,WebUIDarkMode \
     --force-dark-mode \
-    --class=clawos-browse \
+    --class="clawos-browse-$CLAWOS_TASK_ID" \
     --no-first-run \
     --no-default-browser-check \
     --disable-background-mode \
     --disable-session-crashed-bubble \
     --hide-crash-restore-bubble \
     --remote-debugging-address=127.0.0.1 \
-    --remote-debugging-port=9222 \
+    --remote-debugging-port=0 \
     --user-data-dir="$profile_dir" \
     "file:///usr/share/clawos/browser/start.html" || true
   session_alive || exit 0

@@ -5,6 +5,7 @@ import pathlib
 import secrets
 import subprocess
 import sys
+from clawos_task import session_key
 
 
 SYSTEMD_RUN = os.environ.get("CLAWOS_SYSTEMD_RUN", "/usr/bin/systemd-run")
@@ -21,6 +22,10 @@ def fail(message):
 
 
 def main():
+    try:
+        key = session_key(sys.argv[1] if len(sys.argv) == 2 else os.environ.get('CLAWOS_SESSION_KEY'))
+    except ValueError as error:
+        fail(str(error))
     prompt = sys.stdin.read(4 * 1024 * 1024 + 1)
     if not prompt.strip():
         fail("a request is required on standard input")
@@ -31,6 +36,12 @@ def main():
     os.chmod(QUEUE, 0o700)
     request_id = secrets.token_hex(16)
     request_path = QUEUE / f"{request_id}.txt"
+    binding_path = QUEUE / f"{request_id}.task.json"
+    with open(binding_path, 'x', encoding='utf-8') as binding:
+        os.chmod(binding_path, 0o600)
+        json.dump({'version': 1, 'sessionKey': key}, binding)
+        binding.flush()
+        os.fsync(binding.fileno())
     descriptor = os.open(request_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as target:
@@ -57,9 +68,11 @@ def main():
         )
     except (OSError, subprocess.TimeoutExpired) as error:
         request_path.unlink(missing_ok=True)
+        binding_path.unlink(missing_ok=True)
         fail(str(error))
     if result.returncode:
         request_path.unlink(missing_ok=True)
+        binding_path.unlink(missing_ok=True)
         fail(result.stderr.strip() or "could not queue the Agent request")
     print(json.dumps({"ok": True, "requestId": request_id}, separators=(",", ":")))
 

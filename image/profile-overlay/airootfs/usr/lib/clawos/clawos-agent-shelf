@@ -4,6 +4,8 @@ import os
 import subprocess
 import threading
 import time
+from pathlib import Path
+from clawos_task import Drafts, focused_task
 from clawos_windows import is_agent_window
 
 import gi
@@ -60,11 +62,11 @@ def focused_surface():
         return "Gmail"
     if app.startswith("clawos-web-outlook"):
         return "Outlook"
-    if app == "clawos-command":
+    if app == "clawos-command" or app.startswith("clawos-command-"):
         return "Terminal"
-    if app == "clawos-build":
+    if app == "clawos-build" or app.startswith("clawos-build-"):
         return "Build"
-    if app == "clawos-browse":
+    if app == "clawos-browse" or app.startswith("clawos-browse-"):
         return "Browser"
     registered_name = application_name_for_marks(marks)
     if registered_name:
@@ -108,6 +110,10 @@ class AgentShelf(Gtk.Window):
         Gtk.StyleContext.add_provider_for_screen(self.get_screen(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         self.surface = focused_surface()
+        self.task = focused_task()
+        self.drafts = Drafts(Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state'))) / 'clawos/drafts')
+        self.loading_draft = False
+        self.sending = False
         self.shelf_visible = True
         self.queued_until = 0.0
         frame = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
@@ -124,6 +130,9 @@ class AgentShelf(Gtk.Window):
         self.entry.set_placeholder_text(f"Ask Agent about {self.surface}…")
         self.entry.set_activates_default(True)
         self.entry.connect("activate", self.submit)
+        self.entry.connect('changed', self.save_draft)
+        if self.task:
+            self.entry.set_text(self.drafts.load(self.task))
         composer.pack_start(self.entry, True, True, 0)
 
         self.send = Gtk.Button()
@@ -158,6 +167,15 @@ class AgentShelf(Gtk.Window):
         GLib.timeout_add(1000, self.refresh_context)
 
     def refresh_context(self):
+        # Layer-shell focus remains with the underlying Sway container while
+        # typing. Freeze the request destination until its queue callback ends.
+        task = focused_task()
+        if not self.sending and task != self.task:
+            self.save_draft()
+            self.task = task
+            self.loading_draft = True
+            self.entry.set_text(self.drafts.load(task) if task else '')
+            self.loading_draft = False
         surface = focused_surface()
         if surface != self.surface:
             self.surface = surface
@@ -176,38 +194,51 @@ class AgentShelf(Gtk.Window):
             label, tooltip = projected_status()
             self.status.set_text(label)
             self.status.set_tooltip_text(tooltip)
+        if not self.task:
+            self.status.set_text('No owning task')
+        self.send.set_sensitive(bool(self.task) and not self.sending)
+        self.entry.set_sensitive(bool(self.task) and not self.sending)
         return True
+
+    def save_draft(self, *_args):
+        if self.task and not self.loading_draft:
+            self.drafts.save(self.task, self.entry.get_text())
 
     def submit(self, *_args):
         prompt = self.entry.get_text().strip()
-        if not prompt:
+        if not prompt or not self.task or self.sending:
             self.entry.grab_focus()
             return
-        self.entry.set_text("")
+        self.save_draft()
+        self.sending = True
         self.entry.set_sensitive(False)
         self.send.set_sensitive(False)
         self.status.set_text("Queuing")
         contextual = f"The user is currently working in {self.surface}. {prompt}"
-        threading.Thread(target=self.queue_agent, args=(contextual,), daemon=True).start()
+        threading.Thread(target=self.queue_agent, args=(contextual, self.task, self.entry.get_text()), daemon=True).start()
 
-    def queue_agent(self, prompt):
+    def queue_agent(self, prompt, task, draft):
         try:
             result = subprocess.run(
-                ["/usr/lib/clawos/clawos-agent-submit"],
+                ["/usr/lib/clawos/clawos-agent-submit", task],
                 input=prompt, text=True, capture_output=True, timeout=12, check=False,
             )
             if result.returncode == 0:
-                GLib.idle_add(self.finish, "Queued", "OpenClaw is tracking this request in the background.")
+                GLib.idle_add(self.finish, "Queued", "OpenClaw is tracking this request in the background.", task, draft)
             else:
                 GLib.idle_add(self.finish, "Attention", "ClawOS could not queue the request.")
         except Exception:
             GLib.idle_add(self.finish, "Offline", "The background Agent service is unavailable.")
 
-    def finish(self, state, tooltip):
+    def finish(self, state, tooltip, task=None, draft=None):
         self.status.set_text(state)
         self.status.set_tooltip_text(tooltip)
         if state == "Queued":
+            self.drafts.acknowledge(task, draft)
+            if self.task == task and self.entry.get_text() == draft:
+                self.entry.set_text('')
             self.queued_until = time.monotonic() + 4
+        self.sending = False
         self.entry.set_sensitive(True)
         self.send.set_sensitive(True)
         return False

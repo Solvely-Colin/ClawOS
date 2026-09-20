@@ -253,7 +253,7 @@ export default definePluginEntry({
       },
     }, toolContext), { name: "clawos_system" });
 
-    api.registerTool({
+    api.registerTool((toolContext) => bindMachineToolContext({
       name: "clawos_surface",
       label: "ClawOS Surface",
       description: "Present, hide, or focus an inspectable ClawOS machine surface. Tools should remain in the background unless showing the surface helps the user inspect or take over work.",
@@ -272,15 +272,15 @@ export default definePluginEntry({
         },
         required: ["action"],
       },
-      async execute(_toolCallId, params) {
+      async execute(_toolCallId, params, context) {
         if (params.action === "status") return toolResult(await requestSurface({ action: "status" }));
         if (params.action === "focus-agent") return toolResult(await requestSurface({ action: "surface.agent" }));
         if (!params.surface) throw new Error("surface is required for present or hide.");
         if (params.action === "present" && params.surface === "all") throw new Error("Present one surface at a time.");
         const action = params.action === "present" ? "surface.present" : "surface.hide";
-        return toolResult(await requestSurface({ action, surface: params.surface }));
+        return toolResult(await requestSurface({ action, surface: params.surface, sessionKey: context.sessionKey }, { timeoutMs: 10_000 }));
       },
-    });
+    }, toolContext), { name: "clawos_surface" });
 
     api.registerTool({
       name: "clawos_activity",
@@ -310,7 +310,7 @@ export default definePluginEntry({
       },
     });
 
-    api.registerTool({
+    api.registerTool((toolContext) => bindMachineToolContext({
       name: "clawos_app",
       label: "ClawOS Application",
       description: "Present or control validated graphical capabilities attached to the current ClawOS activity. Use this whenever the user asks to open, show, launch, or switch to an application; the machine has a live graphical session.",
@@ -334,14 +334,14 @@ export default definePluginEntry({
         },
         required: ["action"],
       },
-      async execute(_toolCallId, params) {
+      async execute(_toolCallId, params, context) {
         if (params.action === "list" || params.action === "status") {
           return toolResult(await requestSurface({ action: `app.${params.action}` }, { timeoutMs: 10_000 }));
         }
         if (!params.appId) throw new Error("appId is required for this application action.");
-        return toolResult(await requestSurface({ action: `app.${params.action}`, appId: params.appId }, { timeoutMs: 10_000 }));
+        return toolResult(await requestSurface({ action: `app.${params.action}`, appId: params.appId, sessionKey: context.sessionKey }, { timeoutMs: 10_000 }));
       },
-    });
+    }, toolContext), { name: "clawos_app" });
 
     // Sandboxed iframe navigations cannot attach the Control UI's WebSocket
     // bearer token. Advertise a restart-scoped capability only in the

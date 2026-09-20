@@ -49,8 +49,8 @@ open_panel() {
   fi
   case "$focused_app" in
     clawos-command) surface_name='Terminal' ;;
-    clawos-build) surface_name='Build' ;;
-    clawos-browse) surface_name='Browser' ;;
+    clawos-build|clawos-build-*) surface_name='Build' ;;
+    clawos-browse|clawos-browse-*) surface_name='Browser' ;;
   esac
   surface_name="${surface_name:-Current surface}"
 
