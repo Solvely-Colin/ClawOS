@@ -74,8 +74,8 @@ Milestones: Post-flip hardening and contributor tooling; Runtime reliability.
 - [x] Distinguish startup, locked, setup-incomplete, ready and repair-required
   states through broker-owned status; five managed WHPX cold boots reached the
   expected state with model inference explicitly unverified (#53).
-- [ ] Bind terminal, browser and build surfaces to their owning task; prove two
-  simultaneous tasks cannot cross-route prompts or lose drafts.
+- [x] Bind terminal, browser and build surfaces to their owning task; two-task
+  queue/draft regression tests and separate WHPX windows verified (#55).
 - [ ] Prove boot/root/home compatibility during failed-update recovery.
 
 ## 4. Design physical installation as its own milestone

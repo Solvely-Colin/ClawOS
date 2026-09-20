@@ -2,6 +2,16 @@
 set -euo pipefail
 
 surface="${1:-terminal}"
+if [[ "$surface" != agent ]]; then
+  export CLAWOS_SESSION_KEY="${2:-${CLAWOS_SESSION_KEY:-}}"
+  CLAWOS_SESSION_KEY="$(/usr/bin/python3 /usr/lib/clawos/clawos_task.py)" || {
+    /usr/bin/notify-send 'Choose a task' 'Ask the Agent in your conversation to open this surface first.'
+    exit 1
+  }
+  export CLAWOS_SESSION_KEY
+  CLAWOS_TASK_ID="$(printf '%s' "$CLAWOS_SESSION_KEY" | /usr/bin/sha256sum | /usr/bin/cut -c 1-24)"
+  export CLAWOS_TASK_ID
+fi
 
 container_id() {
   local app_id="$1"
@@ -55,22 +65,23 @@ case "$surface" in
   agent)
     /usr/lib/clawos/clawos-agent-panel close >/dev/null 2>&1 || true
     /usr/bin/swaymsg '[con_mark="^clawos-app-"] move scratchpad' >/dev/null 2>&1 || true
-    /usr/bin/swaymsg '[app_id="clawos-command"] move scratchpad' >/dev/null 2>&1 || true
-    /usr/bin/swaymsg '[app_id="clawos-build"] move scratchpad' >/dev/null 2>&1 || true
-    /usr/bin/swaymsg '[app_id="clawos-browse"] move scratchpad' >/dev/null 2>&1 || true
+    /usr/bin/swaymsg '[app_id="^clawos-command(-|$)"] move scratchpad' >/dev/null 2>&1 || true
+    /usr/bin/swaymsg '[app_id="^clawos-build(-|$)"] move scratchpad' >/dev/null 2>&1 || true
+    /usr/bin/swaymsg '[app_id="^clawos-browse(-|$)"] move scratchpad' >/dev/null 2>&1 || true
+    /usr/bin/swaymsg '[app_id="^clawos-conversation-"] move scratchpad' >/dev/null 2>&1 || true
     /usr/lib/clawos/clawos-agent-window focus >/dev/null
     ;;
   terminal)
     /usr/lib/clawos/clawos-agent-panel close >/dev/null 2>&1 || true
-    focus_existing clawos-command || launch_and_fit clawos-command /usr/lib/clawos/clawos-command
+    focus_existing "clawos-command-$CLAWOS_TASK_ID" || launch_and_fit "clawos-command-$CLAWOS_TASK_ID" /usr/lib/clawos/clawos-command
     ;;
   build)
     /usr/lib/clawos/clawos-agent-panel close >/dev/null 2>&1 || true
-    focus_existing clawos-build || launch_and_fit clawos-build /usr/lib/clawos/clawos-build
+    focus_existing "clawos-build-$CLAWOS_TASK_ID" || launch_and_fit "clawos-build-$CLAWOS_TASK_ID" /usr/lib/clawos/clawos-build
     ;;
   browser)
     /usr/lib/clawos/clawos-agent-panel close >/dev/null 2>&1 || true
-    focus_existing clawos-browse || launch_and_fit clawos-browse /usr/lib/clawos/clawos-browse
+    focus_existing "clawos-browse-$CLAWOS_TASK_ID" || launch_and_fit "clawos-browse-$CLAWOS_TASK_ID" /usr/lib/clawos/clawos-browse
     ;;
   *)
     printf 'Usage: clawos-surface {agent|terminal|build|browser}\n' >&2

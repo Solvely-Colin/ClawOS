@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+[[ "${CLAWOS_TASK_ID:-}" =~ ^[0-9a-f]{24}$ && -n "${CLAWOS_SESSION_KEY:-}" ]] || exit 2
 
 session_alive() {
   [[ -n "${SWAYSOCK:-}" && -S "$SWAYSOCK" ]] &&
@@ -9,9 +10,9 @@ session_alive() {
 while true; do
   /usr/bin/foot \
     --config=/etc/clawos/foot.ini \
-    --app-id=clawos-command \
+    --app-id="clawos-command-$CLAWOS_TASK_ID" \
     --title='ClawOS Command' \
-    /usr/bin/tmux -f /etc/clawos/tmux.conf new-session -A -s command -c "$HOME" || true
+    /usr/bin/tmux -f /etc/clawos/tmux.conf new-session -A -s "command-$CLAWOS_TASK_ID" -e "CLAWOS_SESSION_KEY=$CLAWOS_SESSION_KEY" -c "$HOME" || true
   session_alive || exit 0
   [[ "${CLAWOS_SURFACE_ONCE:-0}" == 1 ]] && exit 0
   /usr/bin/sleep 2

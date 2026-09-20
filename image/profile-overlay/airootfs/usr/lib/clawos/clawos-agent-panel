@@ -33,6 +33,23 @@ close_panel() {
 }
 
 open_panel() {
+  local task_key task_id conversation_id
+  task_key="$(/usr/bin/python3 /usr/lib/clawos/clawos_task.py --focused 2>/dev/null || true)"
+  if [[ -n "$task_key" ]]; then
+    task_id="$(printf '%s' "$task_key" | /usr/bin/sha256sum | /usr/bin/cut -c 1-24)"
+    conversation_id="$(tree | /usr/bin/jq -r --arg app "clawos-conversation-$task_id" '.. | objects | select(.app_id? == $app) | .id' | /usr/bin/head -n 1)"
+    if [[ "$conversation_id" =~ ^[0-9]+$ ]]; then
+      /usr/bin/swaymsg "[con_id=$conversation_id] scratchpad show, focus" >/dev/null 2>&1 || true
+    else
+      # OpenClaw's supported TUI session option selects the owning conversation
+      # without changing another conversation's Control UI tab or its draft.
+      /usr/bin/setsid --fork /usr/bin/foot --config=/etc/clawos/foot.ini \
+        --app-id="clawos-conversation-$task_id" --title='Task conversation' \
+        /usr/bin/tmux -f /etc/clawos/tmux.conf new-session -A \
+        -s "conversation-$task_id" /usr/bin/openclaw tui --session "$task_key"
+    fi
+    return
+  fi
   local id focused_json focused_id focused_name focused_app focused_mark surface_name activity_state dimensions canvas_width canvas_height panel_width panel_height panel_x
   id="$(agent_id)"
   [[ "$id" =~ ^[0-9]+$ ]] || exit 1
@@ -48,9 +65,9 @@ open_panel() {
     surface_name="$(/usr/bin/jq -r --arg mark "$focused_mark" '.apps[]? | select(.mark == $mark) | .name' "$activity_state" | /usr/bin/head -n 1)"
   fi
   case "$focused_app" in
-    clawos-command) surface_name='Terminal' ;;
-    clawos-build) surface_name='Build' ;;
-    clawos-browse) surface_name='Browser' ;;
+    clawos-command|clawos-command-*) surface_name='Terminal' ;;
+    clawos-build|clawos-build-*) surface_name='Build' ;;
+    clawos-browse|clawos-browse-*) surface_name='Browser' ;;
   esac
   surface_name="${surface_name:-Current surface}"
 

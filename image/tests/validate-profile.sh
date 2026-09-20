@@ -477,7 +477,7 @@ grep -Fq '"$mount_root/usr/lib/clawos/clawos-agent-recover"' \
 test -f "$profile/airootfs/etc/clawos/agent-shelf.css"
 grep -Fq 'clawos-agent-panel' "$profile/airootfs/usr/lib/clawos/clawos-agent-shelf"
 grep -Fq 'clawos-actions-menu' "$profile/airootfs/usr/lib/clawos/clawos-agent-shelf"
-grep -Fq '["/usr/lib/clawos/clawos-agent-submit"]' \
+grep -Fq '["/usr/lib/clawos/clawos-agent-submit", task]' \
   "$profile/airootfs/usr/lib/clawos/clawos-agent-shelf"
 ! grep -Fq '"--message", prompt' "$profile/airootfs/usr/lib/clawos/clawos-agent-shelf"
 grep -Fq '"--message-file"' "$profile/airootfs/usr/lib/clawos/clawos-agent-run"
@@ -502,13 +502,13 @@ if grep -Fq 'sway/workspaces' "$profile/airootfs/etc/clawos/waybar/config.jsonc"
   echo "The panel must expose activities, not fixed application workspaces." >&2
   exit 1
 fi
-grep -Fq 'tmux -f /etc/clawos/tmux.conf new-session -A -s command -c "$HOME"' \
+grep -Fq 'new-session -A -s "command-$CLAWOS_TASK_ID"' \
   "$profile/airootfs/usr/lib/clawos/clawos-command"
-grep -Fq 'tmux -f /etc/clawos/tmux.conf new-session -d -s build' \
+grep -Fq 'new-session -d -s "$build_session"' \
   "$profile/airootfs/usr/lib/clawos/clawos-build"
 grep -Fq -- '--remote-debugging-address=127.0.0.1' \
   "$profile/airootfs/usr/lib/clawos/clawos-browse"
-grep -Fq -- '--remote-debugging-port=9222' \
+grep -Fq -- '--remote-debugging-port=0' \
   "$profile/airootfs/usr/lib/clawos/clawos-browse"
 grep -Fq 'x-scheme-handler/https=clawos-browser.desktop' \
   "$profile/airootfs/etc/xdg/mimeapps.list"

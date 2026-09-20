@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
+[[ "${CLAWOS_TASK_ID:-}" =~ ^[0-9a-f]{24}$ && -n "${CLAWOS_SESSION_KEY:-}" ]] || exit 2
+build_session="build-$CLAWOS_TASK_ID"
 
 session_alive() {
   [[ -n "${SWAYSOCK:-}" && -S "$SWAYSOCK" ]] &&
@@ -7,16 +9,16 @@ session_alive() {
 }
 
 while true; do
-  if ! /usr/bin/tmux has-session -t build 2>/dev/null; then
-    /usr/bin/tmux -f /etc/clawos/tmux.conf new-session -d -s build -n workspace -c "$HOME"
-    /usr/bin/tmux -f /etc/clawos/tmux.conf split-window -h -p 38 -t build:0 -c "$HOME" /usr/lib/clawos/clawos-build-activity
-    /usr/bin/tmux -f /etc/clawos/tmux.conf select-pane -t build:0.0
+  if ! /usr/bin/tmux has-session -t "$build_session" 2>/dev/null; then
+    /usr/bin/tmux -f /etc/clawos/tmux.conf new-session -d -s "$build_session" -e "CLAWOS_SESSION_KEY=$CLAWOS_SESSION_KEY" -n workspace -c "$HOME"
+    /usr/bin/tmux -f /etc/clawos/tmux.conf split-window -h -p 38 -t "$build_session:0" -c "$HOME" /usr/lib/clawos/clawos-build-activity
+    /usr/bin/tmux -f /etc/clawos/tmux.conf select-pane -t "$build_session:0.0"
   fi
   /usr/bin/foot \
     --config=/etc/clawos/foot.ini \
-    --app-id=clawos-build \
+    --app-id="clawos-build-$CLAWOS_TASK_ID" \
     --title='ClawOS Build' \
-    /usr/bin/tmux -f /etc/clawos/tmux.conf attach-session -t build || true
+    /usr/bin/tmux -f /etc/clawos/tmux.conf attach-session -t "$build_session" || true
   session_alive || exit 0
   [[ "${CLAWOS_SURFACE_ONCE:-0}" == 1 ]] && exit 0
   /usr/bin/sleep 2

@@ -46,6 +46,7 @@ async function main() {
   } else {
     throw new Error("Usage: clawos-appctl {list|status|agent|attention|clear-attention|open|open-desktop|focus|hide|close} [value]");
   }
+  if (process.env.CLAWOS_SESSION_KEY) payload.sessionKey = process.env.CLAWOS_SESSION_KEY;
   process.stdout.write(`${JSON.stringify(await request(payload))}\n`);
 }
 

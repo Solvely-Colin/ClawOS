@@ -22,7 +22,7 @@ install and boot proof is from QEMU (Linux KVM or Windows WHPX).
 | Live ClawOS runtime updates | Agent-driven update and exact 101-target file rollback passed on unmodified CI ISO run 34522981039, after normal setup; checkpoints and health verified |
 | Completion notices | Same-session delivery survived simulated acknowledgement loss without duplicate native-history notices on that fresh guest |
 | Work and decisions | Shared attention projection, reviewable notices and pending deployments |
-| Terminal/browser/build surfaces | Available; fullscreen layout and pointer mapping verified on Windows WHPX; task association remains #55 |
+| Terminal/browser/build surfaces | Task-specific windows, tmux sessions, registered browser profiles and prompt routing; separate drafts and two-task WHPX windows verified ([details](docs/TASK-SURFACES.md)) |
 | Windows VM lifecycle | Scheduled Task, SSH/ACPI shutdown, protected unlock, persistent build disk, host-native GTK scaling and absolute tablet |
 | Installed startup state | Broker-owned `startup`, `locked`, `setup-incomplete`, `ready` and `repair-required` states consumed by the shell; `ready` labels model inference unverified |
 | Remote-node roles | Implementation and isolated tests; broader live acceptance remains |

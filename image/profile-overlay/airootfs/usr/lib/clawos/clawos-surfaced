@@ -39,12 +39,13 @@ let state = {
   attention: { count: 0, message: "" },
   surface: { visible: "agent" },
   apps: {},
+  tasks: {},
   updatedAt: new Date().toISOString(),
 };
 
-function acquireSingleton() {
+async function acquireSingleton() {
   fs.mkdirSync(stateDir, { recursive: true, mode: 0o700 });
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
     try {
       fs.mkdirSync(lockPath, { mode: 0o700 });
       fs.writeFileSync(path.join(lockPath, "pid"), `${process.pid}\n`, { mode: 0o600 });
@@ -60,7 +61,19 @@ function acquireSingleton() {
           liveOwner = command.includes("clawos-surfaced");
         } catch {}
       }
-      if (liveOwner) process.exit(0);
+      if (liveOwner) {
+        // PAM sessions can outlive the system unit that launched Sway. An
+        // old broker cannot own windows in the replacement compositor.
+        let previousSocket;
+        try {
+          previousSocket = fs.readFileSync(`/proc/${owner}/environ`, 'utf8')
+            .split('\0').find((entry) => entry.startsWith('SWAYSOCK='))?.slice(9);
+        } catch {}
+        if (!previousSocket || previousSocket === process.env.SWAYSOCK || fs.existsSync(previousSocket)) process.exit(0);
+        try { process.kill(owner, 'SIGTERM'); } catch {}
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        continue;
+      }
       fs.rmSync(lockPath, { recursive: true, force: true });
     }
   }
@@ -68,7 +81,11 @@ function acquireSingleton() {
 }
 
 function releaseSingleton() {
-  try { fs.rmSync(lockPath, { recursive: true, force: true }); } catch {}
+  try {
+    if (fs.readFileSync(path.join(lockPath, 'pid'), 'utf8').trim() === String(process.pid)) {
+      fs.rmSync(lockPath, { recursive: true, force: true });
+    }
+  } catch {}
 }
 
 function cleanText(value, fallback = "", max = 160) {
@@ -92,6 +109,9 @@ function loadPersistentState() {
     // the work, but make the Agent canvas authoritative until asked otherwise.
     state.surface.visible = "agent";
     state.apps = {};
+    for (const record of Object.values(stored.tasks || {})) {
+      try { bindTask(record.sessionKey); } catch {}
+    }
     if (state.activity.state === "running") {
       state.activity.state = "waiting";
       state.activity.summary = "Work restored; waiting for Gateway activity";
@@ -123,6 +143,40 @@ function run(file, args, timeout = 5000) {
 
 function applicationMark(appId) {
   return `clawos-app-${crypto.createHash("sha256").update(appId).digest("hex").slice(0, 20)}`;
+}
+
+function bindTask(sessionKey) {
+  if (typeof sessionKey !== 'string' || !/^agent:[A-Za-z0-9_.-]+:[A-Za-z0-9_.:/-]{1,220}$/.test(sessionKey)) {
+    throw new Error('Open this surface from its owning conversation.');
+  }
+  const id = crypto.createHash('sha256').update(sessionKey).digest('hex').slice(0, 24);
+  state.tasks[id] = { sessionKey };
+  return id;
+}
+
+async function presentTaskSurface(surface, sessionKey) {
+  const id = bindTask(sessionKey);
+  writeState();
+  await run('/usr/lib/clawos/clawos-surface', [surface, sessionKey], 10_000);
+  state.surface = {visible: surface, sessionKey, appId: `${appIds[surface]}-${id}`};
+  if (surface === 'browser') {
+    const browserProfile = `clawos-task-${id}`;
+    const browserProfilePath = path.join(persistentStateDir, `browser-${id}`);
+    const profiles = JSON.parse(await run('/usr/bin/openclaw', ['browser', 'profiles', '--json'], 10_000));
+    if (!profiles.profiles?.some((profile) => profile.name === browserProfile)) {
+      await run('/usr/bin/openclaw', ['browser', 'create-profile', '--name', browserProfile,
+        '--driver', 'existing-session', '--user-data-dir', browserProfilePath], 10_000);
+    }
+    const configured = JSON.parse(await run('/usr/bin/openclaw',
+      ['config', 'get', `browser.profiles.${browserProfile}`, '--json'], 10_000));
+    if (configured.driver !== 'existing-session' || configured.userDataDir !== browserProfilePath || configured.attachOnly !== true) {
+      throw new Error('The task browser profile points elsewhere; repair it before using browser tools.');
+    }
+    state.surface.browserProfile = browserProfile;
+    state.surface.browserProfilePath = browserProfilePath;
+  }
+  writeState();
+  return state;
 }
 
 function treeContainers(node, containers = []) {
@@ -203,13 +257,15 @@ async function waitForApplicationWindow(beforeIds, beforeFocusedId, timeoutMs = 
   return null;
 }
 
-async function presentApplication(application) {
+async function presentApplication(application, sessionKey) {
   await run("/usr/lib/clawos/clawos-agent-panel", ["close"]).catch(() => {});
   if (application.kind === "surface") {
     if (!new Set(["agent", "terminal", "browser", "build"]).has(application.surface)) {
       throw new Error("Application declares an unknown ClawOS surface.");
     }
-    await run("/usr/lib/clawos/clawos-surface", [application.surface]);
+    if (application.surface !== 'agent' && sessionKey) return presentTaskSurface(application.surface, sessionKey);
+    writeState();
+    await run("/usr/lib/clawos/clawos-surface", [application.surface, sessionKey || '']);
     state.surface.visible = application.surface;
     writeState();
     return state;
@@ -247,8 +303,8 @@ async function presentApplication(application) {
   return state;
 }
 
-async function hideSurface(surface) {
-  const appId = appIds[surface];
+async function hideSurface(surface, sessionKey) {
+  const appId = `${appIds[surface]}-${bindTask(sessionKey)}`;
   await run("/usr/bin/swaymsg", [`[app_id=\"${appId}\"] move scratchpad`]).catch(() => {});
 }
 
@@ -262,18 +318,15 @@ async function handle(request) {
       return state;
     case "surface.present": {
       if (!surfaceIds.has(request.surface)) throw new Error("Unknown surface.");
-      await run("/usr/lib/clawos/clawos-surface", [request.surface]);
-      state.surface.visible = request.surface;
-      writeState();
-      return state;
+      return presentTaskSurface(request.surface, request.sessionKey);
     }
     case "surface.hide": {
       if (request.surface === "all") {
-        for (const surface of surfaceIds) await hideSurface(surface);
+        for (const surface of surfaceIds) await hideSurface(surface, request.sessionKey);
         await hideAllApplications();
       } else {
         if (!surfaceIds.has(request.surface)) throw new Error("Unknown surface.");
-        await hideSurface(request.surface);
+        await hideSurface(request.surface, request.sessionKey);
       }
       await run("/usr/lib/clawos/clawos-surface", ["agent"]);
       state.surface.visible = "agent";
@@ -300,12 +353,12 @@ async function handle(request) {
     case "app.open": {
       const application = resolveApplication({ appId: request.appId, desktopId: request.desktopId });
       if (!application) throw new Error("Unknown application.");
-      return presentApplication(application);
+      return presentApplication(application, request.sessionKey);
     }
     case "app.focus": {
       const application = resolveApplication({ appId: request.appId });
       if (!application) throw new Error("Unknown application.");
-      if (application.kind === "surface") return presentApplication(application);
+      if (application.kind === "surface") return presentApplication(application, request.sessionKey);
       await run("/usr/lib/clawos/clawos-agent-panel", ["close"]).catch(() => {});
       const mark = applicationMark(application.id);
       const container = markedContainer(await swayTree(), mark);
@@ -369,21 +422,29 @@ async function handle(request) {
   }
 }
 
-acquireSingleton();
+async function start() {
+await acquireSingleton();
 try { fs.unlinkSync(socketPath); } catch (error) { if (error.code !== "ENOENT") throw error; }
 loadPersistentState();
 writeState();
 
+let pendingAction = Promise.resolve();
 const server = net.createServer({ allowHalfOpen: true }, (connection) => {
   let input = "";
+  let handled = false;
   connection.setEncoding("utf8");
   connection.on("data", (chunk) => {
+    if (handled) return;
     input += chunk;
-    if (input.length > 16384) connection.destroy(new Error("Request too large."));
+    if (input.length > 16384) { connection.destroy(); return; }
     if (!input.includes("\n")) return;
     const line = input.slice(0, input.indexOf("\n"));
-    Promise.resolve()
-      .then(() => handle(JSON.parse(line)))
+    handled = true;
+    // Serialize window creation and focus changes: two concurrent requests
+    // must not discover or claim each other's new window.
+    const action = pendingAction.then(() => handle(JSON.parse(line)));
+    pendingAction = action.catch(() => {});
+    action
       .then((result) => connection.end(`${JSON.stringify({ ok: true, result })}\n`))
       .catch((error) => connection.end(`${JSON.stringify({ ok: false, error: cleanText(error.message, "Request failed") })}\n`));
   });
@@ -401,3 +462,8 @@ function shutdown() {
 process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);
 process.on("exit", releaseSingleton);
+}
+start().catch((error) => {
+  process.stderr.write(`clawos-surfaced: ${error.message}\n`);
+  process.exitCode = 1;
+});

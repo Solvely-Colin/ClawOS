@@ -21,7 +21,7 @@ return_to_agent() {
 }
 
 case "$focused_app" in
-  clawos-command|clawos-build|clawos-browse)
+  clawos-command|clawos-command-*|clawos-build|clawos-build-*|clawos-browse|clawos-browse-*)
     return_to_agent
     ;;
 esac
