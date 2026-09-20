@@ -262,6 +262,7 @@ export default definePluginEntry({
         "Keep terminal and browser work in the background by default.",
         "Present a ClawOS surface only when the user asks to watch/take over or visual inspection materially helps.",
         "Return to the agent surface after inspection is complete.",
+        "For a task browser, use the returned surface.browserProfile with the browser tool; never substitute the shared browser profile.",
       ],
       parameters: {
         type: "object",

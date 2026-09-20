@@ -28,11 +28,11 @@ In a task terminal, `CLAWOS_SESSION_KEY` identifies the conversation. The native
 submission helper reads a message on stdin and uses that key. Generic app
 windows without task ownership cannot submit through the shelf composer.
 
-Each task browser has a separate loopback debugging port. Its returned
-`browserProfilePath` contains Chromium's `DevToolsActivePort`; the old shared
-`clawos-browser` profile at port 9222 does not identify these task browsers.
-Automatic registration of these dynamic profiles in OpenClaw's browser tool
-is not implemented. The dedicated mail application profiles are unchanged.
+Each task browser has a separate loopback debugging port and registers an
+OpenClaw `existing-session` profile for its Chromium directory. Use the returned
+`surface.browserProfile` with OpenClaw's browser tool. ClawOS checks that the
+profile is attach-only and points to the expected task directory before
+returning it. The dedicated mail application profiles are unchanged.
 
 Task identity routes work between conversations of the same trusted OS user;
 it does not isolate mutually untrusted agents or user accounts.
@@ -48,4 +48,5 @@ The queue test uses a stand-in OpenClaw process and makes no inference claim.
 The 2026-09-19 checkpointed WHPX runtime test opened terminal, build, browser,
 and native conversation windows for two task keys. Eight distinct windows,
 separate tmux environments, exact TUI session arguments and independent browser
-debugging ports were checked. This is runtime evidence; no new ISO was built.
+debugging ports were checked. OpenClaw's browser tool attached to both task
+profiles and listed their tabs. This is runtime evidence; no new ISO was built.

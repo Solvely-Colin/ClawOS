@@ -167,6 +167,11 @@ async function presentTaskSurface(surface, sessionKey) {
       await run('/usr/bin/openclaw', ['browser', 'create-profile', '--name', browserProfile,
         '--driver', 'existing-session', '--user-data-dir', browserProfilePath], 10_000);
     }
+    const configured = JSON.parse(await run('/usr/bin/openclaw',
+      ['config', 'get', `browser.profiles.${browserProfile}`, '--json'], 10_000));
+    if (configured.driver !== 'existing-session' || configured.userDataDir !== browserProfilePath || configured.attachOnly !== true) {
+      throw new Error('The task browser profile points elsewhere; repair it before using browser tools.');
+    }
     state.surface.browserProfile = browserProfile;
     state.surface.browserProfilePath = browserProfilePath;
   }
