@@ -27,6 +27,7 @@ def task_for_node(node, tasks):
             if identifier == task_id(key) and app in {
                 'clawos-command-' + identifier, 'clawos-build-' + identifier,
                 'clawos-browse-' + identifier,
+                'clawos-conversation-' + identifier,
             }:
                 return key
         except (KeyError, TypeError, ValueError):
@@ -85,6 +86,8 @@ class Drafts:
 if __name__ == '__main__':
     try:
         key = os.environ.get('CLAWOS_SESSION_KEY') or focused_task()
+        if not key and '--focused' in sys.argv:
+            raise ValueError('No owning task on the focused window.')
         if not key:
             runtime = Path(os.environ.get('XDG_RUNTIME_DIR', f'/run/user/{os.getuid()}'))
             tasks = json.loads((runtime / 'clawos/activity.json').read_text()).get('tasks', {})

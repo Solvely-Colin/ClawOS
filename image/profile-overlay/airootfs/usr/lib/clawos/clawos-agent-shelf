@@ -250,7 +250,7 @@ class AgentShelf(Gtk.Window):
         menu = Gtk.Popover.new(button)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         box.set_border_width(7)
-        for label, command in (("Show Agent panel", ["/usr/lib/clawos/clawos-agent-panel", "open"]), ("Return to Agent", ["/usr/lib/clawos/clawos-surface", "agent"])):
+        for label, command in (("Open task conversation", ["/usr/lib/clawos/clawos-agent-panel", "open"]), ("Return to Agent", ["/usr/lib/clawos/clawos-surface", "agent"])):
             item = Gtk.Button(label=label)
             item.connect("clicked", lambda _button, cmd=command: subprocess.Popen(cmd))
             box.pack_start(item, False, False, 0)
@@ -262,7 +262,7 @@ class AgentShelf(Gtk.Window):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         box.set_border_width(7)
         actions = (
-            ("Show Agent panel", ["/usr/lib/clawos/clawos-agent-panel", "open"]),
+            ("Open task conversation", ["/usr/lib/clawos/clawos-agent-panel", "open"]),
             ("Review approvals", ["/usr/lib/clawos/clawos-approval"]),
             ("Machine actions", ["/usr/lib/clawos/clawos-actions-menu"]),
         )

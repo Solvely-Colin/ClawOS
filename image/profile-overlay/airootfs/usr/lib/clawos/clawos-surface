@@ -68,6 +68,7 @@ case "$surface" in
     /usr/bin/swaymsg '[app_id="^clawos-command(-|$)"] move scratchpad' >/dev/null 2>&1 || true
     /usr/bin/swaymsg '[app_id="^clawos-build(-|$)"] move scratchpad' >/dev/null 2>&1 || true
     /usr/bin/swaymsg '[app_id="^clawos-browse(-|$)"] move scratchpad' >/dev/null 2>&1 || true
+    /usr/bin/swaymsg '[app_id="^clawos-conversation-"] move scratchpad' >/dev/null 2>&1 || true
     /usr/lib/clawos/clawos-agent-window focus >/dev/null
     ;;
   terminal)

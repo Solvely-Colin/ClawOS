@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import test from "node:test";
+import { createHash } from 'node:crypto';
 
 const brokerPath = new URL("../profile-overlay/airootfs/usr/lib/clawos/clawos-surfaced", import.meta.url).pathname;
 
@@ -74,6 +75,13 @@ test("surface broker restores minimal activity state safely", async (t) => {
   });
   await stop(first);
 
+  const persistedPath = path.join(persistent, 'clawos/activity.json');
+  const saved = JSON.parse(fs.readFileSync(persistedPath, 'utf8'));
+  const key = 'agent:main:restored-task';
+  const identifier = createHash('sha256').update(key).digest('hex').slice(0, 24);
+  saved.tasks = {[identifier]: {sessionKey: key}};
+  fs.writeFileSync(persistedPath, JSON.stringify(saved));
+
   const second = spawn(process.execPath, [brokerPath], { env, stdio: "ignore" });
   children.push(second);
   await waitForSocket(socketPath);
@@ -83,4 +91,35 @@ test("surface broker restores minimal activity state safely", async (t) => {
   assert.equal(restored.activity.state, "waiting");
   assert.equal(restored.activity.summary, "Work restored; waiting for Gateway activity");
   assert.equal(restored.surface.visible, "agent");
+  assert.deepEqual(restored.tasks, {[identifier]: {sessionKey: key}});
+});
+
+test('a replacement compositor takes over a broker with a dead socket', async (t) => {
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'clawos-compositor-'));
+  const runtime = path.join(temporary, 'runtime');
+  fs.mkdirSync(runtime);
+  const oldSway = path.join(runtime, 'old-sway.sock');
+  const newSway = path.join(runtime, 'new-sway.sock');
+  fs.writeFileSync(oldSway, 'test compositor');
+  fs.writeFileSync(newSway, 'test compositor');
+  const socketPath = path.join(runtime, 'clawos', 'surface.sock');
+  const env = {...process.env, XDG_RUNTIME_DIR: runtime,
+    XDG_STATE_HOME: path.join(temporary, 'state'), CLAWOS_SURFACE_SOCKET: socketPath};
+  const children = [];
+  t.after(async () => {
+    for (const child of children) await stop(child);
+    fs.rmSync(temporary, {recursive: true, force: true});
+  });
+  const first = spawn(process.execPath, [brokerPath], {env: {...env, SWAYSOCK: oldSway}, stdio: 'ignore'});
+  children.push(first);
+  await waitForSocket(socketPath);
+  await request(socketPath, {action: 'activity.update', title: 'Preserve this task'});
+  fs.unlinkSync(oldSway);
+  const oldExit = new Promise((resolve) => first.once('exit', resolve));
+  const second = spawn(process.execPath, [brokerPath], {env: {...env, SWAYSOCK: newSway}, stdio: 'ignore'});
+  children.push(second);
+  await oldExit;
+  await waitForSocket(socketPath);
+  assert.equal((await request(socketPath, {action: 'status'})).activity.title, 'Preserve this task');
+  assert.equal(fs.readFileSync(path.join(runtime, 'clawos/surfaced.lock/pid'), 'utf8').trim(), String(second.pid));
 });

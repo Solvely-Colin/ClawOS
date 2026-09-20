@@ -29,6 +29,10 @@ focused_app="$(printf '%s' "$focused_json" | /usr/bin/jq -r '.app // ""' 2>/dev/
 focused_mark="$(printf '%s' "$focused_json" | /usr/bin/jq -r '.marks[]? | select(startswith("clawos-app-"))' 2>/dev/null | /usr/bin/head -n 1 || true)"
 panel_mark="$(printf '%s' "$focused_json" | /usr/bin/jq -r '.marks[]? | select(. == "clawos-agent-panel")' 2>/dev/null | /usr/bin/head -n 1 || true)"
 panel_state="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/clawos/agent-panel.json"
+if [[ "$focused_app" =~ ^clawos-(command|build|browse|conversation)-([0-9a-f]{24})$ ]]; then
+  task_key="$(/usr/bin/jq -r --arg id "${BASH_REMATCH[2]}" '.tasks[$id].sessionKey // empty' "$state_file" 2>/dev/null || true)"
+  [[ -z "$task_key" ]] || activity_name="${task_key#agent:}"
+fi
 
 if [[ -n "$panel_mark" && -r "$panel_state" ]]; then
   surface="$(/usr/bin/jq -r '.surfaceName // "Current surface"' "$panel_state" 2>/dev/null || true)"
